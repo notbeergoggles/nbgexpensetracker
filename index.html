@@ -930,36 +930,39 @@
 }
 
         function listenToExpensesChanges() {
-            if (!currentUser) return;
-            db.collection('users').doc(currentUser.uid).collection('expenses').onSnapshot(snapshot => {
-                expenses = [];
-                snapshot.forEach(doc => {
-                    expenses.push({ id: doc.id, ...doc.data() });
-                });
-                updateDashboard();
-                renderExpenseList();
-            });
-        }
+    if (!currentUser) return;
+    // Update to the same 'shared_expenses' collection
+    db.collection('shared_expenses').onSnapshot(snapshot => {
+        expenses = [];
+        snapshot.forEach(doc => {
+            expenses.push({ id: doc.id, ...doc.data() });
+        });
+        updateDashboard();
+        renderExpenseList();
+    });
+}
 
         async function saveExpenseToFirebase(expense) {
-            try {
-                const docRef = await db.collection('users').doc(currentUser.uid).collection('expenses').add(expense);
-                expense.id = docRef.id;
-                return expense;
-            } catch (error) {
-                console.error('Error saving expense:', error);
-                throw error;
-            }
-        }
+    try {
+        // Change path to 'shared_expenses'
+        const docRef = await db.collection('shared_expenses').add(expense);
+        expense.id = docRef.id;
+        return expense;
+    } catch (error) {
+        console.error('Error saving expense:', error);
+        throw error;
+    }
+}
 
-        async function deleteExpenseFromFirebase(id) {
-            try {
-                await db.collection('users').doc(currentUser.uid).collection('expenses').doc(id).delete();
-            } catch (error) {
-                console.error('Error deleting expense:', error);
-                throw error;
-            }
-        }
+async function deleteExpenseFromFirebase(id) {
+    try {
+        // Change path to 'shared_expenses'
+        await db.collection('shared_expenses').doc(id).delete();
+    } catch (error) {
+        console.error('Error deleting expense:', error);
+        throw error;
+    }
+}
 
         document.getElementById('expenseDate').valueAsDate = new Date();
 
