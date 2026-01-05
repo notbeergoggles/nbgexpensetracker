@@ -1061,7 +1061,7 @@
             const avgEntry = entryCount ? totalExpenses / entryCount : 0;
 
             // net: positive means Sayuri owes Kenny, negative means Kenny owes Sayuri
-            const net = (kennyTotalPaid - kennyTotalShare) - (sayuriTotalPaid - sayuriTotalShare);
+            const net = kennyTotalPaid - kennyTotalShare;
 
             return {
                 kennyTotalPaid,
