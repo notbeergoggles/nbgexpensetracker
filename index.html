@@ -994,7 +994,7 @@
                                 const successMsg = document.createElement('div');
                 successMsg.className = 'success-message';
                 successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
-                document.getElementById('add-expense').insertBefore(successMsg, document.getElementById('expenseForm'));
+               
                 // Insert the success message safely. The previous code used
                 // insertBefore on #add-expense with #expenseForm as the reference node,
                 // but #expenseForm isn't always a direct child of #add-expense which
