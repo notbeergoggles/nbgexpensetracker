@@ -512,6 +512,28 @@
     background: var(--color-surface);
     border-radius: 50%;
 }
+
+        .pie-slice {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+}
+
+.pie-slice:hover::after {
+    content: attr(data-label);
+    position: absolute;
+    top: -36px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-charcoal-800);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
     </style>
 </head>
 <body>
@@ -1063,7 +1085,28 @@ if (Math.abs(net) < 0.01) {
     });
 
     pie.style.background = `conic-gradient(${slices.join(',')})`;
-    pie.innerHTML = `<div class="pie-center"></div>`;
+    pie.innerHTML = `
+    <div class="pie-center">
+        <div style="text-align:center;">
+            <div style="font-size:12px;color:var(--color-text-secondary);">Total</div>
+            <div style="font-size:18px;font-weight:600;">SGD ${total.toFixed(2)}</div>
+        </div>
+    </div>
+`;
+
+
+            let start = 0;
+Object.entries(categoryTotals).forEach(([cat, value]) => {
+    const angle = (value / total) * 360;
+    const slice = document.createElement('div');
+
+    slice.className = 'pie-slice';
+    slice.style.clipPath = `polygon(50% 50%, 50% 0%, ${50 + 50 * Math.cos((start + angle) * Math.PI / 180)}% ${50 + 50 * Math.sin((start + angle) * Math.PI / 180)}%)`;
+    slice.dataset.label = `${cat}: SGD ${value.toFixed(2)}`;
+
+    pie.appendChild(slice);
+    start += angle;
+});
 }
 
 
