@@ -991,17 +991,24 @@
                     renderExpenseList();
                 }
 
-                const successMsg = document.createElement('div');
+                                const successMsg = document.createElement('div');
                 successMsg.className = 'success-message';
                 successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
-                document.getElementById('add-expense').insertBefore(successMsg, document.getElementById('expenseForm'));
-                setTimeout(() => successMsg.remove(), 3000);
-
-                document.getElementById('expenseForm').reset();
-                document.getElementById('expenseDate').valueAsDate = new Date();
-            } catch (error) {
-                alert('Error adding expense: ' + error.message);
-            }
+-                document.getElementById('add-expense').insertBefore(successMsg, document.getElementById('expenseForm'));
++                // Insert the success message safely. The previous code used
++                // insertBefore on #add-expense with #expenseForm as the reference node,
++                // but #expenseForm isn't always a direct child of #add-expense which
++                // caused: "The node before which the new node is to be inserted is not a child of this node."
++                // Use the form's parent (or insertAdjacentElement) instead and fall back to appendChild.
++                const form = document.getElementById('expenseForm');
++                if (form && form.parentNode) {
++                    // Insert just before the form (works even when the form is nested inside other elements)
++                    form.insertAdjacentElement('beforebegin', successMsg);
++                } else {
++                    const addExpense = document.getElementById('add-expense');
++                    if (addExpense) addExpense.appendChild(successMsg);
++                }
+                 setTimeout(() => successMsg.remove(), 3000);
         });
 
         function calculateTotals() {
