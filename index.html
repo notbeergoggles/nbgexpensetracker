@@ -883,6 +883,14 @@
                     <h2 style="margin: 0;">Expense History</h2>
                     <button type="button" class="btn btn--secondary btn--sm" id="exportBtn">Export to CSV</button>
                 </div>
+
+                <div class="card" style="margin-bottom: var(--space-16); padding: var(--space-12);">
+                    <div style="position: relative;">
+                        <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-gray-300);"></i>
+                        <input type="text" id="historySearch" class="form-control" placeholder="Search description or category..." style="padding-left: 35px;">
+                    </div>
+                </div>
+                
                 <div id="expenseList" class="expense-list">
                     <div class="empty-state">No expenses yet. Add one to get started!</div>
                 </div>
@@ -1454,8 +1462,9 @@ async function deleteExpenseFromFirebase(id) {
 }
 
         function renderExpenseList() {
-    const list = document.getElementById('expenseList');
-    if (!list) return;
+            const list = document.getElementById('expenseList');
+            const searchTerm = document.getElementById('historySearch')?.value.toLowerCase() || '';
+            if (!list) return;
 
     const categoryIcons = {
         'Food': { icon: 'fa-utensils', class: 'icon-food' },
@@ -1486,6 +1495,25 @@ async function deleteExpenseFromFirebase(id) {
             const [selYear, selMonth] = filter.split('-');
             return expenseYear === parseInt(selYear) && expenseMonth === (parseInt(selMonth) - 1);
         }
+    });
+            let matchesMonth = false;
+        if (filter === 'all') matchesMonth = true;
+        else {
+            const d = new Date(e.date);
+            if (filter === 'current') {
+                const now = new Date();
+                matchesMonth = (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth());
+            } else {
+                const [selYear, selMonth] = filter.split('-');
+                matchesMonth = (d.getFullYear() === parseInt(selYear) && d.getMonth() === (parseInt(selMonth) - 1));
+            }
+        }
+
+        // Search filter logic
+        const matchesSearch = e.description.toLowerCase().includes(searchTerm) || 
+                              e.category.toLowerCase().includes(searchTerm);
+
+        return matchesMonth && matchesSearch;
     });
 
     // 2. Sort the filtered expenses (ONLY ONE DECLARATION HERE)
@@ -1594,6 +1622,8 @@ async function handleDeleteExpense(id) {
             updateDashboard();
             renderExpenseList();
         });
+
+        document.getElementById('historySearch')?.addEventListener('input', renderExpenseList);
 
         // initialize UI from local storage if guest or before auth
         (function init() {
