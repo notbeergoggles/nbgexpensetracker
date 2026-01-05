@@ -921,11 +921,17 @@
                     localStorage.setItem('expenses', JSON.stringify(expenses));
                     updateDashboard();
                 }
+                // Success feedback
+                const successMsg = document.createElement('div');
+                successMsg.className = 'success-message';
+                successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
+                document.getElementById('add-expense').insertBefore(successMsg, document.getElementById('expenseForm'));
+                setTimeout(() => successMsg.remove(), 3000);
+                
                 document.getElementById('expenseForm').reset();
                 document.getElementById('expenseDate').valueAsDate = new Date();
             } catch (error) {
-                alert('Error adding expense: ' + error.message);
-            }
+
 
         });
 
