@@ -801,7 +801,8 @@
                     </div>
                 </div>
             </div>
-            <button id="whatsappShare" class="btn btn--secondary" style="margin-top: var(--space-12); width: 100%; background-color: #25D366; color: white; border: none;">
+            <button id="whatsappShare" class="btn btn--secondary" 
+                style="margin-top: var(--space-12); margin-bottom: var(--space-8); width: 100%; background-color: #25D366; color: white; border: none;">
                 <i class="fab fa-whatsapp"></i> Share Monthly Summary
             </button>
         
@@ -968,7 +969,7 @@
                 message += `• ${cat}: $${amt.toFixed(2)}\n`;
             });
         
-            message += `\n_Generated via Expense Tracker_`;
+            message += `\n_Generated via notbeergoggles Expense Tracker_`;
         
             // Encode for URL and open WhatsApp
             const encodedMsg = encodeURIComponent(message);
