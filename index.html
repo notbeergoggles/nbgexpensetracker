@@ -1118,21 +1118,20 @@
                 const color = categoryColors[cat] || '#ddd';
                 slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
                 slice.dataset.label = `${cat}: SGD ${val.toFixed(2)} (${(percent*100).toFixed(1)}%)`;
-                // --- HOVER LOGIC ---
-        slice.addEventListener('mouseenter', () => {
-            tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
-            tooltip.style.opacity = '1';
-        });
+                // 2. Event listeners now have access to 'tooltip' defined above
+                slice.addEventListener('mouseenter', () => {
+                    tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
+                    tooltip.style.opacity = '1';
+                });
 
-        slice.addEventListener('mousemove', (e) => {
-            // Positions tooltip 15px to the right and bottom of the cursor
-            tooltip.style.left = (e.clientX + 15) + 'px';
-            tooltip.style.top = (e.clientY + 15) + 'px';
-        });
+                slice.addEventListener('mousemove', (e) => {
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                });
 
-        slice.addEventListener('mouseleave', () => {
-            tooltip.style.opacity = '0';
-        });
+                slice.addEventListener('mouseleave', () => {
+                    tooltip.style.opacity = '0';
+                });
                 pie.appendChild(slice);
                 start += degrees;
             });
