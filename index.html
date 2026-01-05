@@ -917,9 +917,15 @@
             const date = document.getElementById('expenseDate').value;
             const category = document.getElementById('expenseCategory').value;
             const description = document.getElementById('expenseDescription').value;
-            const amount = parseFloat(document.getElementById('expenseAmount').value);
             const paidBy = document.querySelector('input[name="paidBy"]:checked').value;
-            const splitType = document.getElementById('splitType').value;
+            const amount = Number(document.getElementById('amount').value);
+const yourShare = Number(document.getElementById('yourShare').value);
+const herShare = Number(document.getElementById('herShare').value);
+            if (!amount || yourShare + herShare !== amount) {
+    alert('Shares must add up to total amount');
+    return;
+}
+
             
             let yourShare = 0, herShare = 0;
             
@@ -1002,14 +1008,20 @@ function calculateTotals() {
 
 
         function updateDashboard() {
-            const { yourTotalPaid, herTotalPaid, yourTotalShare, herTotalShare } = calculateTotals();
+            const {
+    kennyPaid,
+    sayuriPaid,
+    kennyShare,
+    sayuriShare
+} = calculateTotals();
+
             
-            document.getElementById('yourTotal').textContent = `SGD ${yourTotalPaid.toFixed(2)}`;
-            document.getElementById('herTotal').textContent = `SGD ${herTotalPaid.toFixed(2)}`;
-            document.getElementById('yourShare').textContent = `SGD ${yourTotalShare.toFixed(2)}`;
-            document.getElementById('herShare').textContent = `SGD ${herTotalShare.toFixed(2)}`;
+            document.getElementById('kennyTotal').textContent = `SGD ${kennyTotalPaid.toFixed(2)}`;
+            document.getElementById('sayuriTotal').textContent = `SGD ${sayuriTotalPaid.toFixed(2)}`;
+            document.getElementById('kennyShare').textContent = `SGD ${kennyTotalShare.toFixed(2)}`;
+            document.getElementById('sayuriShare').textContent = `SGD ${sayuriTotalShare.toFixed(2)}`;
             
-            const totalExpenses = yourTotalPaid + herTotalPaid;
+            const totalExpenses = kennyTotalPaid + sayuriTotalPaid;
             document.getElementById('totalExpenses').textContent = `SGD ${totalExpenses.toFixed(2)}`;
             document.getElementById('entryCount').textContent = expenses.length;
             document.getElementById('avgEntry').textContent = expenses.length > 0 ? `SGD ${(totalExpenses / expenses.length).toFixed(2)}` : 'SGD 0.00';
