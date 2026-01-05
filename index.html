@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NotBeerGoggles Shared Expenses Tracker</title>
@@ -605,8 +606,15 @@
 .icon-transport { color: #54a0ff; background: #ebf5ff; }
 .icon-shopping { color: #ee5253; background: #ffeded; }
 .icon-entertainment { color: #5f27cd; background: #f3ebff; }
-.icon-health { color: #10ac84; background: #ebf9f5; }
+.icon-beauty { color: #d63031; background: #fff0f0; }
+.icon-mika { color: #0984e3; background: #e1f5fe; }
 .icon-other { color: #8395a7; background: #f1f2f6; }
+
+.expense-amount-red {
+    font-weight: 700;
+    color: #e53935; /* Professional Red */
+    font-size: 15px;
+}
 
 /* Split Detail Badges */
 .split-details {
@@ -728,14 +736,12 @@
                         <div class="summary-label">Number of Entries</div>
                         <div class="summary-value" id="entryCount">0</div>
                     </div>
-                
-    <div class="card summary-card" style="border: none; box-shadow: none;">
-    <div class="summary-label">Daily Burn Rate</div>
-    <div class="summary-value" id="dailyBurnRate">SGD 0.00</div>
-</div>
+                    <div class="card summary-card" style="border: none; box-shadow: none;">
+                        <div class="summary-label">Daily Burn Rate</div>
+                        <div class="summary-value" id="dailyBurnRate">SGD 0.00</div>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <!-- Add Expense Tab -->
         <div id="add-expense" class="tab-content">
@@ -751,13 +757,15 @@
                         <label class="form-label">Category</label>
                         <select id="expenseCategory" class="form-control" required>
                             <option value="">Select a category</option>
+                            <option value="Beauty">Beauty</option>
+                            <option value="Entertainment">Entertainment</option>
                             <option value="Necessities">Necessities</option>
-                            <option value="Installments & Obligations">Installments & Obligations</option>
                             <option value="Food">Food</option>
                             <option value="Impt Miscellaneous">Impt Miscellaneous</option>
-                            <option value="Transport">Transport</option>
-                            <option value="Entertainment">Entertainment</option>
+                            <option value="Installments & Obligations">Installments & Obligations</option>
+                            <option value="Mika">Mika</option>
                             <option value="Shopping">Shopping</option>
+                            <option value="Transport">Transport</option>
                         </select>
                     </div>
 
@@ -880,6 +888,8 @@
             'Impt Miscellaneous': '#FFA07A',
             'Transport': '#98D8C8',
             'Entertainment': '#F7DC6F',
+            'Beauty': '#d63031',
+            'Mika': '#0984e3',
             'Shopping': '#BB8FCE'
         };
 
@@ -1321,7 +1331,8 @@ async function deleteExpenseFromFirebase(id) {
         'Transport': { icon: 'fa-car', class: 'icon-transport' },
         'Shopping': { icon: 'fa-shopping-cart', class: 'icon-shopping' },
         'Entertainment': { icon: 'fa-film', class: 'icon-entertainment' },
-        'Health': { icon: 'fa-heartbeat', class: 'icon-health' },
+        'Beauty': { icon: 'fa-sparkles', class: 'icon-beauty' },
+        'Mika': { icon: 'fa-paw', class: 'icon-mika' },
         'Other': { icon: 'fa-ellipsis-h', class: 'icon-other' }
     };
 
