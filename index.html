@@ -516,15 +516,37 @@
 /* Make sure the center hole doesn't cover the whole thing */
 .pie-center {
     position: absolute;
-    width: 50%; /* Smaller than the outer circle */
-    height: 50%;
-    background: white; /* Match your app background */
+    width: 60%;
+    height: 60%;
+    background: var(--color-white);
     border-radius: 50%;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 10;
-    pointer-events: none; /* Important: allows hovering through the hole */
+    pointer-events: none;
+    
+    /* Add these lines for text centering */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* Optional: styling for the specific text inside the center */
+.pie-center-label {
+    font-size: 10px;
+    color: var(--color-gray-400);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.pie-center-value {
+    font-size: 16px;
+    color: var(--color-charcoal-800);
+    font-weight: 700;
 }
 
 #pie-tooltip {
@@ -1109,7 +1131,12 @@
     if (!container) return;
     
     // Clear container
-    container.innerHTML = '<div class="pie-center"></div>';
+    container.innerHTML = `
+        <div class="pie-center">
+            <div class="pie-center-label">Total</div>
+            <div class="pie-center-value">$${total.toFixed(2)}</div>
+        </div>
+    `;
     
     let tooltip = document.getElementById('pie-tooltip');
     if (!tooltip) {
