@@ -506,42 +506,41 @@
     position: relative;
 }
 
+#categoryPieChart {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+}
+
+/* The center hole to make it a donut chart */
 .pie-center {
     position: absolute;
-    inset: 30%;
-    background: var(--color-surface);
+    width: 60%;
+    height: 60%;
+    background: var(--color-white);
     border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5; /* Sit on top of the SVG */
+    pointer-events: none; /* Let clicks pass through to the slices below */
 }
-
-        .pie-slice {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    pointer-events: auto; /* Required for hover detection */
-    transition: filter 0.2s;
-}
-
-.pie-slice:hover {
-    filter: brightness(1.1);
-    cursor: pointer;
-    z-index: 10; /* Bring the active slice to the front */
-}
-
 
 #pie-tooltip {
     position: fixed;
     background: var(--color-charcoal-800);
     color: white;
-    padding: 6px 10px;
+    padding: 6px 12px;
     border-radius: 6px;
     font-size: 12px;
-    white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.2s;
-    z-index: 1000;
-    box-shadow: var(--shadow-md);
+    transition: opacity 0.15s;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
+
 
 
     </style>
