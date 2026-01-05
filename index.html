@@ -962,41 +962,35 @@
             const templates = expenses.filter(e => e.isRecurring === true);
         
             for (const template of templates) {
-                // 1. Skip if installment expired
-                if (template.recurringUntil) {
-                    const endDate = new Date(template.recurringUntil);
-                    if (now > endDate) continue; 
+                const templateDate = new Date(template.date);
+                
+                // Skip if the template was created THIS month (to avoid the double-entry bug)
+                if (templateDate.getMonth() === currentMonth && templateDate.getFullYear() === currentYear) {
+                    continue;
                 }
         
-                // 2. IMPORTANT: Check if the template was JUST created today.
-                // If it was created today, we assume the user already "paid" for this month.
-                const templateDate = new Date(template.date);
-                const isCreatedThisMonth = (templateDate.getMonth() === currentMonth && templateDate.getFullYear() === currentYear);
+                // Check if installment expired
+                if (template.recurringUntil && now > new Date(template.recurringUntil)) continue;
         
-                // 3. Check if an instance exists
+                // Check if an instance for this month already exists
                 const alreadyLogged = expenses.some(e => {
                     const expDate = new Date(e.date);
                     return e.description === template.description && 
                            e.amount === template.amount &&
                            expDate.getMonth() === currentMonth &&
                            expDate.getFullYear() === currentYear &&
-                           e.isRecurring !== true; // Look for the non-template version
+                           e.isRecurring !== true;
                 });
         
-                // 4. Only add if it wasn't created this month AND no instance exists
-                if (!alreadyLogged && !isCreatedThisMonth) {
-                    console.log("Auto-adding missing recurring expense:", template.description);
+                if (!alreadyLogged) {
                     const newInstance = {
                         ...template,
                         date: new Date().toISOString().split('T')[0],
-                        isRecurring: false, 
+                        isRecurring: false,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     };
                     delete newInstance.id;
-                    
-                    if (currentUser && !isGuestMode) {
-                        await db.collection('shared_expenses').add(newInstance);
-                    }
+                    await db.collection('shared_expenses').add(newInstance);
                 }
             }
         }
@@ -1390,7 +1384,18 @@ async function deleteExpenseFromFirebase(id) {
     // 5. FIFTH: Save to Database
     try {
         if (currentUser && !isGuestMode) {
-            await saveExpenseToFirebase(expense);
+            if (isRecurring) {
+                // A. SAVE THE MASTER TEMPLATE (Hidden from UI)
+                const template = { ...expense, isRecurring: true };
+                await db.collection('shared_expenses').add(template);
+
+                // B. SAVE THIS MONTH'S ACTUAL EXPENSE (Visible in UI)
+                const firstInstance = { ...expense, isRecurring: false };
+                await db.collection('shared_expenses').add(firstInstance);
+            } else {
+                // Just a normal one-off expense
+                await db.collection('shared_expenses').add(expense);
+            }
         } else {
             expense.id = Date.now().toString();
             expense.createdAt = new Date().toISOString(); // Local fallback
