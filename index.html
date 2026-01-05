@@ -510,35 +510,35 @@
     position: relative;
     width: 200px;
     height: 200px;
-    margin: 0 auto;
+    margin: 20px auto;
 }
 
-/* The center hole to make it a donut chart */
+/* Make sure the center hole doesn't cover the whole thing */
 .pie-center {
     position: absolute;
-    width: 60%;
-    height: 60%;
-    background: var(--color-white);
+    width: 50%; /* Smaller than the outer circle */
+    height: 50%;
+    background: white; /* Match your app background */
     border-radius: 50%;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 5; /* Sit on top of the SVG */
-    pointer-events: none; /* Let clicks pass through to the slices below */
+    z-index: 10;
+    pointer-events: none; /* Important: allows hovering through the hole */
 }
 
 #pie-tooltip {
     position: fixed;
-    background: var(--color-charcoal-800);
+    background: #333;
     color: white;
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-radius: 4px;
     font-size: 12px;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.15s;
     z-index: 9999;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    transition: opacity 0.1s ease;
 }
 
 
@@ -1105,58 +1105,79 @@
         }
 
         function renderCategoryPie(categoryTotals, total) {
-            const pie = document.getElementById('categoryPieChart');
-            if (!pie) return;
-            
-            pie.innerHTML = '<div class="pie-center"></div>';
-            
-            let tooltip = document.getElementById('pie-tooltip');
-            if (!tooltip) {
-                tooltip = document.createElement('div');
-                tooltip.id = 'pie-tooltip';
-                document.body.appendChild(tooltip);
-            }
+    const container = document.getElementById('categoryPieChart');
+    if (!container) return;
+    
+    // Clear container
+    container.innerHTML = '<div class="pie-center"></div>';
+    
+    let tooltip = document.getElementById('pie-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'pie-tooltip';
+        document.body.appendChild(tooltip);
+    }
 
-            const keys = Object.keys(categoryTotals);
-            if (keys.length === 0) return;
+    const keys = Object.keys(categoryTotals);
+    if (keys.length === 0 || total === 0) return;
 
-            let start = 0;
-            keys.forEach((cat) => {
-                const val = categoryTotals[cat] || 0;
-                const percent = total ? val / total : 0;
-                const degrees = percent * 360;
-                const end = start + degrees;
-                
-                const slice = document.createElement('div');
-                slice.className = 'pie-slice';
-                const color = categoryColors[cat] || '#ddd';
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.style.display = "block";
+    svg.style.width = "100%";
+    svg.style.height = "100%";
 
-                // 1. Set the visual gradient
-                slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${end}deg, transparent ${end}deg 360deg)`;
+    let startAngle = -90; // Start at the top (12 o'clock)
 
-                // 2. THE FIX: Physically clip the div to the wedge shape
-                // This allows the mouse to "see through" to slices underneath.
-                slice.style.clipPath = `conic-gradient(from 0deg, white ${start}deg ${end}deg, transparent ${end}deg 360deg)`;
+    keys.forEach((cat) => {
+        const val = categoryTotals[cat] || 0;
+        const sliceAngle = (val / total) * 360;
+        const endAngle = startAngle + sliceAngle;
 
-                // 3. Hover Events
-                slice.addEventListener('mouseenter', () => {
-                    tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
-                    tooltip.style.opacity = '1';
-                });
+        // Convert angles to Radians
+        const x1 = 50 + 50 * Math.cos(Math.PI * startAngle / 180);
+        const y1 = 50 + 50 * Math.sin(Math.PI * startAngle / 180);
+        const x2 = 50 + 50 * Math.cos(Math.PI * endAngle / 180);
+        const y2 = 50 + 50 * Math.sin(Math.PI * endAngle / 180);
 
-                slice.addEventListener('mousemove', (e) => {
-                    tooltip.style.left = (e.clientX + 15) + 'px';
-                    tooltip.style.top = (e.clientY + 15) + 'px';
-                });
+        const largeArcFlag = sliceAngle > 180 ? 1 : 0;
 
-                slice.addEventListener('mouseleave', () => {
-                    tooltip.style.opacity = '0';
-                });
+        // Path: Move to center, Line to edge, Arc to next edge, Close
+        const d = [
+            `M 50 50`,
+            `L ${x1} ${y1}`,
+            `A 50 50 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+            `Z`
+        ].join(' ');
 
-                pie.appendChild(slice);
-                start += degrees;
-            });
-        }
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", categoryColors[cat] || '#ddd');
+        path.style.cursor = "pointer";
+
+        path.addEventListener('mouseenter', () => {
+            path.style.filter = "brightness(1.1)";
+            const percent = (val / total * 100).toFixed(1);
+            tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${percent}%)`;
+            tooltip.style.opacity = '1';
+        });
+
+        path.addEventListener('mousemove', (e) => {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        });
+
+        path.addEventListener('mouseleave', () => {
+            path.style.filter = "none";
+            tooltip.style.opacity = '0';
+        });
+
+        svg.appendChild(path);
+        startAngle = endAngle;
+    });
+
+    container.appendChild(svg);
+}
 
         function renderExpenseList() {
             const list = document.getElementById('expenseList');
