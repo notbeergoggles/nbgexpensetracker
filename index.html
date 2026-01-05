@@ -824,6 +824,7 @@
                             <option value="Equal">Split Equally (50/50)</option>
                             <option value="Full">Full (No Split)</option>
                             <option value="Custom">Custom Split</option>
+                            <option value="PayForOther">Pay for Other</option>
                         </select>
                     </div>
 
@@ -1137,6 +1138,16 @@ async function deleteExpenseFromFirebase(id) {
                     yourShare = 0;
                     herShare = amount;
                 }
+            } else if (splitType === 'PayForOther') { // Add this new block
+                if (paidBy === 'Kenny') {
+                    // Kenny paid, but it's all Sayuri's share
+                    yourShare = 0;
+                    herShare = amount;
+                } else {
+                    // Sayuri paid, but it's all Kenny's share
+                    yourShare = amount;
+                    herShare = 0;
+                }
             } else if (splitType === 'Custom') {
                 const yourPercent = Number(document.getElementById('yourSharePercent').value) / 100;
                 if (Number.isNaN(yourPercent)) {
@@ -1399,14 +1410,19 @@ async function deleteExpenseFromFirebase(id) {
         // 3. Custom Split Logic
         // Shows details only if it's NOT a perfect 50/50 split
         const isCustom = Math.abs(parseFloat(e.yourShare) - parseFloat(e.herShare)) > 0.01;
-        const splitHtml = isCustom ? `
-            <div class="split-details">
-                <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
-                <span>|</span>
-                <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
-            </div>
-        ` : '';
-
+        const isPayForOther = (e.yourShare == 0 || e.herShare == 0) && (e.amount > 0);
+        let splitLabel = '';
+            if (isPayForOther) {
+                splitLabel = `<div class="split-details" style="background:#fff0f0; border-color:#ffcccc;">
+                                <span class="split-label">Full Reimbursable</span>
+                              </div>`;
+            } else if (isCustom) {
+                splitLabel = `
+                    <div class="split-details">
+                        <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
+                        <span>|</span>
+                        <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
+                    </div>`;
         div.innerHTML = `
             <div style="display: flex; align-items: center; width: 100%;">
                 <div class="category-icon-circle ${catData.class}">
@@ -1420,7 +1436,7 @@ async function deleteExpenseFromFirebase(id) {
                             <div style="font-size: 12px; color: #666; margin-top: 2px;">
                                 ${e.date} • ${e.category}
                             </div>
-                            ${splitHtml}
+                            ${splitLabel}
                         </div>
                         <div style="text-align: right;">
                             <div class="expense-amount-red">
