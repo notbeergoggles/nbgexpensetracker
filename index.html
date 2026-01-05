@@ -917,17 +917,17 @@
 
         async function loadExpensesFromFirebase() {
             try {
-                const querySnapshot = await db.collection('users').doc(currentUser.uid).collection('expenses').get();
-                expenses = [];
-                querySnapshot.forEach(doc => {
-                    expenses.push({ id: doc.id, ...doc.data() });
-                });
-                updateDashboard();
-                renderExpenseList();
-            } catch (error) {
-                console.error('Error loading expenses:', error);
-            }
-        }
+                const querySnapshot = await db.collection('shared_expenses').get(); 
+        expenses = [];
+        querySnapshot.forEach(doc => {
+            expenses.push({ id: doc.id, ...doc.data() });
+        });
+        updateDashboard();
+        renderExpenseList();
+    } catch (error) {
+        console.error('Error loading expenses:', error);
+    }
+}
 
         function listenToExpensesChanges() {
             if (!currentUser) return;
