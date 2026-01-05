@@ -441,6 +441,29 @@
             color: var(--color-text-secondary);
         }
 
+        .success-message {
+            padding: var(--space-12) var(--space-16);
+            background: rgba(33, 128, 141, 0.1);
+            border: 1px solid var(--color-primary);
+            border-radius: var(--radius-base);
+            color: var(--color-primary);
+            text-align: center;
+            font-weight: 500;
+            margin-bottom: var(--space-16);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             body {
@@ -522,13 +545,13 @@
             <div class="grid grid-2">
                 <div class="card card--highlight">
                     <div class="summary-item">
-                        <div class="summary-label">Your Total Paid</div>
+                        <div class="summary-label">Kenny Total Paid</div>
                         <div class="summary-value" id="yourTotal">SGD 0.00</div>
                     </div>
                 </div>
                 <div class="card card--highlight">
                     <div class="summary-item">
-                        <div class="summary-label">Her Total Paid</div>
+                        <div class="summary-label">Sayuri Total Paid</div>
                         <div class="summary-value" id="herTotal">SGD 0.00</div>
                     </div>
                 </div>
@@ -542,7 +565,7 @@
                         <div class="summary-value" id="yourShare">SGD 0.00</div>
                     </div>
                     <div class="summary-item">
-                        <div class="summary-label">Her Share</div>
+                        <div class="summary-label">Sayuri Share</div>
                         <div class="summary-value" id="herShare">SGD 0.00</div>
                     </div>
                 </div>
@@ -558,6 +581,7 @@
             <div class="card">
                 <h2>Spending by Category</h2>
                 <div id="categoryChart"></div>
+                <canvas id="categoryPieChart" style="margin-top: var(--space-20); max-width: 400px; margin-left: auto; margin-right: auto;"></canvas>
             </div>
 
             <div class="card">
@@ -617,12 +641,12 @@
                         <label class="form-label">Paid By</label>
                         <div style="display: flex; gap: var(--space-12); margin-top: var(--space-8);">
                             <label style="display: flex; align-items: center; gap: var(--space-8); cursor: pointer;">
-                                <input type="radio" name="paidBy" value="You" required>
-                                <span>Me</span>
+                                <input type="radio" name="paidBy" value="Kenny" required>
+                                <span>Kenny</span>
                             </label>
                             <label style="display: flex; align-items: center; gap: var(--space-8); cursor: pointer;">
-                                <input type="radio" name="paidBy" value="Her" required>
-                                <span>My Girlfriend</span>
+                                <input type="radio" name="paidBy" value="Sayuri" required>
+                                <span>Sayuri</span>
                             </label>
                         </div>
                     </div>
@@ -730,17 +754,8 @@
                 try {
                     await auth.signInWithEmailAndPassword(email, password);
                 } catch (error) {
-                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-login-credentials') {
-                        // Try to create account if sign-in fails
-                        try {
-                            await auth.createUserWithEmailAndPassword(email, password);
-                        } catch (createError) {
-                            if (createError.code === 'auth/email-already-in-use') {
-                                throw new Error('Email already exists. Please sign in with the correct password.');
-                            } else {
-                                throw createError;
-                            }
-                        }
+                    if (error.code === 'auth/user-not-found') {
+                        await auth.createUserWithEmailAndPassword(email, password);
                     } else {
                         throw error;
                     }
@@ -908,6 +923,7 @@
                 }
                 document.getElementById('expenseForm').reset();
                 document.getElementById('expenseDate').valueAsDate = new Date();
+                showSuccessMessage(`Expense added: SGD ${amount.toFixed(2)} for ${description}`);
             } catch (error) {
                 alert('Error adding expense: ' + error.message);
             }
@@ -989,6 +1005,50 @@
                 }).join('');
             
             document.getElementById('categoryChart').innerHTML = chartHtml;
+            updatePieChart(categoryTotals);
+        }
+
+        function updatePieChart(categoryTotals) {
+            const ctx = document.getElementById('categoryPieChart');
+            if (!ctx) return;
+
+            const labels = Object.keys(categoryTotals);
+            const data = Object.values(categoryTotals);
+            const colors = labels.map(cat => categoryColors[cat] || '#999999');
+
+            if (pieChartInstance) {
+                pieChartInstance.data.labels = labels;
+                pieChartInstance.data.datasets[0].data = data;
+                pieChartInstance.data.datasets[0].backgroundColor = colors;
+                pieChartInstance.update();
+            } else {
+                pieChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors,
+                            borderColor: 'var(--color-surface)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: 'var(--color-text)',
+                                    font: { size: 12 },
+                                    padding: 15
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         function renderExpenseList() {
@@ -1000,7 +1060,7 @@
                             <div class="expense-category">${exp.category}</div>
                             <div class="expense-description">${exp.description}</div>
                             <div class="expense-details">${new Date(exp.date).toLocaleDateString('en-SG')} • Paid by ${exp.paidBy}</div>
-                            <div class="expense-payer">Your share: SGD ${exp.yourShare.toFixed(2)} | Her share: SGD ${exp.herShare.toFixed(2)}</div>
+                            <div class="expense-payer">Kenny: SGD ${exp.yourShare.toFixed(2)} | Sayuri: SGD ${exp.herShare.toFixed(2)}</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: var(--space-12);">
                             <div class="expense-amount">SGD ${exp.amount.toFixed(2)}</div>
