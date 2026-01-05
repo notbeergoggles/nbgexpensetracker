@@ -870,6 +870,18 @@
                         <input type="number" id="expenseAmount" class="form-control" placeholder="0.00" step="0.01" required>
                     </div>
 
+                    <div class="form-group" style="margin-top: var(--space-16); padding: var(--space-12); background: var(--color-gray-200); border-radius: var(--radius-base);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="isRecurring" style="width: 18px; height: 18px;">
+                            <label for="isRecurring" style="margin-bottom: 0; font-weight: 600;">Monthly Recurring</label>
+                        </div>
+                        
+                        <div id="recurringOptions" style="display: none; margin-top: 10px; border-top: 1px solid #ddd; pt: 10px;">
+                            <label style="font-size: 12px; color: var(--color-text-secondary);">End Date (Optional - leave blank for forever)</label>
+                            <input type="date" id="recurringUntil" class="form-control">
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label">Paid By</label>
                         <div style="display: flex; gap: var(--space-12); margin-top: var(--space-8);">
@@ -933,6 +945,50 @@
     </div>
 
     <script>
+        async function processRecurringExpenses() {
+            const now = new Date();
+            const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
+        
+            // 1. Find all "Master" recurring templates
+            const templates = expenses.filter(e => e.isRecurring);
+        
+            for (const template of templates) {
+                // Check if expired
+                if (template.recurringUntil && new Date() > new Date(template.recurringUntil)) {
+                    continue; 
+                }
+        
+                // Check if this month's instance already exists
+                const alreadyLogged = expenses.some(e => 
+                    e.description === template.description && 
+                    e.amount === template.amount &&
+                    new Date(e.date).getMonth() === now.getMonth() &&
+                    new Date(e.date).getFullYear() === now.getFullYear() &&
+                    !e.isRecurring // We don't count the template itself
+                );
+        
+                if (!alreadyLogged) {
+                    // Auto-log for this month
+                    const newInstance = {
+                        ...template,
+                        date: new Date().toISOString().split('T')[0], // Today's date
+                        isRecurring: false, // This is the instance, not the template
+                        templateId: template.id, // Reference to original
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    delete newInstance.id;
+                    
+                    await db.collection('shared_expenses').add(newInstance);
+                    console.log(`Auto-added recurring expense: ${template.description}`);
+                }
+            }
+        }
+        
+        // Logic to show/hide the date picker
+        document.getElementById('isRecurring').addEventListener('change', function(e) {
+            document.getElementById('recurringOptions').style.display = e.target.checked ? 'block' : 'none';
+        });
+        
         function generateWhatsAppSummary() {
             const data = calculateTotals();
             const filter = document.getElementById('monthFilter').value;
@@ -1177,6 +1233,7 @@
             expenses.push({ id: doc.id, ...doc.data() });
         });
         populateMonthFilter();
+        processRecurringExpenses();
         updateDashboard();
         renderExpenseList();
     });
@@ -1249,6 +1306,23 @@ async function deleteExpenseFromFirebase(id) {
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const isRecurring = document.getElementById('isRecurring').checked;
+            const recurringUntil = document.getElementById('recurringUntil').value;
+            
+            const expenseData = {
+                description,
+                amount: parseFloat(amount),
+                category,
+                date,
+                paidBy,
+                splitType,
+                yourShare: parseFloat(yourShare),
+                herShare: parseFloat(herShare),
+                isRecurring: isRecurring,
+                recurringUntil: recurringUntil || null, // null means forever
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
             const date = document.getElementById('expenseDate').value;
             const category = document.getElementById('expenseCategory').value;
             const description = document.getElementById('expenseDescription').value;
