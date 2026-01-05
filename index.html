@@ -519,12 +519,9 @@
     border-radius: 50%;
 }
 
-.pie-slice:hover::after {
-    content: attr(data-label);
-    position: absolute;
-    top: -36px;
-    left: 50%;
-    transform: translateX(-50%);
+
+#pie-tooltip {
+    position: fixed;
     background: var(--color-charcoal-800);
     color: white;
     padding: 6px 10px;
@@ -532,6 +529,16 @@
     font-size: 12px;
     white-space: nowrap;
     pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 1000;
+    box-shadow: var(--shadow-md);
+}
+
+/* Keep this to highlight the slice on hover */
+.pie-slice:hover {
+    filter: brightness(1.1);
+    cursor: pointer;
 }
 
     </style>
@@ -1111,6 +1118,21 @@
                 const color = categoryColors[cat] || '#ddd';
                 slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
                 slice.dataset.label = `${cat}: SGD ${val.toFixed(2)} (${(percent*100).toFixed(1)}%)`;
+                // --- HOVER LOGIC ---
+        slice.addEventListener('mouseenter', () => {
+            tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
+            tooltip.style.opacity = '1';
+        });
+
+        slice.addEventListener('mousemove', (e) => {
+            // Positions tooltip 15px to the right and bottom of the cursor
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        });
+
+        slice.addEventListener('mouseleave', () => {
+            tooltip.style.opacity = '0';
+        });
                 pie.appendChild(slice);
                 start += degrees;
             });
