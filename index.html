@@ -959,50 +959,43 @@
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
         
-            // 1. Find all "Master" recurring templates
             const templates = expenses.filter(e => e.isRecurring === true);
         
             for (const template of templates) {
-                // Check if installment has expired
+                // 1. Skip if installment expired
                 if (template.recurringUntil) {
                     const endDate = new Date(template.recurringUntil);
                     if (now > endDate) continue; 
                 }
         
-                // 2. Check if this month's instance already exists
-                // We look for an expense with same description/amount in the current month
+                // 2. IMPORTANT: Check if the template was JUST created today.
+                // If it was created today, we assume the user already "paid" for this month.
+                const templateDate = new Date(template.date);
+                const isCreatedThisMonth = (templateDate.getMonth() === currentMonth && templateDate.getFullYear() === currentYear);
+        
+                // 3. Check if an instance exists
                 const alreadyLogged = expenses.some(e => {
                     const expDate = new Date(e.date);
                     return e.description === template.description && 
                            e.amount === template.amount &&
                            expDate.getMonth() === currentMonth &&
                            expDate.getFullYear() === currentYear &&
-                           e.isRecurring !== true; // Important: don't match the template itself
+                           e.isRecurring !== true; // Look for the non-template version
                 });
         
-                if (!alreadyLogged) {
+                // 4. Only add if it wasn't created this month AND no instance exists
+                if (!alreadyLogged && !isCreatedThisMonth) {
                     console.log("Auto-adding missing recurring expense:", template.description);
-                    
                     const newInstance = {
                         ...template,
-                        date: new Date().toISOString().split('T')[0], // Today's date YYYY-MM-DD
-                        isRecurring: false, // This is the actual expense, not the template
+                        date: new Date().toISOString().split('T')[0],
+                        isRecurring: false, 
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     };
-                    delete newInstance.id; // Let Firebase generate a new ID
+                    delete newInstance.id;
                     
-                    try {
-                        if (currentUser && !isGuestMode) {
-                            await db.collection('shared_expenses').add(newInstance);
-                        } else {
-                            newInstance.id = Date.now().toString();
-                            expenses.push(newInstance);
-                            localStorage.setItem('expenses', JSON.stringify(expenses));
-                            updateDashboard();
-                            renderExpenseList();
-                        }
-                    } catch (err) {
-                        console.error("Error auto-adding expense:", err);
+                    if (currentUser && !isGuestMode) {
+                        await db.collection('shared_expenses').add(newInstance);
                     }
                 }
             }
@@ -1434,6 +1427,9 @@ async function deleteExpenseFromFirebase(id) {
 });
 
         function calculateTotals() {
+            // Filter out the 'Master Templates' so they don't affect your balance
+            const activeExpenses = expenses.filter(e => e.isRecurring !== true);
+            
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
@@ -1442,7 +1438,7 @@ async function deleteExpenseFromFirebase(id) {
             // Get the filter value
             const filter = document.getElementById('monthFilter')?.value || 'current';
         
-            const filteredExpenses = expenses.filter(e => {
+            const filteredExpenses = activeExpenses.filter(e => {
                 if (filter === 'all') return true;
                 
                 const d = new Date(e.date);
@@ -1483,7 +1479,7 @@ async function deleteExpenseFromFirebase(id) {
             });
         
             // Daily Burn Rate: Still always based on the current month's total / days elapsed
-            const monthOnlyExpenses = expenses.filter(e => {
+            const monthOnlyExpenses = activeExpenses.filter(e => {
                 const d = new Date(e.date);
                 return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
             });
@@ -1608,6 +1604,9 @@ async function deleteExpenseFromFirebase(id) {
 }
 
         function renderExpenseList() {
+            // Filter out templates so they don't show in the list
+    const displayExpenses = expenses.filter(e => e.isRecurring !== true);
+            
     const list = document.getElementById('expenseList');
     const searchTerm = document.getElementById('historySearch')?.value.toLowerCase() || '';
     if (!list) return;
@@ -1628,7 +1627,7 @@ async function deleteExpenseFromFirebase(id) {
     const filter = document.getElementById('monthFilter')?.value || 'current';
 
     // 1. Filter the expenses by Month AND Search Term
-    const filteredExpenses = expenses.filter(e => {
+    const filteredExpenses = dailyExpenses.filter(e => {
         let matchesMonth = false;
         const d = new Date(e.date);
         const expenseYear = d.getFullYear();
