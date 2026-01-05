@@ -1009,6 +1009,23 @@
                     if (addExpense) addExpense.appendChild(successMsg);
                 }
                  setTimeout(() => successMsg.remove(), 3000);
+
+                // Reset form and UI
+                if (expenseForm) {
+                    expenseForm.reset();
+                    document.getElementById('expenseDate').valueAsDate = new Date();
+                }
+                const customSection = document.getElementById('customSplitSection');
+                if (customSection) customSection.style.display = 'none';
+                const herPercent = document.getElementById('herSharePercent');
+                if (herPercent) herPercent.value = '';
+                const yourPercent = document.getElementById('yourSharePercent');
+                if (yourPercent) yourPercent.value = '';
+
+            } catch (error) {
+                alert('Error saving expense: ' + (error && error.message ? error.message : error));
+                console.error(error);
+            }
         });
 
         function calculateTotals() {
