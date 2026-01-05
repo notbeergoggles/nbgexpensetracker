@@ -1515,6 +1515,7 @@ async function deleteExpenseFromFirebase(id) {
 
         return matchesMonth && matchesSearch;
     });
+        }
 
     // 2. Sort the filtered expenses (ONLY ONE DECLARATION HERE)
     const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
