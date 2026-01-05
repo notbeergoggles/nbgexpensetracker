@@ -1105,7 +1105,19 @@
         function renderCategoryPie(categoryTotals, total) {
             const pie = document.getElementById('categoryPieChart');
             if (!pie) return;
+            // Clear pie and add center circle
             pie.innerHTML = '<div class="pie-center"></div>';
+            
+            // 1. Declare the variable at the top level of the function
+            let tooltip = document.getElementById('pie-tooltip');
+            
+            // 2. Initialize it if it doesn't exist
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'pie-tooltip';
+                document.body.appendChild(tooltip);
+            }
+            
             const keys = Object.keys(categoryTotals);
             if (keys.length === 0) return;
             let start = 0;
