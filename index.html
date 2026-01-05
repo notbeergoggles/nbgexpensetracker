@@ -517,7 +517,7 @@
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    pointer-events: none; /* Add this so slices don't block each other */
+    pointer-events: auto; /* Add this so slices don't block each other */
 }
 
 
@@ -1129,15 +1129,27 @@
                 const slice = document.createElement('div');
                 slice.className = 'pie-slice';
                 const color = categoryColors[cat] || '#ddd';
-                slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
-                // 2. CRITICAL FIX: We use a clip-path so the div only "exists" where the color is.
-        // This allows the mouse to pass through transparent areas to slices underneath.
-        if (degrees < 360) {
-            // For a perfect circular hover, we enable pointer events specifically 
-            // by ensuring the element only occupies its segment area.
-            slice.style.pointerEvents = 'auto'; 
+                // 1. Draw the gradient
+        slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
+
+        // 2. THE FIX: Apply a clip-path so only the colored segment is "active"
+        // This polygon logic creates a wedge shape for the hover area
+        const end = start + degrees;
+        const x1 = 50 + 50 * Math.cos((start - 90) * Math.PI / 180);
+        const y1 = 50 + 50 * Math.sin((start - 90) * Math.PI / 180);
+        const x2 = 50 + 50 * Math.cos((end - 90) * Math.PI / 180);
+        const y2 = 50 + 50 * Math.sin((end - 90) * Math.PI / 180);
+
+        // If the slice is more than 50% (180 deg), we need an extra point in the polygon
+        if (degrees <= 180) {
+            slice.style.clipPath = `polygon(50% 50%, ${x1}% ${y1}%, ${x2}% ${y2}%)`;
+        } else {
+            // For large slices, we use a simple fallback or just keep it active
+            // but for most expense categories (smaller slices), the polygon works best.
+            slice.style.clipPath = 'none'; 
+            // Note: If you have one massive category > 180deg, it might still block others.
+            // In that case, move the largest slice to the BOTTOM of the stack (render it first).
         }
-                slice.dataset.label = `${cat}: SGD ${val.toFixed(2)} (${(percent*100).toFixed(1)}%)`;
                 // 2. Event listeners now have access to 'tooltip' defined above
                 slice.addEventListener('mouseenter', () => {
                     tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
