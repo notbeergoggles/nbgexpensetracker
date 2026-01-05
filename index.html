@@ -745,6 +745,16 @@
                 </div>
             </div>
 
+            <div class="card" style="margin-bottom: var(--space-16); padding: var(--space-12);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: var(--font-size-base);">View Period</h3>
+                    <select id="monthFilter" class="form-control" style="width: auto; padding: 4px 12px;">
+                        <option value="current">Current Month</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+            </div>
+            
             <div class="card">
                 <h2>Settlement Summary</h2>
                 <div class="grid grid-2" style="margin-top: var(--space-16);">
@@ -1230,52 +1240,63 @@ async function deleteExpenseFromFirebase(id) {
         });
 
         function calculateTotals() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            const currentDay = now.getDate();
+            
+            // Get the filter value
+            const filter = document.getElementById('monthFilter')?.value || 'current';
+        
+            // 1. Filter the expenses based on selection
+            const filteredExpenses = expenses.filter(e => {
+                if (filter === 'all') return true;
+                const d = new Date(e.date);
+                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            });
+        
+            let totalExpenses = 0;
             let kennyTotalPaid = 0;
             let sayuriTotalPaid = 0;
             let kennyTotalShare = 0;
             let sayuriTotalShare = 0;
-            let totalExpenses = 0;
-            const now = new Date();
-            const currentDay = now.getDate();
-            const categoryTotals = {};
-            const entryCount = expenses.length;
-            
-
-            expenses.forEach(e => {
+            let categoryTotals = {};
+        
+            // Use filteredExpenses for all dashboard calculations
+            filteredExpenses.forEach(e => {
                 const amt = Number(e.amount) || 0;
                 totalExpenses += amt;
-
-                const payer = (e.paidBy || '').toString();
-                if (payer.toLowerCase().includes('kenny')) {
-                    kennyTotalPaid += amt;
-                } else if (payer.toLowerCase().includes('sayuri') || payer.toLowerCase().includes('her')) {
-                    sayuriTotalPaid += amt;
-                }
-
-                const y = Number(e.yourShare) || 0;
-                const h = Number(e.herShare) || 0;
-                kennyTotalShare += y;
-                sayuriTotalShare += h;
-
+                
+                if (e.paidBy === 'Kenny') kennyTotalPaid += amt;
+                else sayuriTotalPaid += amt;
+        
+                kennyTotalShare += Number(e.yourShare || 0);
+                sayuriTotalShare += Number(e.herShare || 0);
+        
                 if (e.category) {
                     categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amt;
                 }
             });
-
-            const avgEntry = entryCount ? totalExpenses / entryCount : 0;
-            const dailyBurn = totalExpenses / currentDay;
-
-            // net: positive means Sayuri owes Kenny, negative means Kenny owes Sayuri
+        
+            // Daily Burn Rate: Still always based on the current month's total / days elapsed
+            const monthOnlyExpenses = expenses.filter(e => {
+                const d = new Date(e.date);
+                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            });
+            const monthTotal = monthOnlyExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+            const dailyBurn = monthTotal / currentDay;
+        
+            // Settlement: Usually best to keep this "All Time" so debts don't disappear, 
+            // but here we use the filtered view's net for the dashboard display
             const net = kennyTotalPaid - kennyTotalShare;
-
+        
             return {
                 kennyTotalPaid,
                 sayuriTotalPaid,
                 kennyTotalShare,
                 sayuriTotalShare,
                 totalExpenses,
-                entryCount,
-                avgEntry,
+                entryCount: filteredExpenses.length,
                 categoryTotals,
                 net,
                 dailyBurn: dailyBurn || 0
@@ -1494,6 +1515,10 @@ async function handleDeleteExpense(id) {
                  .replace(/\"/g, "&quot;")
                  .replace(/'/g, "&#039;");
         }
+
+        document.getElementById('monthFilter').addEventListener('change', () => {
+            updateDashboard();
+        });
 
         // initialize UI from local storage if guest or before auth
         (function init() {
