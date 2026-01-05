@@ -621,13 +621,13 @@
     display: inline-flex;
     gap: 8px;
     margin-top: 6px;
-    font-size: 11px;
-    color: #666;
-    background: #f0f0f0;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-family: 'Courier New', Courier, monospace;
-    border: 1px solid #e0e0e0;
+    font-size: 10px; /* Slightly smaller for consistency */
+    color: var(--color-text-secondary);
+    background: var(--color-gray-200); /* Uses your existing gray color */
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-family: monospace;
+    border: 1px solid var(--color-border);
 }
 
 .split-label {
@@ -1030,26 +1030,7 @@
         throw error;
     }
 }
-        async function handleDeleteExpense(id) {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
-
-    try {
-        if (currentUser && !isGuestMode) {
-            // Delete from Firestore
-            await deleteExpenseFromFirebase(id);
-            // The onSnapshot listener will automatically update the UI
-        } else {
-            // Delete from Local Storage (Guest Mode)
-            expenses = expenses.filter(e => e.id !== id);
-            localStorage.setItem('expenses', JSON.stringify(expenses));
-            updateDashboard();
-            renderExpenseList();
-        }
-    } catch (error) {
-        alert('Error deleting expense: ' + error.message);
-        console.error(error);
-    }
-}
+        
 
 async function deleteExpenseFromFirebase(id) {
     try {
@@ -1381,48 +1362,36 @@ async function deleteExpenseFromFirebase(id) {
     const list = document.getElementById('expenseList');
     if (!list) return;
 
-    // 1. Icon Mapping
     const categoryIcons = {
-    'Food': { icon: 'fa-utensils', class: 'icon-food' },
-    'Transport': { icon: 'fa-car', class: 'icon-transport' },
-    'Shopping': { icon: 'fa-shopping-cart', class: 'icon-shopping' },
-    'Entertainment': { icon: 'fa-film', class: 'icon-entertainment' },
-    'Beauty': { icon: 'fa-sparkles', class: 'icon-beauty' },
-    'Mika': { icon: 'fa-paw', class: 'icon-mika' },
-    'Necessities': { icon: 'fa-house-user', class: 'icon-other' },
-    'Impt Miscellaneous': { icon: 'fa-exclamation-circle', class: 'icon-other' },
-    'Installments & Obligations': { icon: 'fa-file-invoice-dollar', class: 'icon-other' },
-    'Other': { icon: 'fa-tags', class: 'icon-other' }
-};
+        'Food': { icon: 'fa-utensils', class: 'icon-food' },
+        'Transport': { icon: 'fa-car', class: 'icon-transport' },
+        'Shopping': { icon: 'fa-shopping-cart', class: 'icon-shopping' },
+        'Entertainment': { icon: 'fa-film', class: 'icon-entertainment' },
+        'Beauty': { icon: 'fa-sparkles', class: 'icon-beauty' },
+        'Mika': { icon: 'fa-paw', class: 'icon-mika' },
+        'Necessities': { icon: 'fa-house-user', class: 'icon-other' },
+        'Impt Miscellaneous': { icon: 'fa-exclamation-circle', class: 'icon-other' },
+        'Installments & Obligations': { icon: 'fa-file-invoice-dollar', class: 'icon-other' },
+        'Other': { icon: 'fa-tags', class: 'icon-other' }
+    };
 
-    // Sort expenses by date (newest first)
     const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
-
     list.innerHTML = '';
 
     sortedExpenses.forEach(e => {
         const div = document.createElement('div');
         div.className = 'expense-item card';
         
-        // 2. Get Icon Data
         const catData = categoryIcons[e.category] || categoryIcons['Other'];
 
-        // 3. Custom Split Logic
-        // Shows details only if it's NOT a perfect 50/50 split
-        const isCustom = Math.abs(parseFloat(e.yourShare) - parseFloat(e.herShare)) > 0.01;
-        const isPayForOther = (e.yourShare == 0 || e.herShare == 0) && (e.amount > 0);
-        let splitLabel = '';
-            if (isPayForOther) {
-                splitLabel = `<div class="split-details" style="background:#fff0f0; border-color:#ffcccc;">
-                                <span class="split-label">Full Reimbursable</span>
-                              </div>`;
-            } else if (isCustom) {
-                splitLabel = `
-                    <div class="split-details">
-                        <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
-                        <span>|</span>
-                        <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
-                    </div>`;
+        const splitHtml = `
+            <div class="split-details">
+                <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
+                <span>|</span>
+                <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
+            </div>
+        `;
+
         div.innerHTML = `
             <div style="display: flex; align-items: center; width: 100%;">
                 <div class="category-icon-circle ${catData.class}">
@@ -1432,30 +1401,47 @@ async function deleteExpenseFromFirebase(id) {
                 <div class="expense-info" style="flex-grow: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
-                            <strong style="font-size: 15px;">${e.description}</strong>
-                            <div style="font-size: 12px; color: #666; margin-top: 2px;">
+                            <strong style="font-size: 15px; color: var(--color-text);">${e.description}</strong>
+                            <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 2px;">
                                 ${e.date} • ${e.category}
                             </div>
-                            ${splitLabel}
+                            ${splitHtml}
                         </div>
                         <div style="text-align: right;">
                             <div class="expense-amount-red">
                                 SGD ${Number(e.amount).toFixed(2)}
                             </div>
-                            <div style="font-size: 11px; color: #999; margin-top: 2px;">
+                            <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">
                                 Paid by ${e.paidBy}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <button class="btn-delete" onclick="handleDeleteExpense('${e.id}')" style="margin-left: 10px;">
+            <button class="btn-delete" onclick="handleDeleteExpense('${e.id}')">
                 <i class="fas fa-trash"></i>
             </button>
         `;
         list.appendChild(div);
-    };
-});
+    });
+}
+
+async function handleDeleteExpense(id) {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+
+    try {
+        if (currentUser && !isGuestMode) {
+            await deleteExpenseFromFirebase(id);
+        } else {
+            expenses = expenses.filter(e => e.id !== id);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            updateDashboard();
+            renderExpenseList();
+        }
+    } catch (error) {
+        alert('Error deleting expense: ' + error.message);
+    }
+}
 
         function exportToCSV() {
             if (!expenses || expenses.length === 0) {
