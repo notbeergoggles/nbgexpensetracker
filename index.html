@@ -1181,7 +1181,7 @@ async function deleteExpenseFromFirebase(id) {
 
             document.getElementById('totalExpenses').textContent = 'SGD ' + t.totalExpenses.toFixed(2);
             document.getElementById('entryCount').textContent = t.entryCount;
-            document.getElementById('avgEntry').textContent = 'SGD ' + t.avgEntry.toFixed(2);
+            document.getElementById('dailyBurnRate').textContent = `SGD ${t.dailyBurn.toFixed(2)}`;
 
             document.getElementById('settlement').textContent = 'SGD ' + Math.abs(t.net).toFixed(2);
             document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
