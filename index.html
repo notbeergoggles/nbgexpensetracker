@@ -1109,7 +1109,7 @@
                 const slice = document.createElement('div');
                 slice.className = 'pie-slice';
                 const color = categoryColors[cat] || '#ddd';
-                slice.style.background = `conic-gradient(${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
+                slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
                 slice.dataset.label = `${cat}: SGD ${val.toFixed(2)} (${(percent*100).toFixed(1)}%)`;
                 pie.appendChild(slice);
                 start += degrees;
