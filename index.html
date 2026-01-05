@@ -161,7 +161,9 @@
         }
 
         .grid-3 {
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* Force 3 columns */
+            gap: var(--space-12);
         }
 
         /* Cards */
@@ -481,10 +483,15 @@
             .grid-2, .grid-3 {
                 grid-template-columns: 1fr;
             }
-            .grid {
-                /* On very small phones, 1fr 1fr might be better, 
-                   or keep 1fr 1fr 1fr but reduce font size */
-                grid-template-columns: 1fr 1fr 1fr; 
+            .grid-3 {
+                grid-template-columns: 1fr 1fr 1fr; /* Keep them inline */
+                gap: var(--space-8);
+            }
+            .summary-value {
+                font-size: var(--font-size-base); /* Scale down text slightly */
+            }
+            .summary-label {
+                font-size: 10px;
             }
 
             .expense-item {
@@ -758,7 +765,7 @@
 
             <div class="card">
                 <h2>Quick Stats</h2>
-                <div class="grid grid-3" style="margin-top: var(--space-16);">
+                <div class="grid grid-3" style="margin-top: var(--space-16); align-items: center;">
                     <div class="summary-item">
                         <div class="summary-label">Total Expenses</div>
                         <div class="summary-value" id="totalExpenses">SGD 0.00</div>
@@ -767,8 +774,7 @@
                         <div class="summary-label">Number of Entries</div>
                         <div class="summary-value" id="entryCount">0</div>
                     </div>
-                    <div class="card summary-card" style="border: none; box-shadow: none;">
-                        <div class="summary-label">Daily Burn Rate</div>
+                    <div class="summary-item"> <div class="summary-label">Daily Burn Rate</div>
                         <div class="summary-value" id="dailyBurnRate">SGD 0.00</div>
                     </div>
                 </div>
