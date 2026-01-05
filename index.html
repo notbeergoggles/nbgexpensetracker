@@ -870,15 +870,22 @@
                         <input type="number" id="expenseAmount" class="form-control" placeholder="0.00" step="0.01" required>
                     </div>
 
-                    <div class="form-group" style="margin-top: var(--space-16); padding: var(--space-12); background: var(--color-gray-200); border-radius: var(--radius-base);">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" id="isRecurring" style="width: 18px; height: 18px;">
-                            <label for="isRecurring" style="margin-bottom: 0; font-weight: 600;">Monthly Recurring</label>
+                    <div class="form-group" style="margin-top: var(--space-16); padding: var(--space-12); background: var(--color-gray-200); border-radius: var(--radius-base); border: 1px solid rgba(0,0,0,0.05);">
+                        <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="document.getElementById('isRecurring').click()">
+                            <input type="checkbox" id="isRecurring" style="width: 20px; height: 20px; cursor: pointer;">
+                            <label for="isRecurring" style="margin-bottom: 0; font-weight: 600; color: var(--color-text); font-size: 14px; cursor: pointer;">
+                                Monthly Recurring
+                            </label>
                         </div>
                         
-                        <div id="recurringOptions" style="display: none; margin-top: 10px; border-top: 1px solid #ddd; pt: 10px;">
-                            <label style="font-size: 12px; color: var(--color-text-secondary);">End Date (Optional - leave blank for forever)</label>
-                            <input type="date" id="recurringUntil" class="form-control">
+                        <div id="recurringOptions" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--color-gray-300);">
+                            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--primary-color); text-transform: uppercase; margin-bottom: 4px;">
+                                End Date (Optional)
+                            </label>
+                            <input type="date" id="recurringUntil" class="form-control" style="background: white;">
+                            <p style="font-size: 10px; color: var(--color-text-secondary); margin-top: 4px;">
+                                Leave blank to recur forever (e.g., Netflix). Set a date for installments.
+                            </p>
                         </div>
                     </div>
 
