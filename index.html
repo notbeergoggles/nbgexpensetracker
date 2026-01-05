@@ -1315,147 +1315,106 @@ async function deleteExpenseFromFirebase(id) {
         }
 
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+    e.preventDefault();
 
-            const isRecurring = document.getElementById('isRecurring').checked;
-            const recurringUntil = document.getElementById('recurringUntil').value;
-            
-            const expenseData = {
-                description,
-                amount: parseFloat(amount),
-                category,
-                date,
-                paidBy,
-                splitType,
-                yourShare: parseFloat(yourShare),
-                herShare: parseFloat(herShare),
-                isRecurring: isRecurring,
-                recurringUntil: recurringUntil || null, // null means forever
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            const date = document.getElementById('expenseDate').value;
-            const category = document.getElementById('expenseCategory').value;
-            const description = document.getElementById('expenseDescription').value;
-            const paidByRadio = document.querySelector('input[name="paidBy"]:checked');
-            const paidByRaw = paidByRadio ? paidByRadio.value : null;
-            const paidBy = paidByRaw === 'You' ? 'Kenny' : (paidByRaw === 'Her' ? 'Sayuri' : 'Unknown');
-            const amount = Number(document.getElementById('expenseAmount').value) || 0;
-            const splitType = document.getElementById('splitType').value;
+    // 1. FIRST: Get all values from the form
+    const date = document.getElementById('expenseDate').value;
+    const category = document.getElementById('expenseCategory').value;
+    const description = document.getElementById('expenseDescription').value;
+    const amount = Number(document.getElementById('expenseAmount').value) || 0;
+    const splitType = document.getElementById('splitType').value;
+    const isRecurring = document.getElementById('isRecurring').checked;
+    const recurringUntil = document.getElementById('recurringUntil').value;
+    
+    const paidByRadio = document.querySelector('input[name="paidBy"]:checked');
+    const paidByRaw = paidByRadio ? paidByRadio.value : null;
+    const paidBy = paidByRaw === 'You' ? 'Kenny' : (paidByRaw === 'Her' ? 'Sayuri' : 'Unknown');
 
-            if (!paidByRaw) {
-                alert('Please select who paid the expense.');
-                return;
-            }
+    // 2. SECOND: Validate the basic inputs
+    if (!paidByRaw) {
+        alert('Please select who paid the expense.');
+        return;
+    }
+    if (!category || !description || amount <= 0) {
+        alert('Please provide valid category, description and amount.');
+        return;
+    }
 
-            if (!category || !description || amount <= 0) {
-                alert('Please provide valid category, description and amount.');
-                return;
-            }
+    // 3. THIRD: Calculate shares
+    let yourShare = 0;
+    let herShare = 0;
 
-            let yourShare = 0;
-            let herShare = 0;
+    if (splitType === 'Equal') {
+        yourShare = amount / 2;
+        herShare = amount / 2;
+    } else if (splitType === 'Full') {
+        if (paidBy === 'Kenny') { yourShare = amount; herShare = 0; }
+        else { yourShare = 0; herShare = amount; }
+    } else if (splitType === 'PayForOther') {
+        if (paidBy === 'Kenny') { yourShare = 0; herShare = amount; }
+        else { yourShare = amount; herShare = 0; }
+    } else if (splitType === 'Custom') {
+        const yourPercent = Number(document.getElementById('yourSharePercent').value) / 100;
+        if (Number.isNaN(yourPercent)) {
+            alert('Invalid percentage');
+            return;
+        }
+        yourShare = amount * yourPercent;
+        herShare = amount * (1 - yourPercent);
+    }
 
-            if (splitType === 'Equal') {
-                yourShare = amount / 2;
-                herShare = amount / 2;
-            } else if (splitType === 'Full') {
-                if (paidBy === 'Kenny') {
-                    yourShare = amount;
-                    herShare = 0;
-                } else {
-                    yourShare = 0;
-                    herShare = amount;
-                }
-            } else if (splitType === 'PayForOther') { // Add this new block
-                if (paidBy === 'Kenny') {
-                    // Kenny paid, but it's all Sayuri's share
-                    yourShare = 0;
-                    herShare = amount;
-                } else {
-                    // Sayuri paid, but it's all Kenny's share
-                    yourShare = amount;
-                    herShare = 0;
-                }
-            } else if (splitType === 'Custom') {
-                const yourPercent = Number(document.getElementById('yourSharePercent').value) / 100;
-                if (Number.isNaN(yourPercent)) {
-                    alert('Invalid percentage');
-                    return;
-                }
-                yourShare = amount * yourPercent;
-                herShare = amount * (1 - yourPercent);
-            }
+    // 4. FOURTH: Create the final data object
+    const expense = {
+        date,
+        category,
+        description,
+        amount,
+        paidBy,
+        yourShare,
+        herShare,
+        isRecurring: isRecurring,
+        recurringUntil: recurringUntil || null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
 
-            // final validation
-            if (Math.abs((yourShare + herShare) - amount) > 0.01) {
-                alert('Shares must add up to total amount');
-                return;
-            }
+    // 5. FIFTH: Save to Database
+    try {
+        if (currentUser && !isGuestMode) {
+            await saveExpenseToFirebase(expense);
+        } else {
+            expense.id = Date.now().toString();
+            expense.createdAt = new Date().toISOString(); // Local fallback
+            expenses.push(expense);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            updateDashboard();
+            renderExpenseList();
+        }
 
-            const expense = {
-                date,
-                category,
-                description,
-                amount,
-                paidBy,
-                yourShare,
-                herShare,
-                createdAt: new Date().toISOString()
-            };
+        // Success Feedback UI
+        const successMsg = document.createElement('div');
+        successMsg.className = 'success-message';
+        successMsg.style.marginBottom = "20px";
+        successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
+       
+        const form = document.getElementById('expenseForm');
+        if (form && form.parentNode) {
+            form.insertAdjacentElement('beforebegin', successMsg);
+        }
+        setTimeout(() => successMsg.remove(), 3000);
 
-            try {
-                if (currentUser && !isGuestMode) {
-                    await saveExpenseToFirebase(expense);
-                    // realtime listener will pick it up and update UI
-                } else {
-                    expense.id = Date.now().toString();
-                    expenses.push(expense);
-                    localStorage.setItem('expenses', JSON.stringify(expenses));
-                    updateDashboard();
-                    renderExpenseList();
-                }
+        // Reset Form
+        expenseForm.reset();
+        document.getElementById('expenseDate').valueAsDate = new Date();
+        document.getElementById('recurringOptions').style.display = 'none';
+        if (document.getElementById('customSplitSection')) {
+            document.getElementById('customSplitSection').style.display = 'none';
+        }
 
-                                const successMsg = document.createElement('div');
-                successMsg.className = 'success-message';
-                successMsg.style.marginBottom = "20px";
-                successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
-               
-                // Insert the success message safely. The previous code used
-                // insertBefore on #add-expense with #expenseForm as the reference node,
-                // but #expenseForm isn't always a direct child of #add-expense which
-                // caused: "The node before which the new node is to be inserted is not a child of this node."
-                // Use the form's parent (or insertAdjacentElement) instead and fall back to appendChild.
-                const form = document.getElementById('expenseForm');
-                if (form && form.parentNode) {
-                    // Insert just before the form (works even when the form is nested inside other elements)
-                    form.insertAdjacentElement('beforebegin', successMsg);
-                } else {
-                    const addExpense = document.getElementById('add-expense');
-                    if (addExpense) addExpense.appendChild(successMsg);
-                }
-                 setTimeout(() => successMsg.remove(), 3000);
-
-                // Reset form and UI
-                if (expenseForm) {
-                    expenseForm.reset();
-                    document.getElementById('expenseDate').valueAsDate = new Date();
-                }
-                const customSection = document.getElementById('customSplitSection');
-                if (customSection) customSection.style.display = 'none';
-                const herPercent = document.getElementById('herSharePercent');
-                if (herPercent) herPercent.value = '';
-                const yourPercent = document.getElementById('yourSharePercent');
-                if (yourPercent) yourPercent.value = '';
-
-            } catch (error) {
-                alert('Error saving expense: ' + (error && error.message ? error.message : error));
-                console.error(error);
-            }
-            
-            expenseForm.reset();
-            document.getElementById('recurringOptions').style.display = 'none'; // Hide the date picker again
-        });
+    } catch (error) {
+        alert('Error saving expense: ' + error.message);
+        console.error(error);
+    }
+});
 
         function calculateTotals() {
             const now = new Date();
