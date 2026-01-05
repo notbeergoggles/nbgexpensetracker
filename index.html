@@ -923,10 +923,10 @@
                 }
                 document.getElementById('expenseForm').reset();
                 document.getElementById('expenseDate').valueAsDate = new Date();
-                showSuccessMessage(`Expense added: SGD ${amount.toFixed(2)} for ${description}`);
             } catch (error) {
                 alert('Error adding expense: ' + error.message);
             }
+
         });
 
         function calculateTotals() {
