@@ -517,9 +517,14 @@
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    pointer-events: auto; /* Add this so slices don't block each other */
-    -webkit-mask-image: radial-gradient(circle, transparent 30%, black 30%);
-    mask-image: radial-gradient(circle, transparent 30%, black 30%);
+    pointer-events: auto; /* Ensure it's interactive */
+    transition: filter 0.2s;
+}
+
+.pie-slice:hover {
+    filter: brightness(1.1);
+    cursor: pointer;
+    z-index: 10; /* Bring hovered slice to front to ensure it captures movement */
 }
 
 
@@ -538,11 +543,6 @@
     box-shadow: var(--shadow-md);
 }
 
-/* Keep this to highlight the slice on hover */
-.pie-slice:hover {
-    filter: brightness(1.1);
-    cursor: pointer;
-}
 
     </style>
 </head>
@@ -1109,7 +1109,6 @@
     const pie = document.getElementById('categoryPieChart');
     if (!pie) return;
     
-    // Clear pie and add center circle
     pie.innerHTML = '<div class="pie-center"></div>';
     
     let tooltip = document.getElementById('pie-tooltip');
@@ -1123,21 +1122,24 @@
     if (keys.length === 0) return;
 
     let start = 0;
-    // We reverse the keys so that the slices rendered later (on top) 
-    // don't block the mouse detection of slices rendered earlier.
     keys.forEach((cat) => {
         const val = categoryTotals[cat] || 0;
         const percent = total ? val / total : 0;
         const degrees = percent * 360;
+        const end = start + degrees;
         
         const slice = document.createElement('div');
         slice.className = 'pie-slice';
         const color = categoryColors[cat] || '#ddd';
 
-        // 1. Draw the gradient slice
-        slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
+        // 1. Set the visual gradient
+        slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${end}deg, transparent ${end}deg 360deg)`;
 
-        // 2. Add the Hover Events
+        // 2. THE FIX: Clip the element to the exact wedge shape
+        // This makes the transparent areas "invisible" to the mouse.
+        slice.style.clipPath = `conic-gradient(from 0deg, white ${start}deg ${end}deg, transparent ${end}deg 360deg)`;
+
+        // 3. Hover Events
         slice.addEventListener('mouseenter', () => {
             tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
             tooltip.style.opacity = '1';
