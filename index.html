@@ -722,6 +722,16 @@
 
         <h1>💰 Shared Expenses Tracker</h1>
 
+        <div class="card" style="margin-bottom: var(--space-16); padding: var(--space-12);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; font-size: var(--font-size-base);">View Period</h3>
+                    <select id="monthFilter" class="form-control" style="width: auto; padding: 4px 12px;">
+                        <option value="current">Current Month</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+            </div>
+
         <div class="tabs">
             <button type="button" class="tab-button active" data-tab="dashboard">Dashboard</button>
             <button type="button" class="tab-button" data-tab="add-expense">Add Expense</button>
@@ -745,15 +755,6 @@
                 </div>
             </div>
 
-            <div class="card" style="margin-bottom: var(--space-16); padding: var(--space-12);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: var(--font-size-base);">View Period</h3>
-                    <select id="monthFilter" class="form-control" style="width: auto; padding: 4px 12px;">
-                        <option value="current">Current Month</option>
-                        <option value="all">All Time</option>
-                    </select>
-                </div>
-            </div>
             
             <div class="card">
                 <h2>Settlement Summary</h2>
@@ -1407,6 +1408,29 @@ async function deleteExpenseFromFirebase(id) {
     const list = document.getElementById('expenseList');
     if (!list) return;
 
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            
+            // Get the filter value
+            const filter = document.getElementById('monthFilter')?.value || 'current';
+        
+            // 1. Filter expenses for the list based on selection
+            const filteredExpenses = expenses.filter(e => {
+                if (filter === 'all') return true;
+                const d = new Date(e.date);
+                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            });
+        
+            // 2. Sort the FILTERED list by date
+            const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+            list.innerHTML = '';
+        
+            if (sortedExpenses.length === 0) {
+                list.innerHTML = '<div class="empty-state">No expenses found for this period.</div>';
+                return;
+            }
+
     const categoryIcons = {
         'Food': { icon: 'fa-utensils', class: 'icon-food' },
         'Transport': { icon: 'fa-car', class: 'icon-transport' },
@@ -1518,6 +1542,7 @@ async function handleDeleteExpense(id) {
 
         document.getElementById('monthFilter').addEventListener('change', () => {
             updateDashboard();
+            renderExpenseList();
         });
 
         // initialize UI from local storage if guest or before auth
