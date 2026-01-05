@@ -953,22 +953,31 @@
 
         });
 
-        function calculateTotals() {
-            let yourTotalPaid = 0, herTotalPaid = 0;
-            let yourTotalShare = 0, herTotalShare = 0;
-            
-            expenses.forEach(exp => {
-                if (exp.paidBy === 'You') {
-                    yourTotalPaid += exp.amount;
-                } else {
-                    herTotalPaid += exp.amount;
-                }
-                yourTotalShare += exp.yourShare;
-                herTotalShare += exp.herShare;
-            });
-            
-            return { yourTotalPaid, herTotalPaid, yourTotalShare, herTotalShare };
+function calculateTotals() {
+    let kennyPaid = 0;
+    let sayuriPaid = 0;
+    let kennyShare = 0;
+    let sayuriShare = 0;
+
+    expenses.forEach(exp => {
+        if (exp.paidBy === 'Kenny') {
+            kennyPaid += exp.amount;
+        } else if (exp.paidBy === 'Sayuri') {
+            sayuriPaid += exp.amount;
         }
+
+        kennyShare += exp.yourShare;
+        sayuriShare += exp.herShare;
+    });
+
+    return {
+        kennyPaid,
+        sayuriPaid,
+        kennyShare,
+        sayuriShare
+    };
+}
+
 
         function updateDashboard() {
             const { yourTotalPaid, herTotalPaid, yourTotalShare, herTotalShare } = calculateTotals();
@@ -983,23 +992,24 @@
             document.getElementById('entryCount').textContent = expenses.length;
             document.getElementById('avgEntry').textContent = expenses.length > 0 ? `SGD ${(totalExpenses / expenses.length).toFixed(2)}` : 'SGD 0.00';
             
-            const settlement = yourTotalPaid - yourTotalShare;
-            const settlementElement = document.getElementById('settlement');
-            const settlementNote = document.getElementById('settlementNote');
-            
-            if (Math.abs(settlement) < 0.01) {
-                settlementElement.textContent = 'SGD 0.00';
-                settlementNote.textContent = '✓ Even';
-                settlementElement.classList.remove('balance-due');
-            } else if (settlement > 0) {
-                settlementElement.textContent = `SGD ${settlement.toFixed(2)}`;
-                settlementNote.textContent = 'Sayuri owes Kenny';
-                settlementElement.classList.add('balance-due');
-            } else {
-                settlementElement.textContent = `SGD ${Math.abs(settlement).toFixed(2)}`;
-                settlementNote.textContent = 'Kenny owes Sayuri';
-                settlementElement.classList.add('balance-due');
-            }
+const net = kennyPaid - kennyShare;
+const settlementElement = document.getElementById('settlement');
+const settlementNote = document.getElementById('settlementNote');
+
+if (Math.abs(net) < 0.01) {
+    settlementElement.textContent = 'SGD 0.00';
+    settlementNote.textContent = '✓ Even';
+    settlementElement.classList.remove('balance-due');
+} else if (net > 0) {
+    settlementElement.textContent = `SGD ${net.toFixed(2)}`;
+    settlementNote.textContent = 'Sayuri owes Kenny';
+    settlementElement.classList.add('balance-due');
+} else {
+    settlementElement.textContent = `SGD ${Math.abs(net).toFixed(2)}`;
+    settlementNote.textContent = 'Kenny owes Sayuri';
+    settlementElement.classList.add('balance-due');
+}
+
             
             updateCategoryChart();
         }
