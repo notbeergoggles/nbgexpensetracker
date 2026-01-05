@@ -931,9 +931,10 @@
                 document.getElementById('expenseForm').reset();
                 document.getElementById('expenseDate').valueAsDate = new Date();
             } catch (error) {
+                alert('Error adding expense: ' + error.message);
+            }
 
-
-        };
+        });
 
         function calculateTotals() {
             let yourTotalPaid = 0, herTotalPaid = 0;
