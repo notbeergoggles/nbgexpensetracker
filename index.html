@@ -723,14 +723,12 @@
         <h1>💰 Shared Expenses Tracker</h1>
 
         <div class="card" style="margin-bottom: var(--space-16); padding: var(--space-12);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: var(--font-size-base);">View Period</h3>
-                    <select id="monthFilter" class="form-control" style="width: auto; padding: 4px 12px;">
-                        <option value="current">Current Month</option>
-                        <option value="all">All Time</option>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; font-size: 14px;">View Period:</span>
+                <select id="monthFilter" class="form-control" style="width: auto; padding: 4px 12px; height: 36px;">
                     </select>
-                </div>
             </div>
+        </div>
 
         <div class="tabs">
             <button type="button" class="tab-button active" data-tab="dashboard">Dashboard</button>
@@ -893,6 +891,46 @@
     </div>
 
     <script>
+        function populateMonthFilter() {
+            const filterSelect = document.getElementById('monthFilter');
+            if (!filterSelect) return;
+        
+            // Save the current selection so it doesn't reset when we redraw
+            const currentSelection = filterSelect.value || 'current';
+        
+            // Get unique months from expenses
+            const months = new Set();
+            expenses.forEach(e => {
+                const d = new Date(e.date);
+                // Format as "YYYY-MM" for easy sorting/comparison
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                months.add(key);
+            });
+        
+            // Sort months chronologically descending (newest first)
+            const sortedMonths = Array.from(months).sort().reverse();
+        
+            let html = `<option value="current">Current Month</option>`;
+            
+            sortedMonths.forEach(m => {
+                const [year, month] = m.split('-');
+                const dateObj = new Date(year, month - 1);
+                const monthName = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                
+                // Don't add current month twice
+                const now = new Date();
+                if (!(parseInt(year) === now.getFullYear() && (parseInt(month) - 1) === now.getMonth())) {
+                    html += `<option value="${m}">${monthName}</option>`;
+                }
+            });
+        
+            html += `<option value="all">All Time</option>`;
+            filterSelect.innerHTML = html;
+            
+            // Restore selection
+            filterSelect.value = currentSelection;
+        }
+        
         function renderCategoryBars(categoryTotals, total) {
     const container = document.getElementById('categoryChart');
     if (!container) return;
@@ -1048,6 +1086,7 @@
         snapshot.forEach(doc => {
             expenses.push({ id: doc.id, ...doc.data() });
         });
+        populateMonthFilter();
         updateDashboard();
         renderExpenseList();
     });
@@ -1249,11 +1288,21 @@ async function deleteExpenseFromFirebase(id) {
             // Get the filter value
             const filter = document.getElementById('monthFilter')?.value || 'current';
         
-            // 1. Filter the expenses based on selection
             const filteredExpenses = expenses.filter(e => {
                 if (filter === 'all') return true;
+                
                 const d = new Date(e.date);
-                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+                const expenseYear = d.getFullYear();
+                const expenseMonth = d.getMonth();
+            
+                if (filter === 'current') {
+                    const now = new Date();
+                    return expenseYear === now.getFullYear() && expenseMonth === now.getMonth();
+                } else {
+                    // Handle "YYYY-MM" selection
+                    const [selYear, selMonth] = filter.split('-');
+                    return expenseYear === parseInt(selYear) && expenseMonth === (parseInt(selMonth) - 1);
+                }
             });
         
             let totalExpenses = 0;
@@ -1408,35 +1457,12 @@ async function deleteExpenseFromFirebase(id) {
     const list = document.getElementById('expenseList');
     if (!list) return;
 
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth();
-            
-            // Get the filter value
-            const filter = document.getElementById('monthFilter')?.value || 'current';
-        
-            // 1. Filter expenses for the list based on selection
-            const filteredExpenses = expenses.filter(e => {
-                if (filter === 'all') return true;
-                const d = new Date(e.date);
-                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-            });
-        
-            // 2. Sort the FILTERED list by date
-            const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
-            list.innerHTML = '';
-        
-            if (sortedExpenses.length === 0) {
-                list.innerHTML = '<div class="empty-state">No expenses found for this period.</div>';
-                return;
-            }
-
     const categoryIcons = {
         'Food': { icon: 'fa-utensils', class: 'icon-food' },
         'Transport': { icon: 'fa-car', class: 'icon-transport' },
         'Shopping': { icon: 'fa-shopping-cart', class: 'icon-shopping' },
         'Entertainment': { icon: 'fa-film', class: 'icon-entertainment' },
-        'Beauty': { icon: 'fa-s15', class: 'icon-beauty' },
+        'Beauty': { icon: 'fa-sparkles', class: 'icon-beauty' },
         'Mika': { icon: 'fa-paw', class: 'icon-mika' },
         'Necessities': { icon: 'fa-house-user', class: 'icon-other' },
         'Impt Miscellaneous': { icon: 'fa-exclamation-circle', class: 'icon-other' },
@@ -1444,13 +1470,37 @@ async function deleteExpenseFromFirebase(id) {
         'Other': { icon: 'fa-tags', class: 'icon-other' }
     };
 
-    const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const filter = document.getElementById('monthFilter')?.value || 'current';
+
+    // 1. Filter the expenses
+    const filteredExpenses = expenses.filter(e => {
+        if (filter === 'all') return true;
+        const d = new Date(e.date);
+        const expenseYear = d.getFullYear();
+        const expenseMonth = d.getMonth();
+
+        if (filter === 'current') {
+            const now = new Date();
+            return expenseYear === now.getFullYear() && expenseMonth === now.getMonth();
+        } else {
+            const [selYear, selMonth] = filter.split('-');
+            return expenseYear === parseInt(selYear) && expenseMonth === (parseInt(selMonth) - 1);
+        }
+    });
+
+    // 2. Sort the filtered expenses (ONLY ONE DECLARATION HERE)
+    const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
     list.innerHTML = '';
+
+    if (sortedExpenses.length === 0) {
+        list.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">No expenses found for this period.</div>';
+        return;
+    }
 
     sortedExpenses.forEach(e => {
         const div = document.createElement('div');
         div.className = 'expense-item card';
-        
         const catData = categoryIcons[e.category] || categoryIcons['Other'];
 
         const splitHtml = `
@@ -1466,7 +1516,6 @@ async function deleteExpenseFromFirebase(id) {
                 <div class="category-icon-circle ${catData.class}">
                     <i class="fas ${catData.icon}"></i>
                 </div>
-
                 <div class="expense-info" style="flex-grow: 1;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
@@ -1541,6 +1590,7 @@ async function handleDeleteExpense(id) {
         }
 
         document.getElementById('monthFilter').addEventListener('change', () => {
+            populateMonthFilter();
             updateDashboard();
             renderExpenseList();
         });
@@ -1549,6 +1599,7 @@ async function handleDeleteExpense(id) {
         (function init() {
             if (!currentUser) {
                 expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+                populateMonthFilter();
                 updateDashboard();
                 renderExpenseList();
             }
