@@ -150,7 +150,9 @@
         /* Grid Layout */
         .grid {
             display: grid;
-            gap: var(--space-20);
+            /* Changed from 1fr 1fr to 1fr 1fr 1fr to accommodate 3 columns */
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: var(--space-12);
             margin-bottom: var(--space-24);
         }
 
@@ -478,6 +480,11 @@
 
             .grid-2, .grid-3 {
                 grid-template-columns: 1fr;
+            }
+            .grid {
+                /* On very small phones, 1fr 1fr might be better, 
+                   or keep 1fr 1fr 1fr but reduce font size */
+                grid-template-columns: 1fr 1fr 1fr; 
             }
 
             .expense-item {
