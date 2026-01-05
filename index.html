@@ -969,11 +969,11 @@
                 settlementElement.classList.remove('balance-due');
             } else if (settlement > 0) {
                 settlementElement.textContent = `SGD ${settlement.toFixed(2)}`;
-                settlementNote.textContent = 'She owes you';
+                settlementNote.textContent = 'Sayuri owes Kenny';
                 settlementElement.classList.add('balance-due');
             } else {
                 settlementElement.textContent = `SGD ${Math.abs(settlement).toFixed(2)}`;
-                settlementNote.textContent = 'You owe her';
+                settlementNote.textContent = 'Kenny owes Sayuri';
                 settlementElement.classList.add('balance-due');
             }
             
