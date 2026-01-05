@@ -953,40 +953,57 @@
 
     <script>
         async function processRecurringExpenses() {
+            if (expenses.length === 0) return;
+        
             const now = new Date();
-            const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
         
             // 1. Find all "Master" recurring templates
-            const templates = expenses.filter(e => e.isRecurring);
+            const templates = expenses.filter(e => e.isRecurring === true);
         
             for (const template of templates) {
-                // Check if expired
-                if (template.recurringUntil && new Date() > new Date(template.recurringUntil)) {
-                    continue; 
+                // Check if installment has expired
+                if (template.recurringUntil) {
+                    const endDate = new Date(template.recurringUntil);
+                    if (now > endDate) continue; 
                 }
         
-                // Check if this month's instance already exists
-                const alreadyLogged = expenses.some(e => 
-                    e.description === template.description && 
-                    e.amount === template.amount &&
-                    new Date(e.date).getMonth() === now.getMonth() &&
-                    new Date(e.date).getFullYear() === now.getFullYear() &&
-                    !e.isRecurring // We don't count the template itself
-                );
+                // 2. Check if this month's instance already exists
+                // We look for an expense with same description/amount in the current month
+                const alreadyLogged = expenses.some(e => {
+                    const expDate = new Date(e.date);
+                    return e.description === template.description && 
+                           e.amount === template.amount &&
+                           expDate.getMonth() === currentMonth &&
+                           expDate.getFullYear() === currentYear &&
+                           e.isRecurring !== true; // Important: don't match the template itself
+                });
         
                 if (!alreadyLogged) {
-                    // Auto-log for this month
+                    console.log("Auto-adding missing recurring expense:", template.description);
+                    
                     const newInstance = {
                         ...template,
-                        date: new Date().toISOString().split('T')[0], // Today's date
-                        isRecurring: false, // This is the instance, not the template
-                        templateId: template.id, // Reference to original
+                        date: new Date().toISOString().split('T')[0], // Today's date YYYY-MM-DD
+                        isRecurring: false, // This is the actual expense, not the template
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     };
-                    delete newInstance.id;
+                    delete newInstance.id; // Let Firebase generate a new ID
                     
-                    await db.collection('shared_expenses').add(newInstance);
-                    console.log(`Auto-added recurring expense: ${template.description}`);
+                    try {
+                        if (currentUser && !isGuestMode) {
+                            await db.collection('shared_expenses').add(newInstance);
+                        } else {
+                            newInstance.id = Date.now().toString();
+                            expenses.push(newInstance);
+                            localStorage.setItem('expenses', JSON.stringify(expenses));
+                            updateDashboard();
+                            renderExpenseList();
+                        }
+                    } catch (err) {
+                        console.error("Error auto-adding expense:", err);
+                    }
                 }
             }
         }
