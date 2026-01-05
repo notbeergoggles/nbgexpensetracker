@@ -587,6 +587,46 @@
     transition: width 0.6s ease-out;
 }
 
+        /* Circular Icon Container */
+.category-icon-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-right: 15px;
+}
+
+/* Category Specific Colors */
+.icon-food { color: #ff9f43; background: #fff5eb; }
+.icon-transport { color: #54a0ff; background: #ebf5ff; }
+.icon-shopping { color: #ee5253; background: #ffeded; }
+.icon-entertainment { color: #5f27cd; background: #f3ebff; }
+.icon-health { color: #10ac84; background: #ebf9f5; }
+.icon-other { color: #8395a7; background: #f1f2f6; }
+
+/* Split Detail Badges */
+.split-details {
+    display: inline-flex;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #666;
+    background: #f0f0f0;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-family: 'Courier New', Courier, monospace;
+    border: 1px solid #e0e0e0;
+}
+
+.split-label {
+    font-weight: bold;
+    color: #333;
+}
+
 
 
     </style>
@@ -689,8 +729,10 @@
                         <div class="summary-value" id="entryCount">0</div>
                     </div>
                     <div class="card summary-card">
+    <div class="card summary-card" style="border: none; box-shadow: none;">
     <div class="summary-label">Daily Burn Rate</div>
     <div class="summary-value" id="dailyBurnRate">SGD 0.00</div>
+</div>
 </div>
                 </div>
             </div>
@@ -1271,64 +1313,75 @@ async function deleteExpenseFromFirebase(id) {
 }
 
         function renderExpenseList() {
-            const list = document.getElementById('expenseList');
-            list.innerHTML = '';
-            if (!expenses || expenses.length === 0) {
-                list.innerHTML = '<div class="empty-state">No expenses yet. Add one to get started!</div>';
-                return;
-            }
+    const list = document.getElementById('expenseList');
+    if (!list) return;
 
-            expenses.slice().reverse().forEach(exp => {
-                const item = document.createElement('div');
-                item.className = 'expense-item';
+    // 1. Icon Mapping
+    const categoryIcons = {
+        'Food': { icon: 'fa-utensils', class: 'icon-food' },
+        'Transport': { icon: 'fa-car', class: 'icon-transport' },
+        'Shopping': { icon: 'fa-shopping-cart', class: 'icon-shopping' },
+        'Entertainment': { icon: 'fa-film', class: 'icon-entertainment' },
+        'Health': { icon: 'fa-heartbeat', class: 'icon-health' },
+        'Other': { icon: 'fa-ellipsis-h', class: 'icon-other' }
+    };
 
-                const info = document.createElement('div');
-                info.className = 'expense-info';
-                info.innerHTML = `
-                    <div class="expense-category">${exp.category || ''}</div>
-                    <div class="expense-description">${escapeHtml(exp.description || '')}</div>
-                    <div class="expense-details">${exp.date || ''} • Paid by ${escapeHtml(exp.paidBy || '')}</div>
-                `;
+    // Sort expenses by date (newest first)
+    const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                const right = document.createElement('div');
-                right.style.display = 'flex';
-                right.style.alignItems = 'center';
+    list.innerHTML = '';
 
-                const amount = document.createElement('div');
-                amount.className = 'expense-amount';
-                amount.textContent = 'SGD ' + (Number(exp.amount) || 0).toFixed(2);
+    sortedExpenses.forEach(e => {
+        const div = document.createElement('div');
+        div.className = 'expense-item card';
+        
+        // 2. Get Icon Data
+        const catData = categoryIcons[e.category] || categoryIcons['Other'];
 
-                const actions = document.createElement('div');
-                actions.className = 'expense-actions';
+        // 3. Custom Split Logic
+        // Shows details only if it's NOT a perfect 50/50 split
+        const isCustom = Math.abs(parseFloat(e.yourShare) - parseFloat(e.herShare)) > 0.01;
+        const splitHtml = isCustom ? `
+            <div class="split-details">
+                <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
+                <span>|</span>
+                <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
+            </div>
+        ` : '';
 
-                const del = document.createElement('button');
-                del.className = 'btn btn--danger btn--sm';
-                del.textContent = 'Delete';
-                del.addEventListener('click', async () => {
-                    if (!confirm('Delete this expense?')) return;
-                    try {
-                        if (currentUser && !isGuestMode) {
-                            await deleteExpenseFromFirebase(exp.id);
-                        } else {
-                            expenses = expenses.filter(e => e.id !== exp.id);
-                            localStorage.setItem('expenses', JSON.stringify(expenses));
-                            updateDashboard();
-                            renderExpenseList();
-                        }
-                    } catch (err) {
-                        alert('Error deleting: ' + err.message);
-                    }
-                });
+        div.innerHTML = `
+            <div style="display: flex; align-items: center; width: 100%;">
+                <div class="category-icon-circle ${catData.class}">
+                    <i class="fas ${catData.icon}"></i>
+                </div>
 
-                actions.appendChild(del);
-                right.appendChild(amount);
-                right.appendChild(actions);
-
-                item.appendChild(info);
-                item.appendChild(right);
-                list.appendChild(item);
-            });
-        }
+                <div class="expense-info" style="flex-grow: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <strong style="font-size: 15px;">${e.description}</strong>
+                            <div style="font-size: 12px; color: #666; margin-top: 2px;">
+                                ${e.date} • ${e.category}
+                            </div>
+                            ${splitHtml}
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-weight: 700; color: #333; font-size: 15px;">
+                                SGD ${Number(e.amount).toFixed(2)}
+                            </div>
+                            <div style="font-size: 11px; color: #999; margin-top: 2px;">
+                                Paid by ${e.paidBy}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-delete" onclick="handleDeleteExpense('${e.id}')" style="margin-left: 10px;">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        list.appendChild(div);
+    });
+}
 
         function exportToCSV() {
             if (!expenses || expenses.length === 0) {
