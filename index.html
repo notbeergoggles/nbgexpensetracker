@@ -563,6 +563,30 @@
     transition: opacity 0.1s ease;
 }
 
+        .category-bar-wrapper {
+    margin-bottom: var(--space-12);
+}
+
+.category-bar-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-4);
+}
+
+.category-bar-container {
+    height: 8px;
+    background: var(--color-gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.category-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease-out;
+}
+
 
 
     </style>
@@ -760,6 +784,37 @@
     </div>
 
     <script>
+        function renderCategoryBars(categoryTotals, total) {
+    const container = document.getElementById('categoryChart');
+    if (!container) return;
+    
+    container.innerHTML = ''; // Clear existing content
+
+    // Sort categories by amount (highest first)
+    const sortedKeys = Object.keys(categoryTotals).sort((a, b) => categoryTotals[b] - categoryTotals[a]);
+
+    sortedKeys.forEach(cat => {
+        const amount = categoryTotals[cat];
+        const percentage = total > 0 ? (amount / total) * 100 : 0;
+        const color = categoryColors[cat] || '#ddd';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'category-bar-wrapper';
+
+        wrapper.innerHTML = `
+            <div class="category-bar-info">
+                <span>${cat}</span>
+                <span>SGD ${amount.toFixed(2)} (${percentage.toFixed(1)}%)</span>
+            </div>
+            <div class="category-bar-container">
+                <div class="category-bar-fill" style="width: ${percentage}%; background-color: ${color}"></div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+    });
+}
+
+        
         const firebaseConfig = {
             apiKey: "AIzaSyDvrX3UDbJlQZJOnvpUSb-oQTNXZtwXEss",
             authDomain: "sharedexpensestracker-a46ec.firebaseapp.com",
@@ -1123,6 +1178,7 @@
             document.getElementById('settlement').textContent = 'SGD ' + Math.abs(t.net).toFixed(2);
             document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
 
+            renderCategoryBars(t.categoryTotals, t.totalExpenses);
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
         }
 
