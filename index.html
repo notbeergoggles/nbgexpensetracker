@@ -272,6 +272,18 @@
             box-shadow: 0 4px 12px rgba(33, 128, 141, 0.2); 
         }
 
+        .btn-repeat {
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .btn-repeat:hover {
+            opacity: 1;
+        }
+
         /* Summary Cards */
         .summary-item {
             text-align: center;
@@ -682,7 +694,21 @@
     gap: 10px;
 }
 
-
+        #historySearch {
+            background-color: var(--color-gray-200);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            height: 44px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        #historySearch:focus {
+            background-color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(33, 128, 141, 0.1);
+            outline: none;
+        }
 
     </style>
 </head>
@@ -774,6 +800,9 @@
                     </div>
                 </div>
             </div>
+            <button id="whatsappShare" class="btn btn--secondary" style="margin-top: var(--space-12); width: 100%; background-color: #25D366; color: white;">
+                <i class="fab fa-whatsapp"></i> Share Monthly Summary
+            </button>
 
             <div class="card">
                 <h2>Spending by Category</h2>
@@ -899,6 +928,54 @@
     </div>
 
     <script>
+        function generateWhatsAppSummary() {
+            const data = calculateTotals();
+            const filter = document.getElementById('monthFilter').value;
+            
+            // Determine the title based on the filter
+            let title = "Total Summary";
+            if (filter === 'current') {
+                title = new Date().toLocaleString('default', { month: 'long', year: 'numeric' }) + " Summary";
+            } else if (filter !== 'all') {
+                const [year, month] = filter.split('-');
+                title = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' }) + " Summary";
+            }
+        
+            // Build the message string
+            let message = `*📊 ${title}* \n\n`;
+            message += `💰 *Total Spent:* SGD ${data.totalExpenses.toFixed(2)}\n`;
+            message += `📝 *Entries:* ${data.entryCount}\n\n`;
+            
+            message += `*Settlement:* \n`;
+            const net = data.net;
+            if (Math.abs(net) < 0.01) {
+                message += `✅ All settled up!\n`;
+            } else {
+                message += net > 0 
+                    ? `🔸 Sayuri owes Kenny: *SGD ${net.toFixed(2)}*\n` 
+                    : `🔸 Kenny owes Sayuri: *SGD ${Math.abs(net).toFixed(2)}*\n`;
+            }
+        
+            message += `\n*Top Categories:* \n`;
+            // Sort categories by amount spent
+            const sortedCats = Object.entries(data.categoryTotals)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 3); // Top 3
+        
+            sortedCats.forEach(([cat, amt]) => {
+                message += `• ${cat}: $${amt.toFixed(2)}\n`;
+            });
+        
+            message += `\n_Generated via Expense Tracker_`;
+        
+            // Encode for URL and open WhatsApp
+            const encodedMsg = encodeURIComponent(message);
+            window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
+        }
+        
+        // Attach the listener
+        document.getElementById('whatsappShare').addEventListener('click', generateWhatsAppSummary);
+        
         function populateMonthFilter() {
             const filterSelect = document.getElementById('monthFilter');
             if (!filterSelect) return;
@@ -1515,7 +1592,7 @@ async function deleteExpenseFromFirebase(id) {
 
         return matchesMonth && matchesSearch;
     });
-        }
+    
 
     // 2. Sort the filtered expenses (ONLY ONE DECLARATION HERE)
     const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1537,6 +1614,17 @@ async function deleteExpenseFromFirebase(id) {
                 <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
                 <span>|</span>
                 <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
+            </div>
+        `;
+
+        div.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="btn-repeat" onclick="repeatExpense('${e.id}')" title="Repeat this expense">
+                    <i class="fas fa-redo" style="color: var(--primary-color);"></i>
+                </button>
+                <button class="btn-delete" onclick="handleDeleteExpense('${e.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         `;
 
@@ -1587,6 +1675,35 @@ async function handleDeleteExpense(id) {
         }
     } catch (error) {
         alert('Error deleting expense: ' + error.message);
+    }
+}
+
+        async function repeatExpense(id) {
+    const original = expenses.find(e => e.id === id);
+    if (!original) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const newExpense = {
+        ...original,
+        date: today,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    delete newExpense.id; // Remove old ID so Firebase creates a new one
+
+    if (confirm(`Repeat "${original.description}" for today?`)) {
+        try {
+            if (currentUser && !isGuestMode) {
+                await db.collection('shared_expenses').add(newExpense);
+            } else {
+                newExpense.id = Date.now().toString();
+                expenses.push(newExpense);
+                localStorage.setItem('expenses', JSON.stringify(expenses));
+                updateDashboard();
+                renderExpenseList();
+            }
+        } catch (error) {
+            alert('Error repeating expense: ' + error.message);
+        }
     }
 }
 
