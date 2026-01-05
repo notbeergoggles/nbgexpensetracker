@@ -919,32 +919,45 @@
             const description = document.getElementById('expenseDescription').value;
             const paidBy = document.querySelector('input[name="paidBy"]:checked').value;
             const amount = Number(document.getElementById('amount').value);
-const yourShare = Number(document.getElementById('yourShare').value);
-const herShare = Number(document.getElementById('herShare').value);
-            if (!amount || yourShare + herShare !== amount) {
+
+
+            
+let yourShare = 0;
+let herShare = 0;
+
+if (splitType === 'Equal') {
+    yourShare = amount / 2;
+    herShare = amount / 2;
+
+} else if (splitType === 'Full') {
+    if (paidBy === 'Kenny') {
+        yourShare = amount;
+        herShare = 0;
+    } else {
+        yourShare = 0;
+        herShare = amount;
+    }
+
+} else if (splitType === 'Custom') {
+    const yourPercent = Number(
+        document.getElementById('yourSharePercent').value
+    ) / 100;
+
+    if (Number.isNaN(yourPercent)) {
+        alert('Invalid percentage');
+        return;
+    }
+
+    yourShare = amount * yourPercent;
+    herShare = amount * (1 - yourPercent);
+}
+
+// ✅ final validation
+if (Math.abs((yourShare + herShare) - amount) > 0.01) {
     alert('Shares must add up to total amount');
     return;
 }
 
-            
-            let yourShare = 0, herShare = 0;
-            
-            if (splitType === 'Equal') {
-                yourShare = amount / 2;
-                herShare = amount / 2;
-            } else if (splitType === 'Full') {
-                if (paidBy === 'You') {
-                    yourShare = amount;
-                    herShare = 0;
-                } else {
-                    yourShare = 0;
-                    herShare = amount;
-                }
-            } else if (splitType === 'Custom') {
-                const yourPercent = parseFloat(document.getElementById('yourSharePercent').value) / 100;
-                yourShare = amount * yourPercent;
-                herShare = amount * (1 - yourPercent);
-            }
             
             const expense = {
                 date,
