@@ -518,6 +518,8 @@
     inset: 0;
     border-radius: 50%;
     pointer-events: auto; /* Add this so slices don't block each other */
+    -webkit-mask-image: radial-gradient(circle, transparent 30%, black 30%);
+    mask-image: radial-gradient(circle, transparent 30%, black 30%);
 }
 
 
@@ -1104,70 +1106,56 @@
         }
 
         function renderCategoryPie(categoryTotals, total) {
-            const pie = document.getElementById('categoryPieChart');
-            if (!pie) return;
-            // Clear pie and add center circle
-            pie.innerHTML = '<div class="pie-center"></div>';
-            
-            // 1. Declare the variable at the top level of the function
-            let tooltip = document.getElementById('pie-tooltip');
-            
-            // 2. Initialize it if it doesn't exist
-            if (!tooltip) {
-                tooltip = document.createElement('div');
-                tooltip.id = 'pie-tooltip';
-                document.body.appendChild(tooltip);
-            }
-            
-            const keys = Object.keys(categoryTotals);
-            if (keys.length === 0) return;
-            let start = 0;
-            keys.forEach((cat, i) => {
-                const val = categoryTotals[cat] || 0;
-                const percent = total ? val / total : 0;
-                const degrees = percent * 360;
-                const slice = document.createElement('div');
-                slice.className = 'pie-slice';
-                const color = categoryColors[cat] || '#ddd';
-                // 1. Draw the gradient
+    const pie = document.getElementById('categoryPieChart');
+    if (!pie) return;
+    
+    // Clear pie and add center circle
+    pie.innerHTML = '<div class="pie-center"></div>';
+    
+    let tooltip = document.getElementById('pie-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'pie-tooltip';
+        document.body.appendChild(tooltip);
+    }
+
+    const keys = Object.keys(categoryTotals);
+    if (keys.length === 0) return;
+
+    let start = 0;
+    // We reverse the keys so that the slices rendered later (on top) 
+    // don't block the mouse detection of slices rendered earlier.
+    keys.forEach((cat) => {
+        const val = categoryTotals[cat] || 0;
+        const percent = total ? val / total : 0;
+        const degrees = percent * 360;
+        
+        const slice = document.createElement('div');
+        slice.className = 'pie-slice';
+        const color = categoryColors[cat] || '#ddd';
+
+        // 1. Draw the gradient slice
         slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
 
-        // 2. THE FIX: Apply a clip-path so only the colored segment is "active"
-        // This polygon logic creates a wedge shape for the hover area
-        const end = start + degrees;
-        const x1 = 50 + 50 * Math.cos((start - 90) * Math.PI / 180);
-        const y1 = 50 + 50 * Math.sin((start - 90) * Math.PI / 180);
-        const x2 = 50 + 50 * Math.cos((end - 90) * Math.PI / 180);
-        const y2 = 50 + 50 * Math.sin((end - 90) * Math.PI / 180);
+        // 2. Add the Hover Events
+        slice.addEventListener('mouseenter', () => {
+            tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
+            tooltip.style.opacity = '1';
+        });
 
-        // If the slice is more than 50% (180 deg), we need an extra point in the polygon
-        if (degrees <= 180) {
-            slice.style.clipPath = `polygon(50% 50%, ${x1}% ${y1}%, ${x2}% ${y2}%)`;
-        } else {
-            // For large slices, we use a simple fallback or just keep it active
-            // but for most expense categories (smaller slices), the polygon works best.
-            slice.style.clipPath = 'none'; 
-            // Note: If you have one massive category > 180deg, it might still block others.
-            // In that case, move the largest slice to the BOTTOM of the stack (render it first).
-        }
-                // 2. Event listeners now have access to 'tooltip' defined above
-                slice.addEventListener('mouseenter', () => {
-                    tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${(percent * 100).toFixed(1)}%)`;
-                    tooltip.style.opacity = '1';
-                });
+        slice.addEventListener('mousemove', (e) => {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        });
 
-                slice.addEventListener('mousemove', (e) => {
-                    tooltip.style.left = (e.clientX + 15) + 'px';
-                    tooltip.style.top = (e.clientY + 15) + 'px';
-                });
+        slice.addEventListener('mouseleave', () => {
+            tooltip.style.opacity = '0';
+        });
 
-                slice.addEventListener('mouseleave', () => {
-                    tooltip.style.opacity = '0';
-                });
-                pie.appendChild(slice);
-                start += degrees;
-            });
-        }
+        pie.appendChild(slice);
+        start += degrees;
+    });
+}
 
         function renderExpenseList() {
             const list = document.getElementById('expenseList');
