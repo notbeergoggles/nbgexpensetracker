@@ -745,7 +745,6 @@
         let expenses = [];
         let currentUser = null;
         let isGuestMode = false;
-        let pieChartInstance = null;
 
         const categoryColors = {
             'Necessities': '#FF6B6B',
@@ -773,6 +772,7 @@
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
+                    renderExpenseList();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -814,6 +814,7 @@
             document.getElementById('userEmail').textContent = 'Guest (Local Only)';
             expenses = JSON.parse(localStorage.getItem('expenses')) || [];
             updateDashboard();
+            renderExpenseList();
         });
 
         document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -821,6 +822,8 @@
                 await auth.signOut();
                 isGuestMode = false;
                 expenses = [];
+                updateDashboard();
+                renderExpenseList();
             } catch (error) {
                 alert('Error logging out: ' + error.message);
             }
@@ -834,12 +837,14 @@
                     expenses.push({ id: doc.id, ...doc.data() });
                 });
                 updateDashboard();
+                renderExpenseList();
             } catch (error) {
                 console.error('Error loading expenses:', error);
             }
         }
 
         function listenToExpensesChanges() {
+            if (!currentUser) return;
             db.collection('users').doc(currentUser.uid).collection('expenses').onSnapshot(snapshot => {
                 expenses = [];
                 snapshot.forEach(doc => {
@@ -913,52 +918,56 @@
 
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const date = document.getElementById('expenseDate').value;
             const category = document.getElementById('expenseCategory').value;
             const description = document.getElementById('expenseDescription').value;
-            const paidBy = document.querySelector('input[name="paidBy"]:checked').value;
-            const amount = Number(document.getElementById('amount').value);
+            const paidByRadio = document.querySelector('input[name="paidBy"]:checked');
+            const paidByRaw = paidByRadio ? paidByRadio.value : null;
+            const paidBy = paidByRaw === 'You' ? 'Kenny' : (paidByRaw === 'Her' ? 'Sayuri' : 'Unknown');
+            const amount = Number(document.getElementById('expenseAmount').value) || 0;
+            const splitType = document.getElementById('splitType').value;
 
+            if (!paidByRaw) {
+                alert('Please select who paid the expense.');
+                return;
+            }
 
-            
-let yourShare = 0;
-let herShare = 0;
+            if (!category || !description || amount <= 0) {
+                alert('Please provide valid category, description and amount.');
+                return;
+            }
 
-if (splitType === 'Equal') {
-    yourShare = amount / 2;
-    herShare = amount / 2;
+            let yourShare = 0;
+            let herShare = 0;
 
-} else if (splitType === 'Full') {
-    if (paidBy === 'Kenny') {
-        yourShare = amount;
-        herShare = 0;
-    } else {
-        yourShare = 0;
-        herShare = amount;
-    }
+            if (splitType === 'Equal') {
+                yourShare = amount / 2;
+                herShare = amount / 2;
+            } else if (splitType === 'Full') {
+                if (paidBy === 'Kenny') {
+                    yourShare = amount;
+                    herShare = 0;
+                } else {
+                    yourShare = 0;
+                    herShare = amount;
+                }
+            } else if (splitType === 'Custom') {
+                const yourPercent = Number(document.getElementById('yourSharePercent').value) / 100;
+                if (Number.isNaN(yourPercent)) {
+                    alert('Invalid percentage');
+                    return;
+                }
+                yourShare = amount * yourPercent;
+                herShare = amount * (1 - yourPercent);
+            }
 
-} else if (splitType === 'Custom') {
-    const yourPercent = Number(
-        document.getElementById('yourSharePercent').value
-    ) / 100;
+            // final validation
+            if (Math.abs((yourShare + herShare) - amount) > 0.01) {
+                alert('Shares must add up to total amount');
+                return;
+            }
 
-    if (Number.isNaN(yourPercent)) {
-        alert('Invalid percentage');
-        return;
-    }
-
-    yourShare = amount * yourPercent;
-    herShare = amount * (1 - yourPercent);
-}
-
-// ✅ final validation
-if (Math.abs((yourShare + herShare) - amount) > 0.01) {
-    alert('Shares must add up to total amount');
-    return;
-}
-
-            
             const expense = {
                 date,
                 category,
@@ -969,236 +978,216 @@ if (Math.abs((yourShare + herShare) - amount) > 0.01) {
                 herShare,
                 createdAt: new Date().toISOString()
             };
-            
+
             try {
                 if (currentUser && !isGuestMode) {
                     await saveExpenseToFirebase(expense);
+                    // realtime listener will pick it up and update UI
                 } else {
-                    expense.id = Date.now();
+                    expense.id = Date.now().toString();
                     expenses.push(expense);
                     localStorage.setItem('expenses', JSON.stringify(expenses));
                     updateDashboard();
+                    renderExpenseList();
                 }
-                // Success feedback
+
                 const successMsg = document.createElement('div');
                 successMsg.className = 'success-message';
                 successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
                 document.getElementById('add-expense').insertBefore(successMsg, document.getElementById('expenseForm'));
                 setTimeout(() => successMsg.remove(), 3000);
-                
+
                 document.getElementById('expenseForm').reset();
                 document.getElementById('expenseDate').valueAsDate = new Date();
             } catch (error) {
                 alert('Error adding expense: ' + error.message);
             }
-
         });
 
-function calculateTotals() {
-    let kennyPaid = 0;
-    let sayuriPaid = 0;
-    let kennyShare = 0;
-    let sayuriShare = 0;
+        function calculateTotals() {
+            let kennyTotalPaid = 0;
+            let sayuriTotalPaid = 0;
+            let kennyTotalShare = 0;
+            let sayuriTotalShare = 0;
+            let totalExpenses = 0;
+            const categoryTotals = {};
+            const entryCount = expenses.length;
 
-    expenses.forEach(exp => {
-        if (exp.paidBy === 'Kenny') {
-            kennyPaid += exp.amount;
-        } else if (exp.paidBy === 'Sayuri') {
-            sayuriPaid += exp.amount;
+            expenses.forEach(e => {
+                const amt = Number(e.amount) || 0;
+                totalExpenses += amt;
+
+                const payer = (e.paidBy || '').toString();
+                if (payer.toLowerCase().includes('kenny')) {
+                    kennyTotalPaid += amt;
+                } else if (payer.toLowerCase().includes('sayuri') || payer.toLowerCase().includes('her')) {
+                    sayuriTotalPaid += amt;
+                }
+
+                const y = Number(e.yourShare) || 0;
+                const h = Number(e.herShare) || 0;
+                kennyTotalShare += y;
+                sayuriTotalShare += h;
+
+                if (e.category) {
+                    categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amt;
+                }
+            });
+
+            const avgEntry = entryCount ? totalExpenses / entryCount : 0;
+
+            // net: positive means Sayuri owes Kenny, negative means Kenny owes Sayuri
+            const net = (kennyTotalPaid - kennyTotalShare) - (sayuriTotalPaid - sayuriTotalShare);
+
+            return {
+                kennyTotalPaid,
+                sayuriTotalPaid,
+                kennyTotalShare,
+                sayuriTotalShare,
+                totalExpenses,
+                entryCount,
+                avgEntry,
+                categoryTotals,
+                net
+            };
         }
-
-        kennyShare += exp.kennyShare;
-        sayuriShare += exp.sayuriShare;
-    });
-
-    return {
-        kennyPaid,
-        sayuriPaid,
-        kennyShare,
-        sayuriShare
-    };
-}
-
 
         function updateDashboard() {
-            const {
-    kennyPaid,
-    sayuriPaid,
-    kennyShare,
-    sayuriShare
-} = calculateTotals();
+            const t = calculateTotals();
 
-            
-            document.getElementById('kennyTotal').textContent = `SGD ${kennyTotalPaid.toFixed(2)}`;
-            document.getElementById('sayuriTotal').textContent = `SGD ${sayuriTotalPaid.toFixed(2)}`;
-            document.getElementById('kennyShare').textContent = `SGD ${kennyTotalShare.toFixed(2)}`;
-            document.getElementById('sayuriShare').textContent = `SGD ${sayuriTotalShare.toFixed(2)}`;
-            
-            const totalExpenses = kennyTotalPaid + sayuriTotalPaid;
-            document.getElementById('totalExpenses').textContent = `SGD ${totalExpenses.toFixed(2)}`;
-            document.getElementById('entryCount').textContent = expenses.length;
-            document.getElementById('avgEntry').textContent = expenses.length > 0 ? `SGD ${(totalExpenses / expenses.length).toFixed(2)}` : 'SGD 0.00';
-            
-const net = kennyPaid - kennyShare;
-const settlementElement = document.getElementById('settlement');
-const settlementNote = document.getElementById('settlementNote');
+            document.getElementById('yourTotal').textContent = 'SGD ' + t.kennyTotalPaid.toFixed(2);
+            document.getElementById('herTotal').textContent = 'SGD ' + t.sayuriTotalPaid.toFixed(2);
 
-if (Math.abs(net) < 0.01) {
-    settlementElement.textContent = 'SGD 0.00';
-    settlementNote.textContent = '✓ Even';
-    settlementElement.classList.remove('balance-due');
-} else if (net > 0) {
-    settlementElement.textContent = `SGD ${net.toFixed(2)}`;
-    settlementNote.textContent = 'Sayuri owes Kenny';
-    settlementElement.classList.add('balance-due');
-} else {
-    settlementElement.textContent = `SGD ${Math.abs(net).toFixed(2)}`;
-    settlementNote.textContent = 'Kenny owes Sayuri';
-    settlementElement.classList.add('balance-due');
-}
+            document.getElementById('yourShare').textContent = 'SGD ' + t.kennyTotalShare.toFixed(2);
+            document.getElementById('herShare').textContent = 'SGD ' + t.sayuriTotalShare.toFixed(2);
 
-            
-            updateCategoryChart();
+            document.getElementById('totalExpenses').textContent = 'SGD ' + t.totalExpenses.toFixed(2);
+            document.getElementById('entryCount').textContent = t.entryCount;
+            document.getElementById('avgEntry').textContent = 'SGD ' + t.avgEntry.toFixed(2);
+
+            document.getElementById('settlement').textContent = 'SGD ' + Math.abs(t.net).toFixed(2);
+            document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
+
+            renderCategoryPie(t.categoryTotals, t.totalExpenses);
         }
 
-        function updateCategoryChart() {
-    const categoryTotals = {};
-    let total = 0;
-
-    expenses.forEach(exp => {
-        categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
-        total += exp.amount;
-    });
-
-    // Bar-style breakdown (keep your existing HTML)
-    const chartHtml = Object.keys(categoryTotals).length === 0 
-        ? '<div class="empty-state">No expenses to visualize</div>'
-        : Object.entries(categoryTotals).map(([cat, total]) => {
-            const color = categoryColors[cat] || '#999999';
-            return `
-                <div style="margin-bottom: var(--space-12);">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                        <span>${cat}</span>
-                        <span>SGD ${total.toFixed(2)}</span>
-                    </div>
-                    <div style="height:12px;background:#eee;border-radius:6px;overflow:hidden;">
-                        <div style="height:100%;width:${(total / Object.values(categoryTotals).reduce((a,b)=>a+b,0))*100}%;background:${color};"></div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-    document.getElementById('categoryChart').innerHTML = chartHtml;
-
-    // ---------- PIE CHART (CSS ONLY) ----------
-    const pie = document.getElementById('categoryPieChart');
-
-    if (total === 0) {
-        pie.style.background = 'conic-gradient(#ddd 0deg 360deg)';
-        pie.innerHTML = '';
-        return;
-    }
-
-    let currentAngle = 0;
-    const slices = [];
-
-    Object.entries(categoryTotals).forEach(([cat, value]) => {
-        const angle = (value / total) * 360;
-        const color = categoryColors[cat] || '#999999';
-        slices.push(`${color} ${currentAngle}deg ${currentAngle + angle}deg`);
-        currentAngle += angle;
-    });
-
-    pie.style.background = `conic-gradient(${slices.join(',')})`;
-    pie.innerHTML = `
-    <div class="pie-center">
-        <div style="text-align:center;">
-            <div style="font-size:12px;color:var(--color-text-secondary);">Total</div>
-            <div style="font-size:18px;font-weight:600;">SGD ${total.toFixed(2)}</div>
-        </div>
-    </div>
-`;
-
-
+        function renderCategoryPie(categoryTotals, total) {
+            const pie = document.getElementById('categoryPieChart');
+            if (!pie) return;
+            pie.innerHTML = '<div class="pie-center"></div>';
+            const keys = Object.keys(categoryTotals);
+            if (keys.length === 0) return;
             let start = 0;
-Object.entries(categoryTotals).forEach(([cat, value]) => {
-    const angle = (value / total) * 360;
-    const slice = document.createElement('div');
-
-    slice.className = 'pie-slice';
-    slice.style.clipPath = `polygon(50% 50%, 50% 0%, ${50 + 50 * Math.cos((start + angle) * Math.PI / 180)}% ${50 + 50 * Math.sin((start + angle) * Math.PI / 180)}%)`;
-    slice.dataset.label = `${cat}: SGD ${value.toFixed(2)}`;
-
-    pie.appendChild(slice);
-    start += angle;
-});
-}
-
-
-        
+            keys.forEach((cat, i) => {
+                const val = categoryTotals[cat] || 0;
+                const percent = total ? val / total : 0;
+                const degrees = percent * 360;
+                const slice = document.createElement('div');
+                slice.className = 'pie-slice';
+                const color = categoryColors[cat] || '#ddd';
+                slice.style.background = `conic-gradient(${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
+                slice.dataset.label = `${cat}: SGD ${val.toFixed(2)} (${(percent*100).toFixed(1)}%)`;
+                pie.appendChild(slice);
+                start += degrees;
+            });
+        }
 
         function renderExpenseList() {
-            const html = expenses.length === 0
-                ? '<div class="empty-state">No expenses yet</div>'
-                : expenses.slice().reverse().map(exp => `
-                    <div class="expense-item">
-                        <div class="expense-info">
-                            <div class="expense-category">${exp.category}</div>
-                            <div class="expense-description">${exp.description}</div>
-                            <div class="expense-details">${new Date(exp.date).toLocaleDateString('en-SG')} • Paid by ${exp.paidBy}</div>
-                            <div class="expense-payer">Kenny: SGD ${exp.yourShare.toFixed(2)} | Sayuri: SGD ${exp.herShare.toFixed(2)}</div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: var(--space-12);">
-                            <div class="expense-amount">SGD ${exp.amount.toFixed(2)}</div>
-                            <button type="button" class="btn btn--danger btn--sm" onclick="deleteExpense('${exp.id}')">Delete</button>
-                        </div>
-                    </div>
-                `).join('');
-            
-            document.getElementById('expenseList').innerHTML = html;
-        }
-
-        async function deleteExpense(id) {
-            if (confirm('Are you sure you want to delete this expense?')) {
-                try {
-                    if (currentUser && !isGuestMode) {
-                        await deleteExpenseFromFirebase(id);
-                    } else {
-                        expenses = expenses.filter(exp => exp.id !== id);
-                        localStorage.setItem('expenses', JSON.stringify(expenses));
-                        updateDashboard();
-                        renderExpenseList();
-                    }
-                } catch (error) {
-                    alert('Error deleting expense: ' + error.message);
-                }
+            const list = document.getElementById('expenseList');
+            list.innerHTML = '';
+            if (!expenses || expenses.length === 0) {
+                list.innerHTML = '<div class="empty-state">No expenses yet. Add one to get started!</div>';
+                return;
             }
+
+            expenses.slice().reverse().forEach(exp => {
+                const item = document.createElement('div');
+                item.className = 'expense-item';
+
+                const info = document.createElement('div');
+                info.className = 'expense-info';
+                info.innerHTML = `
+                    <div class="expense-category">${exp.category || ''}</div>
+                    <div class="expense-description">${escapeHtml(exp.description || '')}</div>
+                    <div class="expense-details">${exp.date || ''} • Paid by ${escapeHtml(exp.paidBy || '')}</div>
+                `;
+
+                const right = document.createElement('div');
+                right.style.display = 'flex';
+                right.style.alignItems = 'center';
+
+                const amount = document.createElement('div');
+                amount.className = 'expense-amount';
+                amount.textContent = 'SGD ' + (Number(exp.amount) || 0).toFixed(2);
+
+                const actions = document.createElement('div');
+                actions.className = 'expense-actions';
+
+                const del = document.createElement('button');
+                del.className = 'btn btn--danger btn--sm';
+                del.textContent = 'Delete';
+                del.addEventListener('click', async () => {
+                    if (!confirm('Delete this expense?')) return;
+                    try {
+                        if (currentUser && !isGuestMode) {
+                            await deleteExpenseFromFirebase(exp.id);
+                        } else {
+                            expenses = expenses.filter(e => e.id !== exp.id);
+                            localStorage.setItem('expenses', JSON.stringify(expenses));
+                            updateDashboard();
+                            renderExpenseList();
+                        }
+                    } catch (err) {
+                        alert('Error deleting: ' + err.message);
+                    }
+                });
+
+                actions.appendChild(del);
+                right.appendChild(amount);
+                right.appendChild(actions);
+
+                item.appendChild(info);
+                item.appendChild(right);
+                list.appendChild(item);
+            });
         }
 
-        document.getElementById('exportBtn').addEventListener('click', () => {
-            if (expenses.length === 0) {
+        function exportToCSV() {
+            if (!expenses || expenses.length === 0) {
                 alert('No expenses to export');
                 return;
             }
-            
-            const headers = ['Date', 'Category', 'Description', 'Amount (SGD)', 'Paid By', 'Your Share (SGD)', 'Her Share (SGD)'];
-            const rows = expenses.map(exp => [
-                new Date(exp.date).toLocaleDateString('en-SG'),
-                exp.category,
-                exp.description,
-                exp.amount.toFixed(2),
-                exp.paidBy,
-                exp.yourShare.toFixed(2),
-                exp.herShare.toFixed(2)
-            ]);
-            
-            let csv = headers.join(',') + '\n' + rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-            
-            const link = document.createElement('a');
-            link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-            link.download = `expenses_${new Date().toLocaleDateString('en-SG')}.csv`;
-            link.click();
-        });
+            const headers = ['id','date','category','description','amount','paidBy','yourShare','herShare','createdAt'];
+            const rows = expenses.map(e => headers.map(h => JSON.stringify(e[h] ?? '')).join(','));
+            const csv = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'expenses.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('exportBtn').addEventListener('click', exportToCSV);
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/\"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        // initialize UI from local storage if guest or before auth
+        (function init() {
+            if (!currentUser) {
+                expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+                updateDashboard();
+                renderExpenseList();
+            }
+        })();
     </script>
 </body>
 </html>
