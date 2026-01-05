@@ -216,17 +216,22 @@
 
         /* Buttons */
         .btn {
-            padding: var(--space-10) var(--space-16);
+            /* Increased top/bottom padding from 10px to 16px for thickness */
+            padding: 16px var(--space-16); 
             border: none;
             border-radius: var(--radius-base);
+            /* Increased font-weight to 700 for a bolder look */
+            font-weight: 700; 
             font-size: var(--font-size-base);
-            font-weight: 500;
             cursor: pointer;
             transition: all 150ms;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
+            justify-content: center; /* Ensures text is centered */
             gap: var(--space-8);
+            /* Added letter-spacing for a more modern premium feel */
+            letter-spacing: 0.5px;
         }
 
         .btn--primary {
@@ -263,7 +268,8 @@
 
         .btn--full-width {
             width: 100%;
-            justify-content: center;
+            /* Added a slight shadow to make the thick button "pop" */
+            box-shadow: 0 4px 12px rgba(33, 128, 141, 0.2); 
         }
 
         /* Summary Cards */
@@ -1187,6 +1193,7 @@ async function deleteExpenseFromFirebase(id) {
 
                                 const successMsg = document.createElement('div');
                 successMsg.className = 'success-message';
+                successMsg.style.marginBottom = "20px";
                 successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
                
                 // Insert the success message safely. The previous code used
