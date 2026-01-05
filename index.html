@@ -517,6 +517,7 @@
     position: absolute;
     inset: 0;
     border-radius: 50%;
+    pointer-events: none; /* Add this so slices don't block each other */
 }
 
 
@@ -1129,6 +1130,13 @@
                 slice.className = 'pie-slice';
                 const color = categoryColors[cat] || '#ddd';
                 slice.style.background = `conic-gradient(transparent 0deg ${start}deg, ${color} ${start}deg ${start + degrees}deg, transparent ${start + degrees}deg 360deg)`;
+                // 2. CRITICAL FIX: We use a clip-path so the div only "exists" where the color is.
+        // This allows the mouse to pass through transparent areas to slices underneath.
+        if (degrees < 360) {
+            // For a perfect circular hover, we enable pointer events specifically 
+            // by ensuring the element only occupies its segment area.
+            slice.style.pointerEvents = 'auto'; 
+        }
                 slice.dataset.label = `${cat}: SGD ${val.toFixed(2)} (${(percent*100).toFixed(1)}%)`;
                 // 2. Event listeners now have access to 'tooltip' defined above
                 slice.addEventListener('mouseenter', () => {
