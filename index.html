@@ -275,12 +275,13 @@
         .btn-repeat {
             background: none;
             border: none;
-            padding: 8px;
+            padding: 4px;
             cursor: pointer;
-            opacity: 0.6;
-            transition: opacity 0.2s;
+            opacity: 0.8; /* Increased from 0.6 */
+            transition: transform 0.2s;
         }
         .btn-repeat:hover {
+            transform: scale(1.2); /* Added a slight grow effect on hover */
             opacity: 1;
         }
 
@@ -800,9 +801,10 @@
                     </div>
                 </div>
             </div>
-            <button id="whatsappShare" class="btn btn--secondary" style="margin-top: var(--space-12); width: 100%; background-color: #25D366; color: white;">
+            <button id="whatsappShare" class="btn btn--secondary" style="margin-top: var(--space-12); width: 100%; background-color: #25D366; color: white; border: none;">
                 <i class="fab fa-whatsapp"></i> Share Monthly Summary
             </button>
+        
 
             <div class="card">
                 <h2>Spending by Category</h2>
@@ -1539,9 +1541,9 @@ async function deleteExpenseFromFirebase(id) {
 }
 
         function renderExpenseList() {
-            const list = document.getElementById('expenseList');
-            const searchTerm = document.getElementById('historySearch')?.value.toLowerCase() || '';
-            if (!list) return;
+    const list = document.getElementById('expenseList');
+    const searchTerm = document.getElementById('historySearch')?.value.toLowerCase() || '';
+    if (!list) return;
 
     const categoryIcons = {
         'Food': { icon: 'fa-utensils', class: 'icon-food' },
@@ -1558,43 +1560,30 @@ async function deleteExpenseFromFirebase(id) {
 
     const filter = document.getElementById('monthFilter')?.value || 'current';
 
-    // 1. Filter the expenses
+    // 1. Filter the expenses by Month AND Search Term
     const filteredExpenses = expenses.filter(e => {
-        if (filter === 'all') return true;
+        let matchesMonth = false;
         const d = new Date(e.date);
         const expenseYear = d.getFullYear();
         const expenseMonth = d.getMonth();
 
-        if (filter === 'current') {
+        if (filter === 'all') {
+            matchesMonth = true;
+        } else if (filter === 'current') {
             const now = new Date();
-            return expenseYear === now.getFullYear() && expenseMonth === now.getMonth();
+            matchesMonth = (expenseYear === now.getFullYear() && expenseMonth === now.getMonth());
         } else {
             const [selYear, selMonth] = filter.split('-');
-            return expenseYear === parseInt(selYear) && expenseMonth === (parseInt(selMonth) - 1);
-        }
-    });
-            let matchesMonth = false;
-        if (filter === 'all') matchesMonth = true;
-        else {
-            const d = new Date(e.date);
-            if (filter === 'current') {
-                const now = new Date();
-                matchesMonth = (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth());
-            } else {
-                const [selYear, selMonth] = filter.split('-');
-                matchesMonth = (d.getFullYear() === parseInt(selYear) && d.getMonth() === (parseInt(selMonth) - 1));
-            }
+            matchesMonth = (expenseYear === parseInt(selYear) && expenseMonth === (parseInt(selMonth) - 1));
         }
 
-        // Search filter logic
         const matchesSearch = e.description.toLowerCase().includes(searchTerm) || 
                               e.category.toLowerCase().includes(searchTerm);
 
         return matchesMonth && matchesSearch;
     });
-    
 
-    // 2. Sort the filtered expenses (ONLY ONE DECLARATION HERE)
+    // 2. Sort the filtered expenses
     const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
     
     list.innerHTML = '';
@@ -1604,6 +1593,7 @@ async function deleteExpenseFromFirebase(id) {
         return;
     }
 
+    // 3. Render the list
     sortedExpenses.forEach(e => {
         const div = document.createElement('div');
         div.className = 'expense-item card';
@@ -1614,17 +1604,6 @@ async function deleteExpenseFromFirebase(id) {
                 <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
                 <span>|</span>
                 <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
-            </div>
-        `;
-
-        div.innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button class="btn-repeat" onclick="repeatExpense('${e.id}')" title="Repeat this expense">
-                    <i class="fas fa-redo" style="color: var(--primary-color);"></i>
-                </button>
-                <button class="btn-delete" onclick="handleDeleteExpense('${e.id}')">
-                    <i class="fas fa-trash"></i>
-                </button>
             </div>
         `;
 
@@ -1642,20 +1621,23 @@ async function deleteExpenseFromFirebase(id) {
                             </div>
                             ${splitHtml}
                         </div>
-                        <div style="text-align: right;">
-                            <div class="expense-amount-red">
-                                SGD ${Number(e.amount).toFixed(2)}
+                        <div style="text-align: right; display: flex; align-items: center; gap: 12px;">
+                            <div>
+                                <div class="expense-amount-red">SGD ${Number(e.amount).toFixed(2)}</div>
+                                <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">Paid by ${e.paidBy}</div>
                             </div>
-                            <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">
-                                Paid by ${e.paidBy}
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <button class="btn-repeat" onclick="repeatExpense('${e.id}')" title="Repeat expense">
+                                    <i class="fas fa-redo" style="color: var(--color-primary); font-size: 14px;"></i>
+                                </button>
+                                <button class="btn-delete" onclick="handleDeleteExpense('${e.id}')" title="Delete expense">
+                                    <i class="fas fa-trash" style="font-size: 14px;"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <button class="btn-delete" onclick="handleDeleteExpense('${e.id}')">
-                <i class="fas fa-trash"></i>
-            </button>
         `;
         list.appendChild(div);
     });
