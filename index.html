@@ -697,7 +697,8 @@
 
         #historySearch {
             background-color: var(--color-gray-200);
-            border: 1px solid transparent;
+            /* Explicitly remove all borders */
+            border: none !important; 
             border-radius: 12px;
             height: 44px;
             font-size: 14px;
@@ -706,9 +707,10 @@
         
         #historySearch:focus {
             background-color: white;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(33, 128, 141, 0.1);
+            /* Remove the default browser outline and blue border */
             outline: none;
+            border: none;
+            box-shadow: 0 0 0 4px rgba(33, 128, 141, 0.1);
         }
 
     </style>
@@ -802,7 +804,7 @@
                 </div>
             </div>
             <button id="whatsappShare" class="btn btn--secondary" 
-                style="margin-top: var(--space-12); margin-bottom: var(--space-8); width: 100%; background-color: #25D366; color: white; border: none;">
+                style="margin-top: var(--space-12); margin-bottom: var(--space-12); width: 100%; background-color: #25D366; color: white; border: none;">
                 <i class="fab fa-whatsapp"></i> Share Monthly Summary
             </button>
         
