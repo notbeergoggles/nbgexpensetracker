@@ -688,10 +688,10 @@
                         <div class="summary-label">Number of Entries</div>
                         <div class="summary-value" id="entryCount">0</div>
                     </div>
-                    <div class="summary-item">
-                        <div class="summary-label">Average Per Entry</div>
-                        <div class="summary-value" id="avgEntry">SGD 0.00</div>
-                    </div>
+                    <div class="card summary-card">
+    <div class="summary-label">Daily Burn Rate</div>
+    <div class="summary-value" id="dailyBurnRate">SGD 0.00</div>
+</div>
                 </div>
             </div>
         </div>
@@ -1123,8 +1123,11 @@ async function deleteExpenseFromFirebase(id) {
             let kennyTotalShare = 0;
             let sayuriTotalShare = 0;
             let totalExpenses = 0;
+            const now = new Date();
+            const currentDay = now.getDate();
             const categoryTotals = {};
             const entryCount = expenses.length;
+            
 
             expenses.forEach(e => {
                 const amt = Number(e.amount) || 0;
@@ -1148,6 +1151,7 @@ async function deleteExpenseFromFirebase(id) {
             });
 
             const avgEntry = entryCount ? totalExpenses / entryCount : 0;
+            const dailyBurn = totalExpenses / currentDay;
 
             // net: positive means Sayuri owes Kenny, negative means Kenny owes Sayuri
             const net = kennyTotalPaid - kennyTotalShare;
@@ -1162,6 +1166,7 @@ async function deleteExpenseFromFirebase(id) {
                 avgEntry,
                 categoryTotals,
                 net
+                dailyBurn: dailyBurn || 0
             };
         }
 
