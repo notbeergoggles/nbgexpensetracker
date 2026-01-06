@@ -791,6 +791,36 @@
             color: var(--color-black) !important; /* Switch to black text on white bg for maximum clarity */
         }
 
+        .health-entry {
+            position: relative;
+            padding-bottom: 5px;
+        }
+        
+        .health-entry::before {
+            content: '';
+            position: absolute;
+            left: -27px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            border: 3px solid var(--color-white);
+        }
+        
+        .health-date {
+            font-size: 11px;
+            color: var(--color-gray-300);
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        
+        .health-text {
+            font-size: 14px;
+            color: var(--color-text);
+            margin-top: 2px;
+        }
+
     </style>
 </head>
 <body>
@@ -1047,10 +1077,72 @@
                 <div id="checklistContainer" style="display: flex; flex-direction: column; gap: 12px;">
                     </div>
             </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3 style="margin-bottom: 15px;"><i class="fas fa-heartbeat"></i> Health & Milestones</h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="healthNote" placeholder="Note (e.g. Weight 5.2kg, Heartworm pill)" class="form-control" style="flex: 1;">
+                        <button onclick="addHealthLog()" class="btn btn--primary" style="width: 60px;"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+            
+                <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 15px; position: relative; padding-left: 20px; border-left: 2px solid var(--color-gray-200);">
+                    </div>
+            </div>
         </div>
     </div>
 
     <script>
+        // 1. Initialize Health Listener
+        function initMikaHealth() {
+            db.collection('mika_health').orderBy('timestamp', 'desc').limit(10).onSnapshot(snapshot => {
+                const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderHealthLog(logs);
+            });
+        }
+        
+        // 2. Add Entry
+        async function addHealthLog() {
+            const noteInput = document.getElementById('healthNote');
+            const note = noteInput.value.trim();
+            if (!note) return;
+        
+            await db.collection('mika_health').add({
+                text: note,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                dateStr: new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })
+            });
+            
+            noteInput.value = '';
+        }
+        
+        // 3. Render
+        function renderHealthLog(logs) {
+            const container = document.getElementById('healthLogContainer');
+            if (!container) return;
+        
+            container.innerHTML = logs.map(log => `
+                <div class="health-entry">
+                    <div class="health-date">${log.dateStr || 'Recent'}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="health-text">${log.text}</div>
+                        <button onclick="deleteHealthLog('${log.id}')" style="background:none; border:none; color:var(--color-gray-300); font-size:12px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function deleteHealthLog(id) {
+            if(confirm('Delete this health record?')) {
+                await db.collection('mika_health').doc(id).delete();
+            }
+        }
+
+        
         let mikaTasks = [];
 
             // 1. Initialize Checklist Listener
@@ -1398,6 +1490,7 @@
                     await loadExpensesFromFirebase();
                     listenToExpensesChanges();
                     initMikaChecklist();
+                    initMikaHealth();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
