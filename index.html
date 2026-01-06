@@ -1709,9 +1709,9 @@
         updateDashboard();
         renderExpenseList();
         if (typeof calculateLiveSettlement === "function") {
-        calculateLiveSettlement();
-    }
-    });
+            calculateLiveSettlement();
+            }
+        });
 }
 
         async function saveExpenseToFirebase(expense) {
@@ -2219,6 +2219,7 @@ async function handleDeleteExpense(id) {
 }
 
         //Tab Switching Logic
+        
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         
@@ -2226,18 +2227,20 @@ async function handleDeleteExpense(id) {
             button.addEventListener('click', () => {
                 const tabId = button.getAttribute('data-tab');
                 
-                // Remove active class from all buttons and contents
+                // 1. Remove active class from ALL buttons and ALL content divs
                 tabButtons.forEach(btn => btn.classList.remove('active'));
                 tabContents.forEach(content => content.classList.remove('active'));
                 
-                // Add active class to current
+                // 2. Add active class to the clicked button
                 button.classList.add('active');
+                
+                // 3. Show the specific content div (this is what fixes the "blank" screen)
                 const targetContent = document.getElementById(tabId);
                 if (targetContent) {
                     targetContent.classList.add('active');
                 }
         
-                // TRIGGER DATA REFRESH: If clicking settlement, recalculate
+                // 4. Recalculate the live balance specifically when this tab is opened
                 if (tabId === 'settlement') {
                     calculateLiveSettlement();
                 }
