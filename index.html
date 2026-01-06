@@ -872,6 +872,7 @@
             <button type="button" class="tab-button" data-tab="add-expense">Add Expense</button>
             <button type="button" class="tab-button" data-tab="history">History</button>
             <button type="button" class="tab-button" data-tab="mika-checklist">🐾 Mika</button>
+            <button type="button" class="tab-button" data-tab="settlement">🤝 Settle</button>
         </div>
 
         <!-- Dashboard Tab -->
@@ -1089,6 +1090,29 @@
                 </div>
             
                 <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 15px; position: relative; padding-left: 20px; border-left: 2px solid var(--color-gray-200);">
+                    </div>
+            </div>
+        </div>
+
+        <!-- Settlement Tab -->
+        <div id="settlement" class="tab-content">
+            <div class="card" style="text-align: center; padding: 40px 20px; border: 2px solid var(--color-primary);">
+                <h2 style="margin-bottom: 5px;">Live Running Balance</h2>
+                <p style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 20px;">Cumulative since last settlement</p>
+                
+                <div id="liveBalanceAmount" style="font-size: 36px; font-weight: 800; color: var(--color-primary); margin: 20px 0;">
+                    SGD 0.00
+                </div>
+                <p id="whoOwesWho" style="font-size: 14px; font-weight: 600; margin-bottom: 30px;">Calculating...</p>
+                
+                <button id="settleUpBtn" onclick="handleSettleUp()" class="btn btn--primary btn--full-width" style="max-width: 300px; margin: 0 auto;">
+                    Settle Everything Now
+                </button>
+            </div>
+        
+            <div class="card" style="margin-top: 20px;">
+                <h3>Past Settlements</h3>
+                <div id="settlementHistory" style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
                     </div>
             </div>
         </div>
@@ -1491,6 +1515,7 @@
                     listenToExpensesChanges();
                     initMikaChecklist();
                     initMikaHealth();
+                    initSettlement();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -1577,6 +1602,7 @@
         processRecurringExpenses();
         updateDashboard();
         renderExpenseList();
+        calculateLiveSettlement();
     });
 }
 
@@ -2129,6 +2155,98 @@ async function handleDeleteExpense(id) {
                 renderExpenseList();
             }
         })();
+
+        let lastSettlementDate = new Date(0);
+        let settlements = [];
+        
+        // 1. Fetch Settlement History & Find the "Marker"
+        async function initSettlement() {
+            db.collection('settlements').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                settlements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                if (settlements.length > 0) {
+                    const lastMarker = settlements[0].timestamp;
+                    lastSettlementDate = lastMarker ? lastMarker.toDate() : new Date(0);
+                }
+                
+                calculateLiveSettlement();
+                renderSettlementHistory();
+            });
+        }
+        
+        // 2. The Cumulative Math (Ignores Month Filter)
+        function calculateLiveSettlement() {
+            let kennyOwed = 0;
+            let sayuriOwed = 0;
+        
+            // Filter ALL expenses that happened AFTER the last settlement
+            const unsettled = expenses.filter(e => {
+                const expDate = new Date(e.date);
+                return expDate > lastSettlementDate && e.isRecurring !== true;
+            });
+        
+            unsettled.forEach(e => {
+                const amt = parseFloat(e.amount) || 0;
+                const myShare = parseFloat(e.myShare) || 0;
+                
+                if (e.paidBy === "You" || e.paidBy === currentUser?.email) {
+                    kennyOwed += (amt - myShare); // Sayuri owes Kenny the remainder
+                } else {
+                    sayuriOwed += myShare; // Kenny owes Sayuri his share
+                }
+            });
+        
+            const net = kennyOwed - sayuriOwed;
+            const amountEl = document.getElementById('liveBalanceAmount');
+            const whoEl = document.getElementById('whoOwesWho');
+        
+            if (!amountEl || !whoEl) return;
+        
+            if (net > 0) {
+                amountEl.textContent = `SGD ${net.toFixed(2)}`;
+                amountEl.style.color = "#28a745";
+                whoEl.textContent = `Sayuri owes Kenny SGD ${net.toFixed(2)}`;
+            } else if (net < 0) {
+                amountEl.textContent = `SGD ${Math.abs(net).toFixed(2)}`;
+                amountEl.style.color = "#dc3545";
+                whoEl.textContent = `Kenny owes Sayuri SGD ${Math.abs(net).toFixed(2)}`;
+            } else {
+                amountEl.textContent = "SGD 0.00";
+                amountEl.style.color = "var(--color-primary)";
+                whoEl.textContent = "You are all settled up!";
+            }
+        }
+        
+        // 3. Create the Marker
+        async function handleSettleUp() {
+            const amountStr = document.getElementById('liveBalanceAmount').textContent.replace('SGD ', '');
+            const amount = parseFloat(amountStr);
+            
+            if (amount === 0 || isNaN(amount)) return alert("Nothing to settle!");
+        
+            if (confirm(`Settle SGD ${amount.toFixed(2)}? This resets the Live Balance to zero.`)) {
+                await db.collection('settlements').add({
+                    amount: amount,
+                    settledAt: new Date().toISOString(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    settledBy: currentUser.email
+                });
+            }
+        }
+        
+        function renderSettlementHistory() {
+            const container = document.getElementById('settlementHistory');
+            if (!container) return;
+            container.innerHTML = settlements.length ? settlements.map(s => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(128,128,128,0.05); border-radius:8px;">
+                    <div>
+                        <strong>SGD ${parseFloat(s.amount).toFixed(2)}</strong><br>
+                        <small style="color:var(--color-gray-300)">${new Date(s.settledAt).toLocaleDateString()}</small>
+                    </div>
+                    <i class="fas fa-check-circle" style="color:#28a745"></i>
+                </div>
+            `).join('') : '<div class="empty-state">No history yet</div>';
+        }
     </script>
 </body>
 </html>
