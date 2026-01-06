@@ -1096,24 +1096,16 @@
 
         <!-- Settlement Tab -->
         <div id="settlement" class="tab-content">
-            <div class="card" style="text-align: center; padding: 40px 20px; border: 2px solid var(--color-primary);">
-                <h2 style="margin-bottom: 5px;">Live Running Balance</h2>
-                <p style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 20px;">Cumulative since last settlement</p>
-                
+            <div class="card" style="text-align: center; padding: 40px 20px;">
+                <h2>Running Balance</h2>
                 <div id="liveBalanceAmount" style="font-size: 36px; font-weight: 800; color: var(--color-primary); margin: 20px 0;">
                     SGD 0.00
                 </div>
-                <p id="whoOwesWho" style="font-size: 14px; font-weight: 600; margin-bottom: 30px;">Calculating...</p>
+                <p id="whoOwesWho" style="font-size: 14px; margin-bottom: 30px;">Calculating...</p>
                 
-                <button id="settleUpBtn" onclick="handleSettleUp()" class="btn btn--primary btn--full-width" style="max-width: 300px; margin: 0 auto;">
+                <button onclick="handleSettleUp()" class="btn btn--primary btn--full-width">
                     Settle Everything Now
                 </button>
-            </div>
-        
-            <div class="card" style="margin-top: 20px;">
-                <h3>Past Settlements</h3>
-                <div id="settlementHistory" style="margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
-                    </div>
             </div>
         </div>
     </div>
@@ -1631,26 +1623,26 @@ async function deleteExpenseFromFirebase(id) {
 
         document.getElementById('expenseDate').valueAsDate = new Date();
 
+       
         document.querySelectorAll('.tab-button').forEach(button => {
             button.addEventListener('click', () => {
                 const tabId = button.getAttribute('data-tab');
                 
-                // 1. Deactivate all buttons and hide all content
+                // This part hides ALL content divs
                 document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
                 
-                // 2. Activate the clicked button
                 button.classList.add('active');
                 
-                // 3. Show the matching content div
+                // This part shows the one you clicked
                 const target = document.getElementById(tabId);
                 if (target) {
-                    target.classList.add('active');
+                    target.classList.add('active'); // This makes the settlement tab visible
                 }
         
-                // 4. IMPORTANT: Run the math only when this tab is opened
-                if (tabId === 'settlement' && typeof calculateLiveSettlement === 'function') {
-                    calculateLiveSettlement();
+                // TRIGGER THE MATH:
+                if (tabId === 'settlement') {
+                    calculateLiveSettlement(); 
                 }
             });
         });
