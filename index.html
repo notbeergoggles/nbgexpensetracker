@@ -721,14 +721,16 @@
             color: var(--color-black);
         }
 
-        /* Checklist Specific Styling */
+       
+        /* Checklist Specific Styling - Theme Aware */
         .checklist-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: var(--space-16);
-            background: var(--color-white);
-            border-bottom: 1px solid var(--color-gray-200);
+            /* Change: Use a transparent border or theme variable instead of solid white */
+            background: transparent; 
+            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
             gap: 12px;
         }
         
@@ -737,14 +739,15 @@
             align-items: center;
             gap: 16px;
             flex-grow: 1;
-            min-width: 0; /* Prevents text overflow issues */
+            min-width: 0;
         }
         
         .checklist-text {
             font-size: 16px;
             line-height: 1.4;
-            word-break: break-word; /* Wraps long text on mobile */
-            transition: all 0.2s ease;
+            word-break: break-word;
+            /* Ensure it uses the theme's text color */
+            color: var(--color-text);
         }
         
         .custom-checkbox {
@@ -756,7 +759,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Background is transparent when unchecked to let theme show through */
+            background: transparent;
         }
         
         .custom-checkbox.checked {
@@ -1011,7 +1015,8 @@
                 
                 <div class="form-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
                     <input type="text" id="newTaskInput" placeholder="New task..." class="form-control" 
-                           style="flex: 1; font-size: 16px; height: 48px;"> <button onclick="addChecklistItem()" class="btn btn--primary" 
+                           style="flex: 1; font-size: 16px; height: 48px; background-color: var(--color-gray-200); color: var(--color-text); border: none;">
+                    <button onclick="addChecklistItem()" class="btn btn--primary" 
                             style="width: 70px; height: 48px; flex-shrink: 0;">Add</button>
                 </div>
         
@@ -1135,6 +1140,7 @@
                             <span class="checklist-text" style="
                                 text-decoration: ${task.completed ? 'line-through' : 'none'}; 
                                 color: ${task.completed ? 'var(--color-gray-300)' : 'var(--color-text)'};
+                                opacity: ${task.completed ? '0.6' : '1'};
                             ">
                                 ${task.text}
                             </span>
