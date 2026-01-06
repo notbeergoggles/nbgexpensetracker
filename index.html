@@ -821,6 +821,23 @@
             margin-top: 2px;
         }
 
+        .settlement-hero {
+            text-align: center;
+            padding: 30px 20px;
+            background: var(--color-surface);
+            border: 2px solid var(--color-primary);
+        }
+        
+        .settlement-log-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(128, 128, 128, 0.05);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
     </style>
 </head>
 <body>
@@ -872,6 +889,7 @@
             <button type="button" class="tab-button" data-tab="add-expense">Add Expense</button>
             <button type="button" class="tab-button" data-tab="history">History</button>
             <button type="button" class="tab-button" data-tab="mika-checklist">🐾 Mika</button>
+            <button type="button" class="tab-button" data-tab="settlement">🤝 Settle</button>
         </div>
 
         <!-- Dashboard Tab -->
@@ -1092,9 +1110,121 @@
                     </div>
             </div>
         </div>
+
+        <!-- Settlement Tab -->
+        <div id="settlement" class="tab-content">
+            <div class="card settlement-hero">
+                <h2 style="margin-bottom: 5px;">Current Balance</h2>
+                <div id="liveBalanceAmount" style="font-size: 32px; font-weight: bold; color: var(--color-primary); margin: 15px 0;">
+                    SGD 0.00
+                </div>
+                <p id="whoOwesWho" style="font-size: 14px; color: var(--color-text-secondary); margin-bottom: 20px;">No outstanding balance</p>
+                <button id="settleUpBtn" onclick="handleSettleUp()" class="btn btn--primary" style="width: 100%; height: 50px; font-size: 16px;">
+                    Settle Everything Now
+                </button>
+            </div>
+        
+            <div class="card" style="margin-top: 20px;">
+                <h3>Recent Settlements</h3>
+                <div id="settlementHistory" style="margin-top: 15px; display: flex; flex-direction: column; gap: 12px;">
+                    </div>
+            </div>
+        </div>
+        
     </div>
 
     <script>
+        let lastSettlementDate = new Date(0); // Default to beginning of time
+        let settlementHistory = [];
+        
+        // 1. Initialize Settlement Data
+        async function initSettlement() {
+            // Get the last settlement marker
+            db.collection('settlements').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                settlementHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                if (settlementHistory.length > 0) {
+                    // The timestamp of the most recent settlement
+                    lastSettlementDate = settlementHistory[0].timestamp?.toDate() || new Date(0);
+                }
+                
+                calculateLiveSettlement();
+                renderSettlementHistory();
+            });
+        }
+        
+        // 2. Calculate Cumulative Balance (Option B)
+        function calculateLiveSettlement() {
+            let totalOwedToMe = 0;
+            let totalIOwe = 0;
+        
+            // Filter ALL expenses that happened AFTER the last settlement
+            const unsettledExpenses = expenses.filter(e => {
+                const expDate = new Date(e.date);
+                return expDate > lastSettlementDate && e.isRecurring !== true;
+            });
+        
+            unsettledExpenses.forEach(e => {
+                if (e.paidBy === currentUser.email) {
+                    totalOwedToMe += (e.amount - e.myShare);
+                } else {
+                    totalIOwe += e.myShare;
+                }
+            });
+        
+            const net = totalOwedToMe - totalIOwe;
+            const amountEl = document.getElementById('liveBalanceAmount');
+            const whoEl = document.getElementById('whoOwesWho');
+        
+            if (net > 0) {
+                amountEl.textContent = `SGD ${net.toFixed(2)}`;
+                amountEl.style.color = "#28a745"; // Green
+                whoEl.textContent = "Sayuri owes you";
+            } else if (net < 0) {
+                amountEl.textContent = `SGD ${Math.abs(net).toFixed(2)}`;
+                amountEl.style.color = "#dc3545"; // Red
+                whoEl.textContent = "You owe Sayuri";
+            } else {
+                amountEl.textContent = "SGD 0.00";
+                amountEl.style.color = "var(--color-primary)";
+                whoEl.textContent = "You are all settled up!";
+            }
+        }
+        
+        // 3. Perform the Settle Up
+        async function handleSettleUp() {
+            const amountStr = document.getElementById('liveBalanceAmount').textContent.replace('SGD ', '');
+            const amount = parseFloat(amountStr);
+            
+            if (amount === 0) return alert("Nothing to settle!");
+        
+            if (confirm(`Confirm settlement of SGD ${amount.toFixed(2)}? This will reset the live balance.`)) {
+                await db.collection('settlements').add({
+                    amount: amount,
+                    settledAt: new Date().toISOString(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    by: currentUser.email,
+                    note: "Manual Settlement"
+                });
+            }
+        }
+        
+        function renderSettlementHistory() {
+            const container = document.getElementById('settlementHistory');
+            if (!container) return;
+        
+            container.innerHTML = settlementHistory.map(s => `
+                <div class="settlement-log-item">
+                    <div>
+                        <strong>SGD ${s.amount.toFixed(2)}</strong><br>
+                        <span style="font-size: 10px; color: var(--color-gray-300);">${new Date(s.settledAt).toLocaleDateString()}</span>
+                    </div>
+                    <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                </div>
+            `).join('');
+        }
+
+        
         // 1. Initialize Health Listener
         function initMikaHealth() {
             db.collection('mika_health').orderBy('timestamp', 'desc').limit(10).onSnapshot(snapshot => {
@@ -1491,6 +1621,7 @@
                     listenToExpensesChanges();
                     initMikaChecklist();
                     initMikaHealth();
+                    initSettlement();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
