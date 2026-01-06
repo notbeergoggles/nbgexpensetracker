@@ -1134,95 +1134,7 @@
     </div>
 
     <script>
-        let lastSettlementDate = new Date(0); // Default to beginning of time
-        let settlementHistory = [];
         
-        // 1. Initialize Settlement Data
-        async function initSettlement() {
-            // Get the last settlement marker
-            db.collection('settlements').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-                settlementHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                if (settlementHistory.length > 0) {
-                    // The timestamp of the most recent settlement
-                    lastSettlementDate = settlementHistory[0].timestamp?.toDate() || new Date(0);
-                }
-                
-                calculateLiveSettlement();
-                renderSettlementHistory();
-            });
-        }
-        
-        // 2. Calculate Cumulative Balance (Option B)
-        function calculateLiveSettlement() {
-            let totalOwedToMe = 0;
-            let totalIOwe = 0;
-        
-            // Filter ALL expenses that happened AFTER the last settlement
-            const unsettledExpenses = expenses.filter(e => {
-                const expDate = new Date(e.date);
-                return expDate > lastSettlementDate && e.isRecurring !== true;
-            });
-        
-            unsettledExpenses.forEach(e => {
-                if (e.paidBy === currentUser.email) {
-                    totalOwedToMe += (e.amount - e.myShare);
-                } else {
-                    totalIOwe += e.myShare;
-                }
-            });
-        
-            const net = totalOwedToMe - totalIOwe;
-            const amountEl = document.getElementById('liveBalanceAmount');
-            const whoEl = document.getElementById('whoOwesWho');
-        
-            if (net > 0) {
-                amountEl.textContent = `SGD ${net.toFixed(2)}`;
-                amountEl.style.color = "#28a745"; // Green
-                whoEl.textContent = "Sayuri owes you";
-            } else if (net < 0) {
-                amountEl.textContent = `SGD ${Math.abs(net).toFixed(2)}`;
-                amountEl.style.color = "#dc3545"; // Red
-                whoEl.textContent = "You owe Sayuri";
-            } else {
-                amountEl.textContent = "SGD 0.00";
-                amountEl.style.color = "var(--color-primary)";
-                whoEl.textContent = "You are all settled up!";
-            }
-        }
-        
-        // 3. Perform the Settle Up
-        async function handleSettleUp() {
-            const amountStr = document.getElementById('liveBalanceAmount').textContent.replace('SGD ', '');
-            const amount = parseFloat(amountStr);
-            
-            if (amount === 0) return alert("Nothing to settle!");
-        
-            if (confirm(`Confirm settlement of SGD ${amount.toFixed(2)}? This will reset the live balance.`)) {
-                await db.collection('settlements').add({
-                    amount: amount,
-                    settledAt: new Date().toISOString(),
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    by: currentUser.email,
-                    note: "Manual Settlement"
-                });
-            }
-        }
-        
-        function renderSettlementHistory() {
-            const container = document.getElementById('settlementHistory');
-            if (!container) return;
-        
-            container.innerHTML = settlementHistory.map(s => `
-                <div class="settlement-log-item">
-                    <div>
-                        <strong>SGD ${s.amount.toFixed(2)}</strong><br>
-                        <span style="font-size: 10px; color: var(--color-gray-300);">${new Date(s.settledAt).toLocaleDateString()}</span>
-                    </div>
-                    <i class="fas fa-check-circle" style="color: #28a745;"></i>
-                </div>
-            `).join('');
-        }
 
         
         // 1. Initialize Health Listener
@@ -2227,22 +2139,15 @@ async function handleDeleteExpense(id) {
             button.addEventListener('click', () => {
                 const tabId = button.getAttribute('data-tab');
                 
-                // 1. Remove active class from ALL buttons and ALL content divs
                 tabButtons.forEach(btn => btn.classList.remove('active'));
                 tabContents.forEach(content => content.classList.remove('active'));
                 
-                // 2. Add active class to the clicked button
                 button.classList.add('active');
-                
-                // 3. Show the specific content div (this is what fixes the "blank" screen)
-                const targetContent = document.getElementById(tabId);
-                if (targetContent) {
-                    targetContent.classList.add('active');
-                }
+                const target = document.getElementById(tabId);
+                if (target) target.classList.add('active'); // This makes the tab appear
         
-                // 4. Recalculate the live balance specifically when this tab is opened
                 if (tabId === 'settlement') {
-                    calculateLiveSettlement();
+                    calculateLiveSettlement(); // Refresh balance when tab opens
                 }
             });
         });
@@ -2280,6 +2185,97 @@ async function handleDeleteExpense(id) {
             updateDashboard();
             renderExpenseList();
         });
+
+        let lastSettlementDate = new Date(0);
+        let settlementHistory = [];
+        
+        async function initSettlement() {
+            // 1. Fetch past settlements to find the "Marker" (the last time you settled)
+            db.collection('settlements').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                settlementHistory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                if (settlementHistory.length > 0) {
+                    // Set the marker to the most recent settlement date
+                    const lastSettle = settlementHistory[0].timestamp;
+                    lastSettlementDate = lastSettle ? lastSettle.toDate() : new Date(0);
+                }
+                
+                calculateLiveSettlement();
+                renderSettlementHistory();
+            });
+        }
+        
+        function calculateLiveSettlement() {
+            let totalOwedToMe = 0; // If Kenny paid
+            let totalIOwe = 0;     // If Sayuri paid
+        
+            // Filter ONLY expenses that happened AFTER the last settlement
+            const unsettled = expenses.filter(e => {
+                const expDate = new Date(e.date);
+                return expDate > lastSettlementDate && e.isRecurring !== true;
+            });
+        
+            unsettled.forEach(e => {
+                const amt = parseFloat(e.amount);
+                const myShare = parseFloat(e.myShare);
+                if (e.paidBy === "You" || e.paidBy === currentUser?.email) {
+                    totalOwedToMe += (amt - myShare);
+                } else {
+                    totalIOwe += myShare;
+                }
+            });
+        
+            const net = totalOwedToMe - totalIOwe;
+            const amountEl = document.getElementById('liveBalanceAmount');
+            const whoEl = document.getElementById('whoOwesWho');
+        
+            if (!amountEl || !whoEl) return;
+        
+            if (net > 0) {
+                amountEl.textContent = `SGD ${net.toFixed(2)}`;
+                amountEl.style.color = "#28a745"; // Green
+                whoEl.textContent = "Sayuri owes Kenny";
+            } else if (net < 0) {
+                amountEl.textContent = `SGD ${Math.abs(net).toFixed(2)}`;
+                amountEl.style.color = "#dc3545"; // Red
+                whoEl.textContent = "Kenny owes Sayuri";
+            } else {
+                amountEl.textContent = "SGD 0.00";
+                amountEl.style.color = "var(--color-primary)";
+                whoEl.textContent = "You are all settled up!";
+            }
+        }
+        
+        async function handleSettleUp() {
+            const amountStr = document.getElementById('liveBalanceAmount').textContent.replace('SGD ', '');
+            const amount = parseFloat(amountStr);
+            
+            if (amount === 0 || isNaN(amount)) return alert("Nothing to settle!");
+        
+            if (confirm(`Confirm settlement of SGD ${amount.toFixed(2)}? This resets the LIVE balance only.`)) {
+                await db.collection('settlements').add({
+                    amount: amount,
+                    settledAt: new Date().toISOString(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    by: currentUser.email
+                });
+            }
+        }
+        
+        function renderSettlementHistory() {
+            const container = document.getElementById('settlementHistory');
+            if (!container) return;
+        
+            container.innerHTML = settlementHistory.length ? settlementHistory.map(s => `
+                <div class="settlement-log-item">
+                    <div>
+                        <strong>SGD ${parseFloat(s.amount).toFixed(2)}</strong><br>
+                        <span style="font-size: 10px; color: var(--color-gray-300);">${new Date(s.settledAt).toLocaleDateString()}</span>
+                    </div>
+                    <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                </div>
+            `).join('') : '<div class="empty-state">No past settlements</div>';
+        }
 
         document.getElementById('historySearch')?.addEventListener('input', renderExpenseList);
 
