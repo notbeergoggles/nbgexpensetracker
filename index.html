@@ -703,6 +703,13 @@
             height: 44px;
             font-size: 14px;
             transition: all 0.2s;
+            color: var(--color-text); /* Uses your theme's primary text color */
+            width: 100%;
+        }
+
+        #historySearch::placeholder {
+            color: var(--color-gray-300);
+            opacity: 0.8;
         }
         
         #historySearch:focus {
@@ -711,6 +718,7 @@
             outline: none;
             border: none;
             box-shadow: 0 0 0 4px rgba(33, 128, 141, 0.1);
+            color: var(--color-black);
         }
 
     </style>
