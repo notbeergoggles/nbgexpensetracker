@@ -982,25 +982,42 @@
         let mikaTasks = [];
 
             // 1. Initialize Checklist Listener
+            let isCheckingReset = false;
+
             function initMikaChecklist() {
                 if (!currentUser) return;
                 
                 db.collection('mika_checklist').onSnapshot(snapshot => {
                     mikaTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     
-                    // Trigger the daily reset check whenever data loads
-                    checkDailyReset();
+                    // Prevent infinite loops by only checking once per data load
+                    if (!isCheckingReset) {
+                        isCheckingReset = true;
+                        checkDailyReset().finally(() => {
+                            isCheckingReset = false;
+                        });
+                    }
+                    
                     renderChecklist();
-                }, error => console.error("Checklist error:", error));
+                });
             }
             
             // 2. Logic to untick boxes every new day
             async function checkDailyReset() {
                 const today = new Date().toISOString().split('T')[0];
-                const lastReset = localStorage.getItem('mika_last_reset');
+                
+                // 1. Get the global reset date from a 'metadata' collection
+                const metadataRef = db.collection('mika_metadata').doc('checklist_status');
+                const doc = await metadataRef.get();
+                
+                let lastGlobalReset = "";
+                if (doc.exists) {
+                    lastGlobalReset = doc.data().lastReset;
+                }
             
-                // If the stored date isn't today, it's a new day
-                if (lastReset !== today) {
+                // 2. If the global date is not today, perform the reset
+                if (lastGlobalReset !== today) {
+                    console.log("Global reset triggered for a new day.");
                     const batch = db.batch();
                     let needsReset = false;
             
@@ -1012,13 +1029,16 @@
                         }
                     });
             
-                    if (needsReset) {
+                    // Update the global date in Firebase so the second person doesn't trigger this again
+                    batch.set(metadataRef, { lastReset: today }, { merge: true });
+            
+                    if (needsReset || !doc.exists || lastGlobalReset !== today) {
                         await batch.commit();
-                        console.log("Daily reset performed for Mika's list.");
                     }
                     
-                    localStorage.setItem('mika_last_reset', today);
-                    document.getElementById('lastResetDate').textContent = "Reset for: " + today;
+                    document.getElementById('lastResetDate').textContent = "Last Reset: " + today;
+                } else {
+                    document.getElementById('lastResetDate').textContent = "Refreshed for: " + today;
                 }
             }
             
