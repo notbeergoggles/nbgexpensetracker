@@ -771,6 +771,7 @@
             <button type="button" class="tab-button active" data-tab="dashboard">Dashboard</button>
             <button type="button" class="tab-button" data-tab="add-expense">Add Expense</button>
             <button type="button" class="tab-button" data-tab="history">History</button>
+            <button type="button" class="tab-button" data-tab="mika-checklist">🐾 Mika</button>
         </div>
 
         <!-- Dashboard Tab -->
@@ -957,9 +958,125 @@
                 </div>
             </div>
         </div>
+
+        <!-- Mika Tab -->
+        <div id="mika-checklist" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
+                    <h2 style="margin: 0;">🐾 Mika's Daily Checklist</h2>
+                    <span id="lastResetDate" style="font-size: 10px; color: var(--color-text-secondary);"></span>
+                </div>
+                
+                <div class="form-group" style="display: flex; gap: 8px; margin-bottom: var(--space-16);">
+                    <input type="text" id="newTaskInput" placeholder="Add new task (e.g., Morning Walk)" class="form-control" style="flex-grow: 1;">
+                    <button onclick="addChecklistItem()" class="btn btn--primary" style="padding: 0 15px; width: auto; height: 44px;">Add</button>
+                </div>
+        
+                <div id="checklistContainer" style="display: flex; flex-direction: column; gap: 12px;">
+                    </div>
+            </div>
+        </div>
     </div>
 
     <script>
+        let mikaTasks = [];
+
+            // 1. Initialize Checklist Listener
+            function initMikaChecklist() {
+                if (!currentUser) return;
+                
+                db.collection('mika_checklist').onSnapshot(snapshot => {
+                    mikaTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    
+                    // Trigger the daily reset check whenever data loads
+                    checkDailyReset();
+                    renderChecklist();
+                }, error => console.error("Checklist error:", error));
+            }
+            
+            // 2. Logic to untick boxes every new day
+            async function checkDailyReset() {
+                const today = new Date().toISOString().split('T')[0];
+                const lastReset = localStorage.getItem('mika_last_reset');
+            
+                // If the stored date isn't today, it's a new day
+                if (lastReset !== today) {
+                    const batch = db.batch();
+                    let needsReset = false;
+            
+                    mikaTasks.forEach(task => {
+                        if (task.completed) {
+                            const ref = db.collection('mika_checklist').doc(task.id);
+                            batch.update(ref, { completed: false });
+                            needsReset = true;
+                        }
+                    });
+            
+                    if (needsReset) {
+                        await batch.commit();
+                        console.log("Daily reset performed for Mika's list.");
+                    }
+                    
+                    localStorage.setItem('mika_last_reset', today);
+                    document.getElementById('lastResetDate').textContent = "Reset for: " + today;
+                }
+            }
+            
+            // 3. Add Item
+            async function addChecklistItem() {
+                const input = document.getElementById('newTaskInput');
+                const text = input.value.trim();
+                if (!text) return;
+            
+                await db.collection('mika_checklist').add({
+                    text: text,
+                    completed: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                input.value = '';
+            }
+            
+            // 4. Toggle & Delete
+            async function toggleTask(id, currentStatus) {
+                await db.collection('mika_checklist').doc(id).update({ completed: !currentStatus });
+            }
+            
+            async function deleteChecklistItem(id) {
+                if (confirm('Remove this task permanently?')) {
+                    await db.collection('mika_checklist').doc(id).delete();
+                }
+            }
+            
+            // 5. Render UI
+            function renderChecklist() {
+                const container = document.getElementById('checklistContainer');
+                if (!container) return;
+            
+                if (mikaTasks.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No tasks added yet.</div>';
+                    return;
+                }
+            
+                container.innerHTML = mikaTasks
+                    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+                    .map(task => `
+                    <div class="expense-item" style="padding: 12px; cursor: pointer;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-grow: 1;" onclick="toggleTask('${task.id}', ${task.completed})">
+                            <div style="width: 24px; height: 24px; border: 2px solid var(--color-primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; background: ${task.completed ? 'var(--color-primary)' : 'transparent'}; transition: all 0.2s;">
+                                ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
+                            </div>
+                            <span style="font-size: 15px; text-decoration: ${task.completed ? 'line-through' : 'none'}; color: ${task.completed ? 'var(--color-text-secondary)' : 'var(--color-text)'}">
+                                ${task.text}
+                            </span>
+                        </div>
+                        <button onclick="deleteChecklistItem('${task.id}')" class="btn-delete" style="padding: 4px;">
+                            <i class="fas fa-trash-can" style="font-size: 14px;"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+        
         async function processRecurringExpenses() {
             if (expenses.length === 0) return;
         
@@ -1173,6 +1290,7 @@
                     document.getElementById('userEmail').textContent = user.email;
                     await loadExpensesFromFirebase();
                     listenToExpensesChanges();
+                    initMikaChecklist();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
