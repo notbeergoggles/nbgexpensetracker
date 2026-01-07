@@ -774,6 +774,19 @@
         .checklist-item.drag-over {
             border-top: 3px solid var(--color-primary);
         }
+
+        /* Prevent scrolling when dragging on mobile */
+        .checklist-item.dragging {
+            touch-action: none;
+            z-index: 1000;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .drag-handle {
+            touch-action: none; /* Crucial for mobile handles */
+            padding: 15px; /* Bigger tap target for thumbs */
+        }
         
         
         .custom-checkbox {
@@ -1302,14 +1315,21 @@
                 container.innerHTML = sortedItems.map(task => `
                     <div class="checklist-item" 
                          data-id="${task.id}"
+                         id="item-${task.id}"
                          ondragover="handleDragOver(event)"
                          ondragleave="handleDragLeave(event)"
                          ondrop="handleDrop(event)">
                          
-                        <div class="drag-handle" draggable="true" ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
+                        <div class="drag-handle" 
+                             draggable="true" 
+                             ondragstart="handleDragStart(event)" 
+                             ondragend="handleDragEnd(event)"
+                             ontouchstart="handleTouchStart(event)"
+                             ontouchmove="handleTouchMove(event)"
+                             ontouchend="handleTouchEnd(event)">
                             <i class="fas fa-grip-vertical"></i>
                         </div>
-            
+                
                         <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})" style="flex: 1;">
                             <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
                                 ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
@@ -2328,6 +2348,72 @@ async function handleDeleteExpense(id) {
                 localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
             }
         }
+
+
+        // --- MOBILE TOUCH SUPPORT ---
+            let touchStartY = 0;
+            
+            function handleTouchStart(e) {
+                const row = e.target.closest('.checklist-item');
+                draggedItemId = row.getAttribute('data-id');
+                row.classList.add('dragging');
+                touchStartY = e.touches[0].clientY;
+            }
+            
+            function handleTouchMove(e) {
+                e.preventDefault(); // Stop page from scrolling
+                const touch = e.touches[0];
+                const elementOver = document.elementFromPoint(touch.clientX, touch.clientY);
+                const rowOver = elementOver ? elementOver.closest('.checklist-item') : null;
+            
+                // Remove old indicators
+                document.querySelectorAll('.checklist-item').forEach(el => el.classList.remove('drag-over'));
+            
+                // Add indicator to the row we are currently hovering over
+                if (rowOver && rowOver.getAttribute('data-id') !== draggedItemId) {
+                    rowOver.classList.add('drag-over');
+                }
+            }
+            
+            async function handleTouchEnd(e) {
+                const draggingRow = document.querySelector('.checklist-item.dragging');
+                if (!draggingRow) return;
+            
+                // Find which item had the 'drag-over' class when we let go
+                const targetRow = document.querySelector('.checklist-item.drag-over');
+                
+                if (targetRow) {
+                    const targetId = targetRow.getAttribute('data-id');
+                    
+                    // Use the same logic as the desktop Drop handler
+                    const draggedIdx = mikaTasks.findIndex(item => item.id === draggedItemId);
+                    const targetIdx = mikaTasks.findIndex(item => item.id === targetId);
+            
+                    if (draggedIdx !== -1 && targetIdx !== -1) {
+                        const [movedItem] = mikaTasks.splice(draggedIdx, 1);
+                        mikaTasks.splice(targetIdx, 0, movedItem);
+                        mikaTasks.forEach((item, index) => item.position = index);
+                        
+                        renderChecklist();
+                        
+                        // Sync
+                        if (currentUser && !isGuestMode) {
+                            const batch = db.batch();
+                            mikaTasks.forEach((item) => {
+                                batch.update(db.collection('mika_checklist').doc(item.id), { position: item.position });
+                            });
+                            await batch.commit();
+                        } else {
+                            localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
+                        }
+                    }
+                }
+            
+                // Cleanup
+                draggingRow.classList.remove('dragging');
+                document.querySelectorAll('.checklist-item').forEach(el => el.classList.remove('drag-over'));
+                draggedItemId = null;
+            }
         
     </script>
 </body>
