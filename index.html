@@ -1246,16 +1246,34 @@
             // 3. Add Item
             async function addChecklistItem() {
                 const input = document.getElementById('newTaskInput');
+                if (!input) return;
+                
                 const text = input.value.trim();
                 if (!text) return;
             
-                await db.collection('mika_checklist').add({
+                const newItem = {
                     text: text,
                     completed: false,
-                    position: mikaTasks.length,
+                    position: mikaChecklist.length, // Uses the length of the existing checklist array
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                input.value = '';
+                };
+            
+                if (!isGuestMode) {
+                    // Sync to Firebase
+                    await db.collection('mika_checklist').add(newItem);
+                } else {
+                    // Local Mode
+                    const guestItem = { 
+                        ...newItem, 
+                        id: Date.now().toString(),
+                        createdAt: new Date().toISOString() 
+                    };
+                    mikaChecklist.push(guestItem);
+                    localStorage.setItem('mikaChecklist', JSON.stringify(mikaChecklist));
+                    renderChecklist(); // This matches the render function in your file
+                }
+                
+                input.value = ''; // Clear the input field
             }
             
             // 4. Toggle & Delete
