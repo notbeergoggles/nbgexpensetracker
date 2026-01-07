@@ -946,16 +946,34 @@
         <!-- Add Expense Tab -->
         <div id="add-expense" class="tab-content">
             <div class="card">
-                <h2>Add New Expense</h2>
-                <form id="expenseForm" style="margin-top: var(--space-16);">
+                <h2>Add Entry</h2>
+                
+                <div style="display: flex; gap: 10px; margin: 20px 0;">
+                    <button type="button" id="btnTypeExpense" class="btn btn--primary" style="flex: 1;" onclick="setEntryType('expense')">
+                        <i class="fas fa-receipt"></i> Expense
+                    </button>
+                    <button type="button" id="btnTypePayment" class="btn btn--secondary" style="flex: 1;" onclick="setEntryType('payment')">
+                        <i class="fas fa-hand-holding-usd"></i> Paid Back
+                    </button>
+                </div>
+        
+                <form id="expenseForm">
                     <div class="form-group">
                         <label class="form-label">Date</label>
                         <input type="date" id="expenseDate" class="form-control" required>
                     </div>
-
-                    <div class="form-group">
+        
+                    <div id="paymentSenderGroup" class="form-group" style="display: none; background: rgba(33, 128, 141, 0.1); padding: 12px; border-radius: 8px; border: 1px solid var(--color-primary);">
+                        <label class="form-label" style="color: var(--color-primary); font-weight: bold;">Who is paying back?</label>
+                        <select id="paymentSender" class="form-control">
+                            <option value="Kenny">Kenny is paying Sayuri</option>
+                            <option value="Sayuri">Sayuri is paying Kenny</option>
+                        </select>
+                    </div>
+        
+                    <div class="form-group" id="categoryGroup">
                         <label class="form-label">Category</label>
-                        <select id="expenseCategory" class="form-control" required>
+                        <select id="expenseCategory" class="form-control">
                             <option value="">Select a category</option>
                             <option value="Beauty">Beauty</option>
                             <option value="Entertainment">Entertainment</option>
@@ -968,18 +986,18 @@
                             <option value="Transport">Transport</option>
                         </select>
                     </div>
-
+        
                     <div class="form-group">
-                        <label class="form-label">Description</label>
+                        <label class="form-label" id="descLabel">Description</label>
                         <input type="text" id="expenseDescription" class="form-control" placeholder="e.g., Grocery shopping" required>
                     </div>
-
+        
                     <div class="form-group">
                         <label class="form-label">Amount (SGD)</label>
                         <input type="number" id="expenseAmount" class="form-control" placeholder="0.00" step="0.01" required>
                     </div>
-
-                    <div class="form-group" style="margin-top: var(--space-16); padding: var(--space-12); background: rgba(128, 128, 128, 0.1); border-radius: var(--radius-base); border: 1px solid rgba(128, 128, 128, 0.2);">
+        
+                    <div class="form-group" id="recurringGroup" style="margin-top: var(--space-16); padding: var(--space-12); background: rgba(128, 128, 128, 0.1); border-radius: var(--radius-base); border: 1px solid rgba(128, 128, 128, 0.2);">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" id="isRecurring" style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
                             <label for="isRecurring" style="margin-bottom: 0; font-weight: 600; color: var(--color-text); font-size: 14px; cursor: pointer; display: block; line-height: 1;">
@@ -992,36 +1010,33 @@
                                 End Date (Optional)
                             </label>
                             <input type="date" id="recurringUntil" class="form-control" style="background: var(--color-white); color: var(--color-black); border: 1px solid var(--color-gray-300);">
-                            <p style="font-size: 10px; color: var(--color-text-secondary); margin-top: 6px; line-height: 1.4;">
-                                Leave blank for forever. Set a date for installments.
-                            </p>
                         </div>
                     </div>
-
-                    <div class="form-group">
+        
+                    <div class="form-group" id="paidByGroup">
                         <label class="form-label">Paid By</label>
                         <div style="display: flex; gap: var(--space-12); margin-top: var(--space-8);">
                             <label style="display: flex; align-items: center; gap: var(--space-8); cursor: pointer;">
-                                <input type="radio" name="paidBy" value="You" required>
+                                <input type="radio" name="paidBy" value="You" checked>
                                 <span>Kenny</span>
                             </label>
                             <label style="display: flex; align-items: center; gap: var(--space-8); cursor: pointer;">
-                                <input type="radio" name="paidBy" value="Her" required>
+                                <input type="radio" name="paidBy" value="Her">
                                 <span>Sayuri</span>
                             </label>
                         </div>
                     </div>
-
-                    <div class="form-group">
+        
+                    <div class="form-group" id="splitGroup">
                         <label class="form-label">Split Type</label>
-                        <select id="splitType" class="form-control" required>
+                        <select id="splitType" class="form-control">
                             <option value="Equal">Split Equally (50/50)</option>
                             <option value="Full">Full (No Split)</option>
                             <option value="Custom">Custom Split</option>
                             <option value="PayForOther">Pay for Other</option>
                         </select>
                     </div>
-
+        
                     <div id="customSplitSection" style="display: none;">
                         <div class="form-group">
                             <label class="form-label">Kenny Share (%)</label>
@@ -1032,8 +1047,8 @@
                             <input type="number" id="herSharePercent" class="form-control" placeholder="50" min="0" max="100" step="0.01" disabled>
                         </div>
                     </div>
-
-                    <button type="submit" class="btn btn--primary btn--full-width" style="margin-top: var(--space-20);">Add Expense</button>
+        
+                    <button type="submit" class="btn btn--primary btn--full-width" style="margin-top: var(--space-20);" id="submitBtn">Add Expense</button>
                 </form>
             </div>
         </div>
@@ -1645,120 +1660,130 @@ async function deleteExpenseFromFirebase(id) {
         }
 
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    // 1. FIRST: Get all values from the form
-    const date = document.getElementById('expenseDate').value;
-    const category = document.getElementById('expenseCategory').value;
-    const description = document.getElementById('expenseDescription').value;
-    const amount = Number(document.getElementById('expenseAmount').value) || 0;
-    const splitType = document.getElementById('splitType').value;
-    const isRecurring = document.getElementById('isRecurring').checked;
-    const recurringUntil = document.getElementById('recurringUntil').value;
-    
-    const paidByRadio = document.querySelector('input[name="paidBy"]:checked');
-    const paidByRaw = paidByRadio ? paidByRadio.value : null;
-    const paidBy = paidByRaw === 'You' ? 'Kenny' : (paidByRaw === 'Her' ? 'Sayuri' : 'Unknown');
-
-    // 2. SECOND: Validate the basic inputs
-    if (!paidByRaw) {
-        alert('Please select who paid the expense.');
-        return;
-    }
-    if (!category || !description || amount <= 0) {
-        alert('Please provide valid category, description and amount.');
-        return;
-    }
-
-    // 3. THIRD: Calculate shares
-    let yourShare = 0;
-    let herShare = 0;
-
-    if (splitType === 'Equal') {
-        yourShare = amount / 2;
-        herShare = amount / 2;
-    } else if (splitType === 'Full') {
-        if (paidBy === 'Kenny') { yourShare = amount; herShare = 0; }
-        else { yourShare = 0; herShare = amount; }
-    } else if (splitType === 'PayForOther') {
-        if (paidBy === 'Kenny') { yourShare = 0; herShare = amount; }
-        else { yourShare = amount; herShare = 0; }
-    } else if (splitType === 'Custom') {
-        const yourPercent = Number(document.getElementById('yourSharePercent').value) / 100;
-        if (Number.isNaN(yourPercent)) {
-            alert('Invalid percentage');
-            return;
-        }
-        yourShare = amount * yourPercent;
-        herShare = amount * (1 - yourPercent);
-    }
-
-    // 4. FOURTH: Create the final data object
-    const expense = {
-        date,
-        category,
-        description,
-        amount,
-        paidBy,
-        yourShare,
-        herShare,
-        isRecurring: isRecurring,
-        recurringUntil: recurringUntil || null,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    // 5. FIFTH: Save to Database
-    try {
-        if (currentUser && !isGuestMode) {
-            if (isRecurring) {
-                // A. SAVE THE MASTER TEMPLATE (Hidden from UI)
-                const template = { ...expense, isRecurring: true };
-                await db.collection('shared_expenses').add(template);
-
-                // B. SAVE THIS MONTH'S ACTUAL EXPENSE (Visible in UI)
-                const firstInstance = { ...expense, isRecurring: false };
-                await db.collection('shared_expenses').add(firstInstance);
-            } else {
-                // Just a normal one-off expense
-                await db.collection('shared_expenses').add(expense);
+            e.preventDefault();
+        
+            // 1. Common Values
+            const date = document.getElementById('expenseDate').value;
+            const description = document.getElementById('expenseDescription').value;
+            const amount = Number(document.getElementById('expenseAmount').value) || 0;
+        
+            if (!description || amount <= 0) {
+                alert('Please provide a valid description and amount.');
+                return;
             }
-        } else {
-            expense.id = Date.now().toString();
-            expense.createdAt = new Date().toISOString(); // Local fallback
-            expenses.push(expense);
-            localStorage.setItem('expenses', JSON.stringify(expenses));
-            updateDashboard();
-            renderExpenseList();
-        }
-
-        // Success Feedback UI
-        const successMsg = document.createElement('div');
-        successMsg.className = 'success-message';
-        successMsg.style.marginBottom = "20px";
-        successMsg.textContent = `✅ Added: ${description} (SGD ${amount.toFixed(2)})`;
-       
-        const form = document.getElementById('expenseForm');
-        if (form && form.parentNode) {
-            form.insertAdjacentElement('beforebegin', successMsg);
-        }
-        setTimeout(() => successMsg.remove(), 3000);
-
-        // Reset Form
-        expenseForm.reset();
-        document.getElementById('expenseDate').valueAsDate = new Date();
-        document.getElementById('recurringOptions').style.display = 'none';
-        if (document.getElementById('customSplitSection')) {
-            document.getElementById('customSplitSection').style.display = 'none';
-        }
-
-    } catch (error) {
-        alert('Error saving expense: ' + error.message);
-        console.error(error);
-    }
-});
+        
+            let expense = {};
+        
+            // 2. LOGIC BRANCH: PAYMENT vs EXPENSE
+            if (currentEntryType === 'payment') {
+                const sender = document.getElementById('paymentSender').value;
+                
+                expense = {
+                    date,
+                    description,
+                    amount,
+                    category: 'Settlement', // Hardcoded for payments
+                    paidBy: sender,
+                    isPayment: true, // Marker for dashboard math
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    // Payments have NO split shares (they just reduce debt directly)
+                    yourShare: 0,
+                    herShare: 0
+                };
+        
+            } else {
+                // --- EXISTING EXPENSE LOGIC ---
+                const category = document.getElementById('expenseCategory').value;
+                const splitType = document.getElementById('splitType').value;
+                const isRecurring = document.getElementById('isRecurring').checked;
+                const recurringUntil = document.getElementById('recurringUntil').value;
+                
+                const paidByRadio = document.querySelector('input[name="paidBy"]:checked');
+                const paidByRaw = paidByRadio ? paidByRadio.value : null;
+                const paidBy = paidByRaw === 'You' ? 'Kenny' : (paidByRaw === 'Her' ? 'Sayuri' : 'Unknown');
+        
+                if (!paidByRaw) return alert('Select who paid.');
+                if (!category) return alert('Select a category.');
+        
+                // Calculate Shares
+                let yourShare = 0;
+                let herShare = 0;
+        
+                if (splitType === 'Equal') {
+                    yourShare = amount / 2;
+                    herShare = amount / 2;
+                } else if (splitType === 'Full') {
+                    if (paidBy === 'Kenny') { yourShare = amount; herShare = 0; }
+                    else { yourShare = 0; herShare = amount; }
+                } else if (splitType === 'PayForOther') {
+                    if (paidBy === 'Kenny') { yourShare = 0; herShare = amount; }
+                    else { yourShare = amount; herShare = 0; }
+                } else if (splitType === 'Custom') {
+                    const yourPercent = Number(document.getElementById('yourSharePercent').value) / 100;
+                    if (Number.isNaN(yourPercent)) return alert('Invalid percentage');
+                    yourShare = amount * yourPercent;
+                    herShare = amount * (1 - yourPercent);
+                }
+        
+                expense = {
+                    date,
+                    category,
+                    description,
+                    amount,
+                    paidBy,
+                    yourShare,
+                    herShare,
+                    isRecurring: isRecurring,
+                    recurringUntil: recurringUntil || null,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+            }
+        
+            // 3. Save to Database
+            try {
+                if (currentUser && !isGuestMode) {
+                    // Check if it's a recurring template
+                    if (expense.isRecurring) {
+                        const template = { ...expense, isRecurring: true };
+                        await db.collection('shared_expenses').add(template);
+                        const firstInstance = { ...expense, isRecurring: false };
+                        await db.collection('shared_expenses').add(firstInstance);
+                    } else {
+                        await db.collection('shared_expenses').add(expense);
+                    }
+                } else {
+                    expense.id = Date.now().toString();
+                    expense.createdAt = new Date().toISOString();
+                    expenses.push(expense);
+                    localStorage.setItem('expenses', JSON.stringify(expenses));
+                    updateDashboard();
+                    renderExpenseList();
+                }
+        
+                // Success Message
+                const successMsg = document.createElement('div');
+                successMsg.className = 'success-message';
+                successMsg.textContent = currentEntryType === 'payment' 
+                    ? `✅ Payment Recorded: SGD ${amount.toFixed(2)}` 
+                    : `✅ Added: ${description}`;
+               
+                const form = document.getElementById('expenseForm');
+                form.insertAdjacentElement('beforebegin', successMsg);
+                setTimeout(() => successMsg.remove(), 3000);
+        
+                // Reset
+                form.reset();
+                document.getElementById('expenseDate').valueAsDate = new Date();
+                setEntryType('expense'); // Reset UI back to default
+        
+            } catch (error) {
+                alert('Error saving: ' + error.message);
+                console.error(error);
+            }
+        });
 
         function calculateTotals() {
-            // Filter out the 'Master Templates' so they don't affect your balance
+            // 1. Filter out the 'Master Templates'
             const activeExpenses = expenses.filter(e => e.isRecurring !== true);
             
             const now = new Date();
@@ -1766,7 +1791,7 @@ async function deleteExpenseFromFirebase(id) {
             const currentMonth = now.getMonth();
             const currentDay = now.getDate();
             
-            // Get the filter value
+            // 2. Get the filter value
             const filter = document.getElementById('monthFilter')?.value || 'current';
         
             const filteredExpenses = activeExpenses.filter(e => {
@@ -1780,7 +1805,6 @@ async function deleteExpenseFromFirebase(id) {
                     const now = new Date();
                     return expenseYear === now.getFullYear() && expenseMonth === now.getMonth();
                 } else {
-                    // Handle "YYYY-MM" selection
                     const [selYear, selMonth] = filter.split('-');
                     return expenseYear === parseInt(selYear) && expenseMonth === (parseInt(selMonth) - 1);
                 }
@@ -1793,32 +1817,49 @@ async function deleteExpenseFromFirebase(id) {
             let sayuriTotalShare = 0;
             let categoryTotals = {};
         
-            // Use filteredExpenses for all dashboard calculations
+            // 3. Main Calculation Loop
             filteredExpenses.forEach(e => {
                 const amt = Number(e.amount) || 0;
-                totalExpenses += amt;
                 
-                if (e.paidBy === 'Kenny') kennyTotalPaid += amt;
-                else sayuriTotalPaid += amt;
+                if (e.isPayment) {
+                    // --- PAYMENT LOGIC ---
+                    // If Kenny pays Sayuri, he increases his 'Paid' amount, 
+                    // and we increase Sayuri's 'Share' (as she received the cash).
+                    // This balances the equation: Net = Paid - Share.
+                    if (e.paidBy === 'Kenny' || e.paidBy === 'You') {
+                        kennyTotalPaid += amt;
+                        sayuriTotalShare += amt; 
+                    } else {
+                        sayuriTotalPaid += amt;
+                        kennyTotalShare += amt;
+                    }
+                    // Note: Payments are NOT added to 'totalExpenses' or 'categoryTotals'
+                    
+                } else {
+                    // --- STANDARD EXPENSE LOGIC ---
+                    totalExpenses += amt;
+                    
+                    if (e.paidBy === 'Kenny') kennyTotalPaid += amt;
+                    else sayuriTotalPaid += amt;
         
-                kennyTotalShare += Number(e.yourShare || 0);
-                sayuriTotalShare += Number(e.herShare || 0);
+                    kennyTotalShare += Number(e.yourShare || 0);
+                    sayuriTotalShare += Number(e.herShare || 0);
         
-                if (e.category) {
-                    categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amt;
+                    if (e.category) {
+                        categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amt;
+                    }
                 }
             });
         
-            // Daily Burn Rate: Still always based on the current month's total / days elapsed
+            // 4. Daily Burn Rate (Expenses only)
             const monthOnlyExpenses = activeExpenses.filter(e => {
                 const d = new Date(e.date);
-                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+                return d.getFullYear() === currentYear && d.getMonth() === currentMonth && !e.isPayment;
             });
             const monthTotal = monthOnlyExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
             const dailyBurn = monthTotal / currentDay;
         
-            // Settlement: Usually best to keep this "All Time" so debts don't disappear, 
-            // but here we use the filtered view's net for the dashboard display
+            // 5. Settlement Net Calculation
             const net = kennyTotalPaid - kennyTotalShare;
         
             return {
@@ -2129,6 +2170,65 @@ async function handleDeleteExpense(id) {
                 renderExpenseList();
             }
         })();
+
+        // --- NEW LOGIC FOR PAYMENT TOGGLE ---
+        let currentEntryType = 'expense';
+        
+        function setEntryType(type) {
+            currentEntryType = type;
+            
+            // UI References
+            const btnExp = document.getElementById('btnTypeExpense');
+            const btnPay = document.getElementById('btnTypePayment');
+            const senderGrp = document.getElementById('paymentSenderGroup');
+            const catGrp = document.getElementById('categoryGroup');
+            const recurGrp = document.getElementById('recurringGroup');
+            const paidByGrp = document.getElementById('paidByGroup');
+            const splitGrp = document.getElementById('splitGroup');
+            const splitSec = document.getElementById('customSplitSection');
+            const submitBtn = document.getElementById('submitBtn');
+            const descInput = document.getElementById('expenseDescription');
+            const catInput = document.getElementById('expenseCategory');
+        
+            if (type === 'payment') {
+                // Active Styles
+                btnPay.className = 'btn btn--primary';
+                btnExp.className = 'btn btn--secondary';
+                
+                // Show/Hide Fields
+                senderGrp.style.display = 'block';
+                catGrp.style.display = 'none';
+                recurGrp.style.display = 'none';
+                paidByGrp.style.display = 'none';
+                splitGrp.style.display = 'none';
+                splitSec.style.display = 'none';
+                
+                // Update Text
+                submitBtn.textContent = 'Record Payment';
+                descInput.placeholder = 'e.g. Settle for Jan Electricity';
+                catInput.required = false; // Not needed for payment
+            } else {
+                // Active Styles
+                btnExp.className = 'btn btn--primary';
+                btnPay.className = 'btn btn--secondary';
+                
+                // Show/Hide Fields
+                senderGrp.style.display = 'none';
+                catGrp.style.display = 'block';
+                recurGrp.style.display = 'block';
+                paidByGrp.style.display = 'block';
+                splitGrp.style.display = 'block';
+                // Only show custom split if selected
+                const splitType = document.getElementById('splitType').value;
+                if(splitType === 'Custom') splitSec.style.display = 'block';
+                
+                // Update Text
+                submitBtn.textContent = 'Add Expense';
+                descInput.placeholder = 'e.g. Grocery shopping';
+                catInput.required = true;
+            }
+        }
+        
     </script>
 </body>
 </html>
