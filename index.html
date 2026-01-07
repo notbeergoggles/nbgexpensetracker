@@ -749,21 +749,6 @@
             /* Ensure it uses the theme's text color */
             color: var(--color-text);
         }
-
-
-        /* Drag and Drop Visuals */
-        .checklist-item {
-            cursor: grab;
-            transition: transform 0.2s, background-color 0.2s;
-            user-select: none;
-        }
-        .checklist-item:active { cursor: grabbing; }
-        .checklist-item.dragging {
-            opacity: 0.5;
-            background: var(--color-gray-200);
-            border: 2px dashed var(--color-primary);
-        }
-        .checklist-item.drag-over { border-top: 3px solid var(--color-primary); }
         
         .custom-checkbox {
             flex-shrink: 0;
@@ -1242,25 +1227,11 @@
                 const text = input.value.trim();
                 if (!text) return;
             
-                const newItem = {
+                await db.collection('mika_checklist').add({
                     text: text,
                     completed: false,
-                    position: mikaTasks.length, // Assigns the next available rank
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-            
-                if (currentUser && !isGuestMode) {
-                    await db.collection('mika_checklist').add(newItem);
-                } else {
-                    const guestItem = { 
-                        ...newItem, 
-                        id: Date.now().toString(),
-                        createdAt: new Date().toISOString() 
-                    };
-                    mikaTasks.push(guestItem);
-                    localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
-                    renderChecklist();
-                }
+                });
                 input.value = '';
             }
             
@@ -1289,19 +1260,10 @@
                     return;
                 }
             
-                // Sort items by position index
-                const sortedItems = [...mikaTasks].sort((a, b) => (a.position || 0) - (b.position || 0));
-            
-                container.innerHTML = sortedItems.map(task => `
-                    <div class="checklist-item" 
-                         draggable="true" 
-                         data-id="${task.id}"
-                         ondragstart="handleDragStart(event)"
-                         ondragover="handleDragOver(event)"
-                         ondragleave="handleDragLeave(event)"
-                         ondrop="handleDrop(event)"
-                         ondragend="handleDragEnd(event)">
-                         
+                container.innerHTML = mikaTasks
+                    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+                    .map(task => `
+                    <div class="checklist-item">
                         <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})">
                             <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
                                 ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
@@ -1311,11 +1273,17 @@
                                 color: ${task.completed ? 'var(--color-gray-300)' : 'var(--color-text)'};
                                 opacity: ${task.completed ? '0.6' : '1'};
                             ">
-                                ${escapeHtml(task.text)}
+                                ${task.text}
                             </span>
                         </div>
-                        
-                        <button onclick="deleteChecklistItem('${task.id}')" style="background: none; border: none; padding: 10px; color: var(--color-gray-300); cursor: pointer;">
+                        <button onclick="deleteChecklistItem('${task.id}')" style="
+                            background: none; 
+                            border: none; 
+                            padding: 10px; 
+                            color: var(--color-gray-300); 
+                            cursor: pointer;
+                            flex-shrink: 0;
+                        ">
                             <i class="fas fa-trash-can" style="font-size: 16px;"></i>
                         </button>
                     </div>
@@ -2258,62 +2226,6 @@ async function handleDeleteExpense(id) {
                 submitBtn.textContent = 'Add Expense';
                 descInput.placeholder = 'e.g. Grocery shopping';
                 catInput.required = true;
-            }
-        }
-
-        // --- MIKA CHECKLIST REARRANGE LOGIC ---
-        let draggedItemId = null;
-        
-        function handleDragStart(e) {
-            draggedItemId = e.currentTarget.getAttribute('data-id');
-            e.currentTarget.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        }
-        
-        function handleDragOver(e) {
-            e.preventDefault(); 
-            e.currentTarget.classList.add('drag-over');
-        }
-        
-        function handleDragLeave(e) {
-            e.currentTarget.classList.remove('drag-over');
-        }
-        
-        function handleDragEnd(e) {
-            e.currentTarget.classList.remove('dragging');
-            document.querySelectorAll('.checklist-item').forEach(el => el.classList.remove('drag-over'));
-        }
-        
-        async function handleDrop(e) {
-            e.preventDefault();
-            const targetId = e.currentTarget.getAttribute('data-id');
-            if (!draggedItemId || draggedItemId === targetId) return;
-        
-            const draggedIdx = mikaTasks.findIndex(item => item.id === draggedItemId);
-            const targetIdx = mikaTasks.findIndex(item => item.id === targetId);
-        
-            if (draggedIdx === -1 || targetIdx === -1) return;
-        
-            // Move in local array
-            const [movedItem] = mikaTasks.splice(draggedIdx, 1);
-            mikaTasks.splice(targetIdx, 0, movedItem);
-        
-            // Re-index all positions
-            mikaTasks.forEach((item, index) => {
-                item.position = index;
-            });
-        
-            renderChecklist();
-        
-            if (currentUser && !isGuestMode) {
-                const batch = db.batch();
-                mikaTasks.forEach((item) => {
-                    const ref = db.collection('mika_checklist').doc(item.id);
-                    batch.update(ref, { position: item.position });
-                });
-                await batch.commit();
-            } else {
-                localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
             }
         }
         
