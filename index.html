@@ -1254,7 +1254,7 @@
                 const newItem = {
                     text: text,
                     completed: false,
-                    position: mikaChecklist.length, // Uses the length of the existing checklist array
+                    position: mikaTasks.length, // Uses the length of the existing checklist array
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
             
@@ -1268,8 +1268,8 @@
                         id: Date.now().toString(),
                         createdAt: new Date().toISOString() 
                     };
-                    mikaChecklist.push(guestItem);
-                    localStorage.setItem('mikaChecklist', JSON.stringify(mikaChecklist));
+                    mikaTasks.push(guestItem);
+                    localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
                     renderChecklist(); // This matches the render function in your file
                 }
                 
@@ -2287,8 +2287,8 @@ async function handleDeleteExpense(id) {
             const targetId = e.currentTarget.getAttribute('data-id');
             if (draggedItemId === targetId) return;
         
-            const draggedIdx = mikaChecklist.findIndex(item => item.id === draggedItemId);
-            const targetIdx = mikaChecklist.findIndex(item => item.id === targetId);
+            const draggedIdx = mikaTasks.findIndex(item => item.id === draggedItemId);
+            const targetIdx = mikaTasks.findIndex(item => item.id === targetId);
         
             // Reorder the local array
             const [movedItem] = mikaChecklist.splice(draggedIdx, 1);
