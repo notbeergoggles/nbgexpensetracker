@@ -2291,11 +2291,11 @@ async function handleDeleteExpense(id) {
             const targetIdx = mikaTasks.findIndex(item => item.id === targetId);
         
             // Reorder the local array
-            const [movedItem] = mikaChecklist.splice(draggedIdx, 1);
-            mikaChecklist.splice(targetIdx, 0, movedItem);
+            const [movedItem] = mikaTasks.splice(draggedIdx, 1);
+            mikaTasks.splice(targetIdx, 0, movedItem);
         
             // Assign new position values based on new order
-            mikaChecklist.forEach((item, index) => {
+            mikaTasks.forEach((item, index) => {
                 item.position = index;
             });
         
@@ -2304,7 +2304,7 @@ async function handleDeleteExpense(id) {
             // Sync to Database
             if (currentUser && !isGuestMode) {
                 const batch = db.batch();
-                mikaChecklist.forEach((item) => {
+                mikaTasks.forEach((item) => {
                     const ref = db.collection('mika_checklist').doc(item.id);
                     batch.update(ref, { position: item.position });
                 });
