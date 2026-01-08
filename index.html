@@ -1313,11 +1313,8 @@
                 const sortedItems = [...filteredTasks].sort((a, b) => (a.position || 0) - (b.position || 0));
             
                 container.innerHTML = sortedItems.map(task => `
-                    <div class="checklist-item" data-id="${task.id}" 
-                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-                        <div class="drag-handle" draggable="true" ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
-                            <i class="fas fa-grip-vertical"></i>
-                        </div>
+                    <div class="checklist-item" data-id="${task.id}">
+                         
                         <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})" style="flex: 1;">
                             <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
                                 ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
@@ -1326,6 +1323,7 @@
                                 ${escapeHtml(task.text)}
                             </span>
                         </div>
+                        
                         <button onclick="deleteChecklistItem('${task.id}')" style="background: none; border: none; padding: 10px; color: var(--color-gray-300); cursor: pointer;">
                             <i class="fas fa-trash-can"></i>
                         </button>
