@@ -749,45 +749,6 @@
             /* Ensure it uses the theme's text color */
             color: var(--color-text);
         }
-
-
-        /* Drag and Drop Styles */
-        .drag-handle {
-            cursor: grab;
-            padding: 10px;
-            color: var(--color-gray-300);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .drag-handle:active {
-            cursor: grabbing;
-        }
-        
-        .checklist-item.dragging {
-            opacity: 0.4;
-            background: var(--color-gray-200);
-            border: 1px dashed var(--color-primary);
-        }
-        
-        .checklist-item.drag-over {
-            border-top: 3px solid var(--color-primary);
-        }
-
-        /* Prevent scrolling when dragging on mobile */
-        .checklist-item.dragging {
-            touch-action: none;
-            z-index: 1000;
-            position: relative;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .drag-handle {
-            touch-action: none; /* Crucial for mobile handles */
-            padding: 15px; /* Bigger tap target for thumbs */
-        }
-        
         
         .custom-checkbox {
             flex-shrink: 0;
@@ -1266,25 +1227,11 @@
                 const text = input.value.trim();
                 if (!text) return;
             
-                const newItem = {
+                await db.collection('mika_checklist').add({
                     text: text,
                     completed: false,
-                    position: mikaTasks.length, // Ensures new items go to the end
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-            
-                if (currentUser && !isGuestMode) {
-                    await db.collection('mika_checklist').add(newItem);
-                } else {
-                    const guestItem = { 
-                        ...newItem, 
-                        id: Date.now().toString(),
-                        createdAt: new Date().toISOString() 
-                    };
-                    mikaTasks.push(guestItem);
-                    localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
-                    renderChecklist();
-                }
+                });
                 input.value = '';
             }
             
@@ -1305,42 +1252,39 @@
                 if (!container) return;
             
                 if (mikaTasks.length === 0) {
-                    container.innerHTML = `<div style="text-align:center; padding: 40px 20px; color: var(--color-gray-300); opacity: 0.5;"><p>No tasks for Mika.</p></div>`;
+                    container.innerHTML = `
+                        <div style="text-align:center; padding: 40px 20px; color: var(--color-gray-300);">
+                            <i class="fas fa-paw" style="font-size: 32px; margin-bottom: 12px; opacity: 0.5;"></i>
+                            <p>No tasks for Mika yet.</p>
+                        </div>`;
                     return;
                 }
             
-                // Sort by position
-                const sortedItems = [...mikaTasks].sort((a, b) => (a.position || 0) - (b.position || 0));
-            
-                container.innerHTML = sortedItems.map(task => `
-                    <div class="checklist-item" 
-                         data-id="${task.id}"
-                         id="item-${task.id}"
-                         ondragover="handleDragOver(event)"
-                         ondragleave="handleDragLeave(event)"
-                         ondrop="handleDrop(event)">
-                         
-                        <div class="drag-handle" 
-                             draggable="true" 
-                             ondragstart="handleDragStart(event)" 
-                             ondragend="handleDragEnd(event)"
-                             ontouchstart="handleTouchStart(event)"
-                             ontouchmove="handleTouchMove(event)"
-                             ontouchend="handleTouchEnd(event)">
-                            <i class="fas fa-grip-vertical"></i>
-                        </div>
-                
-                        <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})" style="flex: 1;">
+                container.innerHTML = mikaTasks
+                    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+                    .map(task => `
+                    <div class="checklist-item">
+                        <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})">
                             <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
                                 ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
                             </div>
-                            <span class="checklist-text" style="text-decoration: ${task.completed ? 'line-through' : 'none'}; opacity: ${task.completed ? '0.6' : '1'};">
-                                ${escapeHtml(task.text)}
+                            <span class="checklist-text" style="
+                                text-decoration: ${task.completed ? 'line-through' : 'none'}; 
+                                color: ${task.completed ? 'var(--color-gray-300)' : 'var(--color-text)'};
+                                opacity: ${task.completed ? '0.6' : '1'};
+                            ">
+                                ${task.text}
                             </span>
                         </div>
-                        
-                        <button onclick="deleteChecklistItem('${task.id}')" style="background: none; border: none; padding: 10px; color: var(--color-gray-300); cursor: pointer;">
-                            <i class="fas fa-trash-can"></i>
+                        <button onclick="deleteChecklistItem('${task.id}')" style="
+                            background: none; 
+                            border: none; 
+                            padding: 10px; 
+                            color: var(--color-gray-300); 
+                            cursor: pointer;
+                            flex-shrink: 0;
+                        ">
+                            <i class="fas fa-trash-can" style="font-size: 16px;"></i>
                         </button>
                     </div>
                 `).join('');
@@ -2284,136 +2228,6 @@ async function handleDeleteExpense(id) {
                 catInput.required = true;
             }
         }
-
-
-        let draggedItemId = null;
-
-        function handleDragStart(e) {
-            // We want the parent '.checklist-item' ID, but the event started on the handle
-            const row = e.target.closest('.checklist-item');
-            draggedItemId = row.getAttribute('data-id');
-            row.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        }
-        
-        function handleDragOver(e) {
-            e.preventDefault(); 
-            const row = e.target.closest('.checklist-item');
-            if (row) row.classList.add('drag-over');
-        }
-        
-        function handleDragLeave(e) {
-            const row = e.target.closest('.checklist-item');
-            if (row) row.classList.remove('drag-over');
-        }
-        
-        function handleDragEnd(e) {
-            const row = e.target.closest('.checklist-item');
-            if (row) row.classList.remove('dragging');
-            document.querySelectorAll('.checklist-item').forEach(el => el.classList.remove('drag-over'));
-        }
-        
-        async function handleDrop(e) {
-            e.preventDefault();
-            const row = e.target.closest('.checklist-item');
-            if (!row) return;
-            
-            const targetId = row.getAttribute('data-id');
-            if (!draggedItemId || draggedItemId === targetId) return;
-        
-            const draggedIdx = mikaTasks.findIndex(item => item.id === draggedItemId);
-            const targetIdx = mikaTasks.findIndex(item => item.id === targetId);
-        
-            if (draggedIdx === -1 || targetIdx === -1) return;
-        
-            // Move in local array
-            const [movedItem] = mikaTasks.splice(draggedIdx, 1);
-            mikaTasks.splice(targetIdx, 0, movedItem);
-        
-            // Re-index all positions
-            mikaTasks.forEach((item, index) => {
-                item.position = index;
-            });
-        
-            renderChecklist();
-        
-            if (currentUser && !isGuestMode) {
-                const batch = db.batch();
-                mikaTasks.forEach((item) => {
-                    const ref = db.collection('mika_checklist').doc(item.id);
-                    batch.update(ref, { position: item.position });
-                });
-                await batch.commit();
-            } else {
-                localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
-            }
-        }
-
-
-        // --- MOBILE TOUCH SUPPORT ---
-            let touchStartY = 0;
-            
-            function handleTouchStart(e) {
-                const row = e.target.closest('.checklist-item');
-                draggedItemId = row.getAttribute('data-id');
-                row.classList.add('dragging');
-                touchStartY = e.touches[0].clientY;
-            }
-            
-            function handleTouchMove(e) {
-                e.preventDefault(); // Stop page from scrolling
-                const touch = e.touches[0];
-                const elementOver = document.elementFromPoint(touch.clientX, touch.clientY);
-                const rowOver = elementOver ? elementOver.closest('.checklist-item') : null;
-            
-                // Remove old indicators
-                document.querySelectorAll('.checklist-item').forEach(el => el.classList.remove('drag-over'));
-            
-                // Add indicator to the row we are currently hovering over
-                if (rowOver && rowOver.getAttribute('data-id') !== draggedItemId) {
-                    rowOver.classList.add('drag-over');
-                }
-            }
-            
-            async function handleTouchEnd(e) {
-                const draggingRow = document.querySelector('.checklist-item.dragging');
-                if (!draggingRow) return;
-            
-                // Find which item had the 'drag-over' class when we let go
-                const targetRow = document.querySelector('.checklist-item.drag-over');
-                
-                if (targetRow) {
-                    const targetId = targetRow.getAttribute('data-id');
-                    
-                    // Use the same logic as the desktop Drop handler
-                    const draggedIdx = mikaTasks.findIndex(item => item.id === draggedItemId);
-                    const targetIdx = mikaTasks.findIndex(item => item.id === targetId);
-            
-                    if (draggedIdx !== -1 && targetIdx !== -1) {
-                        const [movedItem] = mikaTasks.splice(draggedIdx, 1);
-                        mikaTasks.splice(targetIdx, 0, movedItem);
-                        mikaTasks.forEach((item, index) => item.position = index);
-                        
-                        renderChecklist();
-                        
-                        // Sync
-                        if (currentUser && !isGuestMode) {
-                            const batch = db.batch();
-                            mikaTasks.forEach((item) => {
-                                batch.update(db.collection('mika_checklist').doc(item.id), { position: item.position });
-                            });
-                            await batch.commit();
-                        } else {
-                            localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
-                        }
-                    }
-                }
-            
-                // Cleanup
-                draggingRow.classList.remove('dragging');
-                document.querySelectorAll('.checklist-item').forEach(el => el.classList.remove('drag-over'));
-                draggedItemId = null;
-            }
         
     </script>
 </body>
