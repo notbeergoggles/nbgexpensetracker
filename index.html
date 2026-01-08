@@ -849,6 +849,28 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
+        /* Mika Sliding Container */
+        .mika-viewport {
+            width: 100%;
+            overflow: hidden; /* Hides the tab that isn't active */
+            position: relative;
+        }
+        
+        .mika-slider {
+            display: flex;
+            width: 200%; /* Enough room for two tabs side-by-side */
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .mika-pane {
+            width: 50%; /* Each list takes up exactly one viewport width */
+            flex-shrink: 0;
+        }
+        
+        /* Slide positions */
+        .mika-slider.slide-general { transform: translateX(0%); }
+        .mika-slider.slide-food { transform: translateX(-50%); }
+
     </style>
 </head>
 <body>
@@ -1112,13 +1134,17 @@
                     <button class="mika-tab-btn" id="btnMikaFood" onclick="switchMikaTab('Food')">Food</button>
                 </div>
         
-                <form id="mikaTaskForm" onsubmit="event.preventDefault(); addChecklistItem();" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <form onsubmit="event.preventDefault(); addChecklistItem();" style="display: flex; gap: 10px; margin-bottom: 20px;">
                     <input type="text" id="newTaskInput" placeholder="Add new task..." style="flex: 1; padding: 12px; border: 1px solid var(--color-gray-200); border-radius: 8px;">
                     <button type="submit" class="btn btn--primary" style="width: auto; padding: 0 20px;">Add</button>
                 </form>
                 
-                <div id="checklistContainer">
+                <div class="mika-viewport">
+                    <div id="mikaSlider" class="mika-slider slide-general">
+                        <div id="checklistGeneral" class="mika-pane"></div>
+                        <div id="checklistFood" class="mika-pane"></div>
                     </div>
+                </div>
             </div>
         </div>
 
@@ -1196,9 +1222,16 @@
             document.getElementById('btnMikaGeneral').classList.toggle('active', tab === 'General');
             document.getElementById('btnMikaFood').classList.toggle('active', tab === 'Food');
             
-            // Refresh the list view
+            // Trigger Slide Effect
+            const slider = document.getElementById('mikaSlider');
+            if (tab === 'General') {
+                slider.className = 'mika-slider slide-general';
+            } else {
+                slider.className = 'mika-slider slide-food';
+            }
+            
             renderChecklist();
-        }                        
+        }                  
 
             // 1. Initialize Checklist Listener
             let isCheckingReset = false;
@@ -1299,36 +1332,38 @@
             
             // 5. Render UI
             function renderChecklist() {
-                const container = document.getElementById('checklistContainer');
-                if (!container) return;
+                // Helper to render a specific category into a specific container
+                const renderCategory = (category, containerId) => {
+                    const container = document.getElementById(containerId);
+                    if (!container) return;
             
-                // Filter items based on active sub-tab
-                const filteredTasks = mikaTasks.filter(task => (task.category || 'General') === activeMikaTab);
+                    const filteredTasks = mikaTasks.filter(task => (task.category || 'General') === category);
             
-                if (filteredTasks.length === 0) {
-                    container.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--color-gray-300);"><p>No ${activeMikaTab} tasks.</p></div>`;
-                    return;
-                }
+                    if (filteredTasks.length === 0) {
+                        container.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--color-gray-300);"><p>No ${category} tasks.</p></div>`;
+                        return;
+                    }
             
-                const sortedItems = [...filteredTasks].sort((a, b) => (a.position || 0) - (b.position || 0));
-            
-                container.innerHTML = sortedItems.map(task => `
-                    <div class="checklist-item" data-id="${task.id}">
-                         
-                        <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})" style="flex: 1;">
-                            <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
-                                ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
+                    container.innerHTML = filteredTasks.map(task => `
+                        <div class="checklist-item">
+                            <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})" style="flex: 1;">
+                                <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
+                                    ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
+                                </div>
+                                <span class="checklist-text" style="text-decoration: ${task.completed ? 'line-through' : 'none'}; opacity: ${task.completed ? '0.6' : '1'};">
+                                    ${escapeHtml(task.text)}
+                                </span>
                             </div>
-                            <span class="checklist-text" style="text-decoration: ${task.completed ? 'line-through' : 'none'}; opacity: ${task.completed ? '0.6' : '1'};">
-                                ${escapeHtml(task.text)}
-                            </span>
+                            <button onclick="deleteChecklistItem('${task.id}')" style="background: none; border: none; padding: 10px; color: var(--color-gray-300); cursor: pointer;">
+                                <i class="fas fa-trash-can"></i>
+                            </button>
                         </div>
-                        
-                        <button onclick="deleteChecklistItem('${task.id}')" style="background: none; border: none; padding: 10px; color: var(--color-gray-300); cursor: pointer;">
-                            <i class="fas fa-trash-can"></i>
-                        </button>
-                    </div>
-                `).join('');
+                    `).join('');
+                };
+            
+                // Render both categories so they are ready when sliding
+                renderCategory('General', 'checklistGeneral');
+                renderCategory('Food', 'checklistFood');
             }
 
         
