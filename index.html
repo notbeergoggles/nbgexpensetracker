@@ -821,6 +821,34 @@
             margin-top: 2px;
         }
 
+        /* Mika Sub-tab Styles */
+        .mika-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: var(--color-gray-200);
+            padding: 5px;
+            border-radius: 12px;
+        }
+        
+        .mika-tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--color-gray-300);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .mika-tab-btn.active {
+            background: var(--color-white);
+            color: var(--color-primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
     </style>
 </head>
 <body>
@@ -871,7 +899,7 @@
             <button type="button" class="tab-button active" data-tab="dashboard">Dashboard</button>
             <button type="button" class="tab-button" data-tab="add-expense">Add Expense</button>
             <button type="button" class="tab-button" data-tab="history">History</button>
-            <button type="button" class="tab-button" data-tab="mika-checklist">🐾 Mika</button>
+            <button type="button" class="tab-button" data-tab="mika">🐾 Mika</button>
         </div>
 
         <!-- Dashboard Tab -->
@@ -1075,23 +1103,24 @@
         </div>
 
         <!-- Mika Tab -->
-        <div id="mika-checklist" class="tab-content">
+        <div id="mika" class="tab-content">
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-16);">
-                    <h2 style="margin: 0;">🐾 Mika's Daily Checklist</h2>
-                    <span id="lastResetDate" style="font-size: 10px; color: var(--color-text-secondary);"></span>
-                </div>
+                <h2 style="margin-bottom: 20px;">Mika's Checklist</h2>
                 
-                <div class="form-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <input type="text" id="newTaskInput" placeholder="New task..." class="form-control" 
-                           style="flex: 1; font-size: 16px; height: 48px; background-color: var(--color-gray-200); color: var(--color-text); border: none;">
-                    <button onclick="addChecklistItem()" class="btn btn--primary" 
-                            style="width: 70px; height: 48px; flex-shrink: 0;">Add</button>
+                <div class="mika-tabs">
+                    <button class="mika-tab-btn active" id="btnMikaGeneral" onclick="switchMikaTab('General')">General</button>
+                    <button class="mika-tab-btn" id="btnMikaFood" onclick="switchMikaTab('Food')">Food</button>
                 </div>
         
-                <div id="checklistContainer" style="display: flex; flex-direction: column; gap: 12px;">
+                <form id="mikaTaskForm" onsubmit="event.preventDefault(); addChecklistItem();" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="newTaskInput" placeholder="Add new task..." style="flex: 1; padding: 12px; border: 1px solid var(--color-gray-200); border-radius: 8px;">
+                    <button type="submit" class="btn btn--primary" style="width: auto; padding: 0 20px;">Add</button>
+                </form>
+                
+                <div id="checklistContainer">
                     </div>
             </div>
+        </div>
 
             <div class="card" style="margin-top: 20px;">
                 <h3 style="margin-bottom: 15px;"><i class="fas fa-heartbeat"></i> Health & Milestones</h3>
@@ -1157,8 +1186,19 @@
             }
         }
 
-        
+        let activeMikaTab = 'General';
         let mikaTasks = [];
+
+        function switchMikaTab(tab) {
+            activeMikaTab = tab;
+            
+            // Update UI buttons
+            document.getElementById('btnMikaGeneral').classList.toggle('active', tab === 'General');
+            document.getElementById('btnMikaFood').classList.toggle('active', tab === 'Food');
+            
+            // Refresh the list view
+            renderChecklist();
+        }                        
 
             // 1. Initialize Checklist Listener
             let isCheckingReset = false;
@@ -1227,11 +1267,22 @@
                 const text = input.value.trim();
                 if (!text) return;
             
-                await db.collection('mika_checklist').add({
+                const newItem = {
                     text: text,
                     completed: false,
+                    category: activeMikaTab, // Saves as 'General' or 'Food'
+                    position: mikaTasks.filter(t => t.category === activeMikaTab).length,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+            
+                if (currentUser && !isGuestMode) {
+                    await db.collection('mika_checklist').add(newItem);
+                } else {
+                    const guestItem = { ...newItem, id: Date.now().toString(), createdAt: new Date().toISOString() };
+                    mikaTasks.push(guestItem);
+                    localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
+                    renderChecklist();
+                }
                 input.value = '';
             }
             
@@ -1251,40 +1302,32 @@
                 const container = document.getElementById('checklistContainer');
                 if (!container) return;
             
-                if (mikaTasks.length === 0) {
-                    container.innerHTML = `
-                        <div style="text-align:center; padding: 40px 20px; color: var(--color-gray-300);">
-                            <i class="fas fa-paw" style="font-size: 32px; margin-bottom: 12px; opacity: 0.5;"></i>
-                            <p>No tasks for Mika yet.</p>
-                        </div>`;
+                // Filter items based on active sub-tab
+                const filteredTasks = mikaTasks.filter(task => (task.category || 'General') === activeMikaTab);
+            
+                if (filteredTasks.length === 0) {
+                    container.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--color-gray-300);"><p>No ${activeMikaTab} tasks.</p></div>`;
                     return;
                 }
             
-                container.innerHTML = mikaTasks
-                    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
-                    .map(task => `
-                    <div class="checklist-item">
-                        <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})">
+                const sortedItems = [...filteredTasks].sort((a, b) => (a.position || 0) - (b.position || 0));
+            
+                container.innerHTML = sortedItems.map(task => `
+                    <div class="checklist-item" data-id="${task.id}" 
+                         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                        <div class="drag-handle" draggable="true" ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
+                            <i class="fas fa-grip-vertical"></i>
+                        </div>
+                        <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})" style="flex: 1;">
                             <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
                                 ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
                             </div>
-                            <span class="checklist-text" style="
-                                text-decoration: ${task.completed ? 'line-through' : 'none'}; 
-                                color: ${task.completed ? 'var(--color-gray-300)' : 'var(--color-text)'};
-                                opacity: ${task.completed ? '0.6' : '1'};
-                            ">
-                                ${task.text}
+                            <span class="checklist-text" style="text-decoration: ${task.completed ? 'line-through' : 'none'}; opacity: ${task.completed ? '0.6' : '1'};">
+                                ${escapeHtml(task.text)}
                             </span>
                         </div>
-                        <button onclick="deleteChecklistItem('${task.id}')" style="
-                            background: none; 
-                            border: none; 
-                            padding: 10px; 
-                            color: var(--color-gray-300); 
-                            cursor: pointer;
-                            flex-shrink: 0;
-                        ">
-                            <i class="fas fa-trash-can" style="font-size: 16px;"></i>
+                        <button onclick="deleteChecklistItem('${task.id}')" style="background: none; border: none; padding: 10px; color: var(--color-gray-300); cursor: pointer;">
+                            <i class="fas fa-trash-can"></i>
                         </button>
                     </div>
                 `).join('');
