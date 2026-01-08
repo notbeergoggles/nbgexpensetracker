@@ -822,13 +822,35 @@
         }
 
         /* Mika Sub-tab Styles */
+        /* Mika Sliding Tab Buttons */
         .mika-tabs {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            position: relative; /* Required for the sliding pill */
             background: var(--color-gray-200);
-            padding: 5px;
+            padding: 4px;
             border-radius: 12px;
+            margin-bottom: 20px;
+            isolation: isolate; /* Keeps text above the sliding pill */
+        }
+        
+        /* The Sliding Pill */
+        .mika-tabs::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            height: calc(100% - 8px);
+            background: var(--color-white);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: -1;
+        }
+
+        /* Move the pill when Food is active */
+        .mika-tabs.active-food::before {
+            transform: translateX(100%);
         }
         
         .mika-tab-btn {
@@ -841,6 +863,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.2s;
+            z-index: 1;
         }
         
         .mika-tab-btn.active {
@@ -1218,20 +1241,24 @@
         function switchMikaTab(tab) {
             activeMikaTab = tab;
             
-            // Update UI buttons
+            const container = document.getElementById('mikaTabContainer');
+            const slider = document.getElementById('mikaSlider');
+            
+            // 1. Toggle Button Active State
             document.getElementById('btnMikaGeneral').classList.toggle('active', tab === 'General');
             document.getElementById('btnMikaFood').classList.toggle('active', tab === 'Food');
             
-            // Trigger Slide Effect
-            const slider = document.getElementById('mikaSlider');
+            // 2. Slide the Button Background (Pill)
             if (tab === 'General') {
+                container.classList.remove('active-food');
                 slider.className = 'mika-slider slide-general';
             } else {
+                container.classList.add('active-food');
                 slider.className = 'mika-slider slide-food';
             }
             
             renderChecklist();
-        }                  
+        }                
 
             // 1. Initialize Checklist Listener
             let isCheckingReset = false;
