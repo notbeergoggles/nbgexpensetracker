@@ -2490,18 +2490,31 @@ async function handleDeleteExpense(id) {
         
             try {
                 if (!isGuestMode && currentUser) {
-                    await db.collection('expenses').doc(id).update(updatedData);
+                    const docRef = db.collection('expenses').doc(id);
+                    const docSnap = await docRef.get();
+            
+                    if (!docSnap.exists) {
+                        alert("Error: This record no longer exists in the database. It may have been deleted.");
+                        closeEditModal();
+                        renderExpenseList(); // Refresh the list to remove the "ghost" entry
+                        return;
+                    }
+            
+                    await docRef.update(updatedData);
                 } else {
+                    // Guest mode logic remains the same
                     const idx = expenses.findIndex(ex => ex.id === id);
-                    expenses[idx] = { ...expenses[idx], ...updatedData };
-                    localStorage.setItem('localExpenses', JSON.stringify(allExpenses));
+                    if (idx !== -1) {
+                        expenses[idx] = { ...expenses[idx], ...updatedData };
+                        localStorage.setItem('localExpenses', JSON.stringify(expenses));
+                    }
                     renderExpenseList();
                     updateDashboard();
                 }
                 closeEditModal();
             } catch (error) {
                 console.error("Error updating record:", error);
-                alert("Failed to update record.");
+                alert("Failed to update record: " + error.message);
             }
         };
         
