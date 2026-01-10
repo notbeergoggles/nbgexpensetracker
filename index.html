@@ -2379,7 +2379,7 @@ async function handleDeleteExpense(id) {
         }
 
         function openEditModal(id) {
-            const record = allExpenses.find(e => e.id === id);
+            const record = expenses.find(e => e.id === id);
             if (!record) return;
         
             document.getElementById('editRecordId').value = id;
@@ -2422,10 +2422,10 @@ async function handleDeleteExpense(id) {
                 if (!isGuestMode && currentUser) {
                     await db.collection('expenses').doc(id).update(updatedData);
                 } else {
-                    const idx = allExpenses.findIndex(ex => ex.id === id);
-                    allExpenses[idx] = { ...allExpenses[idx], ...updatedData };
+                    const idx = expenses.findIndex(ex => ex.id === id);
+                    expenses[idx] = { ...expenses[idx], ...updatedData };
                     localStorage.setItem('localExpenses', JSON.stringify(allExpenses));
-                    renderHistory();
+                    renderExpenseList();
                     updateDashboard();
                 }
                 closeEditModal();
