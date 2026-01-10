@@ -490,7 +490,7 @@
         }
 
         /* Responsive */
-        @media (max-width: 480px) {
+        @media (max-width: 768px) {
             body {
                 padding: var(--space-12);
             }
@@ -736,7 +736,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 14px 16px;
-            background: var(--color-charcoal-800);
+            background: white;
             border-radius: 16px;
             margin-bottom: 10px;
             border: 1px solid var(--color-gray-200);
@@ -1523,34 +1523,25 @@
                             return (a.position || 0) - (b.position || 0);
                         });
                 
-                    pane.innerHTML += `
-                        <div class="checklist-item" style="display: flex; align-items: center; gap: 10px; padding: 12px 15px; background: white; border-radius: 16px; margin-bottom: 10px; border: 1px solid var(--color-gray-200);">
-                            
-                            <div class="checklist-content" onclick="toggleTask('${doc.id}', ${data.completed})" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                                <div class="custom-checkbox ${data.completed ? 'checked' : ''}" style="flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">
-                                    ${data.completed ? '<i class="fas fa-check" style="color: white; font-size: 12px;"></i>' : ''}
+                    pane.innerHTML = tasks.length === 0 
+                        ? '<div class="empty-state">No tasks for this category.</div>'
+                        : tasks.map(task => `
+                            <div class="checklist-item">
+                                <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})">
+                                    <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
+                                        ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
+                                    </div>
+                                    <span class="checklist-text" style="${task.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+                                        ${task.text}
+                                    </span>
                                 </div>
-                                <span class="checklist-text" style="font-size: 14px; color: var(--color-black); line-height: 1.4; white-space: normal; word-break: break-word; flex: 1; min-width: 0; ${data.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
-                                    ${data.text}
-                                </span>
-                            </div>
-                    
-                            <div class="expense-actions" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-                                <div style="display: flex; flex-direction: column; gap: 2px;">
-                                    <button onclick="event.stopPropagation(); moveTask('${doc.id}', -1)" style="background: none; border: none; padding: 2px; color: var(--color-gray-300); cursor: pointer; font-size: 10px;">
-                                        <i class="fas fa-chevron-up"></i>
-                                    </button>
-                                    <button onclick="event.stopPropagation(); moveTask('${doc.id}', 1)" style="background: none; border: none; padding: 2px; color: var(--color-gray-300); cursor: pointer; font-size: 10px;">
-                                        <i class="fas fa-chevron-down"></i>
+                                <div class="expense-actions">
+                                    <button class="btn-delete" onclick="deleteChecklistItem('${task.id}')">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
-                                
-                                <button class="btn-delete" onclick="event.stopPropagation(); deleteChecklistItem('${doc.id}')" style="color: #ff4d4d; background: none; border: none; padding: 8px; cursor: pointer; font-size: 14px;">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
                             </div>
-                        </div>
-                    `;
+                        `).join('');
                 };
             
                 renderPane('General', 'checklistGeneral');
