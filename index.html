@@ -916,7 +916,7 @@
         .edit-modal-content h3 {
             margin-top: 0;
             margin-bottom: var(--space-20);
-            color: var(--color-black);
+            color: var(--color-white);
             font-size: 1.25rem;
         }
         
@@ -2490,7 +2490,7 @@ async function handleDeleteExpense(id) {
         
             try {
                 if (!isGuestMode && currentUser) {
-                    const docRef = db.collection('expenses').doc(id);
+                    const docRef = db.collection('shared_expenses').doc(id);
                     const docSnap = await docRef.get();
             
                     if (!docSnap.exists) {
