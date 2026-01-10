@@ -1334,7 +1334,9 @@
                     text: text,
                     completed: false,
                     category: activeMikaTab, // Saves as 'General' or 'Food'
-                    position: mikaTasks.filter(t => t.category === activeMikaTab).length,
+                    position: mikaTasks.length > 0 
+    ? Math.max(...mikaTasks.map(t => t.position || 0)) + 1 
+    : 1;
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
             
@@ -1366,28 +1368,36 @@
                     const pane = document.getElementById(elementId);
                     if (!pane) return;
             
-                    const tasks = mikaTasks.filter(t => (t.category || 'General') === category);
-            
-                    if (tasks.length === 0) {
-                        pane.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--color-gray-300);"><p>No ${category} tasks.</p></div>`;
-                        return;
-                    }
-            
-                    pane.innerHTML = tasks.map(task => `
-                        <div class="checklist-item">
-                            <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})" style="flex: 1;">
-                                <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
-                                    ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
+                    // Filter by category AND sort by the 'position' field
+                    const tasks = mikaTasks
+                        .filter(t => (t.category || 'General') === category)
+                        .sort((a, b) => {
+                            // Sort ascending: smaller numbers at the top
+                            // If position is missing, default to 0 to avoid errors
+                            return (a.position || 0) - (b.position || 0);
+                        });
+                
+                    pane.innerHTML = tasks.length === 0 
+                        ? '<div class="empty-state">No tasks for this category.</div>'
+                        : tasks.map(task => `
+                            <div class="checklist-item">
+                                <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})">
+                                    <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
+                                        ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
+                                    </div>
+                                    <span class="checklist-text" style="${task.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+                                        ${task.text}
+                                    </span>
                                 </div>
-                                <span class="checklist-text" style="text-decoration: ${task.completed ? 'line-through' : 'none'}; opacity: ${task.completed ? '0.6' : '1'};">
-                                    ${escapeHtml(task.text)}
-                                </span>
+                                <div class="expense-actions">
+                                    <button class="btn-repeat" onclick="moveTask('${task.id}', -1)"><i class="fas fa-arrow-up"></i></button>
+                                    <button class="btn-repeat" onclick="moveTask('${task.id}', 1)"><i class="fas fa-arrow-down"></i></button>
+                                    <button class="btn-delete" onclick="deleteChecklistItem('${task.id}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <button onclick="deleteChecklistItem('${task.id}')" style="background: none; border: none; padding: 10px; color: var(--color-gray-300); cursor: pointer;">
-                                <i class="fas fa-trash-can"></i>
-                            </button>
-                        </div>
-                    `).join('');
+                        `).join('');
                 };
             
                 renderPane('General', 'checklistGeneral');
