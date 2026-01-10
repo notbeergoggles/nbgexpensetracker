@@ -1521,31 +1521,25 @@
                             return (a.position || 0) - (b.position || 0);
                         });
                 
-                    pane.innerHTML += `
-                        <div class="checklist-item">
-                            <div class="checklist-content" onclick="toggleTask('${doc.id}', ${data.completed})">
-                                <div class="custom-checkbox ${data.completed ? 'checked' : ''}">
-                                    ${data.completed ? '<i class="fas fa-check" style="color: white; font-size: 12px;"></i>' : ''}
+                    pane.innerHTML = tasks.length === 0 
+                        ? '<div class="empty-state">No tasks for this category.</div>'
+                        : tasks.map(task => `
+                            <div class="checklist-item">
+                                <div class="checklist-content" onclick="toggleTask('${task.id}', ${task.completed})">
+                                    <div class="custom-checkbox ${task.completed ? 'checked' : ''}">
+                                        ${task.completed ? '<i class="fas fa-check" style="color: white; font-size: 14px;"></i>' : ''}
+                                    </div>
+                                    <span class="checklist-text" style="${task.completed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+                                        ${task.text}
+                                    </span>
                                 </div>
-                                <span class="checklist-text" style="${data.completed ? 'text-decoration: line-through; opacity: 0.5;' : ''}">
-                                    ${data.text}
-                                </span>
-                            </div>
-                            <div class="expense-actions">
-                                <div style="display: flex; flex-direction: column; gap: 2px;">
-                                    <button class="btn-repeat" onclick="event.stopPropagation(); moveTask('${doc.id}', -1)" style="font-size: 10px; padding: 2px;">
-                                        <i class="fas fa-chevron-up"></i>
-                                    </button>
-                                    <button class="btn-repeat" onclick="event.stopPropagation(); moveTask('${doc.id}', 1)" style="font-size: 10px; padding: 2px;">
-                                        <i class="fas fa-chevron-down"></i>
+                                <div class="expense-actions">
+                                    <button class="btn-delete" onclick="deleteChecklistItem('${task.id}')">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
-                                <button class="btn-delete" onclick="event.stopPropagation(); deleteChecklistItem('${doc.id}')" style="color: #ff4d4d;">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
                             </div>
-                        </div>
-                    `;
+                        `).join('');
                 };
             
                 renderPane('General', 'checklistGeneral');
