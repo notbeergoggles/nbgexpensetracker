@@ -2512,7 +2512,7 @@ async function handleDeleteExpense(id) {
         
             try {
                 if (!isGuestMode && currentUser) {
-                    await db.collection('expenses').doc(id).update(updatedData);
+                    await db.collection('shared_expenses').doc(id).update(updatedData);
                 } else {
                     const idx = expenses.findIndex(ex => ex.id === id);
                     if (idx !== -1) {
