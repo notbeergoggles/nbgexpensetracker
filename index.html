@@ -532,6 +532,13 @@
                 width: 100%;
                 margin-top: var(--space-12);
             }
+            
+            .checklist-item {
+                padding: 12px;
+            }
+            .checklist-text {
+                font-size: 13px;
+            }
         }
         .pie-chart {
     --size: 260px;
@@ -736,6 +743,8 @@
         
         .checklist-content {
             display: flex;
+            flex: 1; /* Allows text to take up remaining space */
+            min-width: 0; /* Prevents text from pushing buttons off screen */
             align-items: center;
             gap: 16px;
             flex-grow: 1;
@@ -748,6 +757,9 @@
             word-break: break-word;
             /* Ensure it uses the theme's text color */
             color: var(--color-text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
         }
         
         .custom-checkbox {
