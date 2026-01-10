@@ -730,36 +730,53 @@
 
        
         /* Checklist Specific Styling - Theme Aware */
+        /* Improved Mobile-Responsive Checklist Items */
         .checklist-item {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            padding: var(--space-16);
-            /* Change: Use a transparent border or theme variable instead of solid white */
-            background: transparent; 
-            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
-            gap: 12px;
+            align-items: center;
+            padding: 14px 16px;
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 10px;
+            border: 1px solid var(--color-gray-200);
+            gap: 12px; /* Adds space between text and buttons */
         }
         
         .checklist-content {
             display: flex;
+            align-items: center;
+            gap: 12px;
             flex: 1; /* Allows text to take up remaining space */
             min-width: 0; /* Prevents text from pushing buttons off screen */
-            align-items: center;
-            gap: 16px;
-            flex-grow: 1;
-            min-width: 0;
+            cursor: pointer;
         }
         
         .checklist-text {
-            font-size: 16px;
+            font-size: 14px;
+            color: var(--color-black);
             line-height: 1.4;
-            word-break: break-word;
-            /* Ensure it uses the theme's text color */
-            color: var(--color-text);
+            /* Prevents long text from breaking the layout */
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: normal;
+            white-space: normal; 
+            word-break: break-word;
+        }
+        
+        /* Adjust button group for better spacing on mobile */
+        .expense-actions {
+            display: flex;
+            gap: 4px; /* Tighter gap between buttons to save space */
+            flex-shrink: 0; /* Prevents buttons from getting squashed */
+        }
+        
+        .expense-actions button {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
         }
         
         .custom-checkbox {
