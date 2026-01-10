@@ -1350,7 +1350,7 @@
                     text: text,
                     completed: false,
                     category: activeMikaTab, // Saves as 'General' or 'Food'
-                    position: mikaTasks.length > 0 ? Math.max(...mikaTasks.map(t => t.position || 0)) + 1 : 0,
+                    position: maxPos + 1, // Always put new items at the bottom
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
             
@@ -1383,9 +1383,9 @@
                     if (!pane) return;
                 
                     // Filter by category and sort by position
-                    const tasks = mikaTasks
-                        .filter(t => (t.category || 'General') === category)
-                        .sort((a, b) => (a.position || 0) - (b.position || 0));
+                        const tasks = mikaTasks
+                                .filter(t => (t.category || 'General') === category)
+                                .sort((a, b) => (a.position || 0) - (b.position || 0));
                 
                     if (tasks.length === 0) {
                         pane.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--color-gray-300);"><p>No ${category} tasks.</p></div>`;
@@ -1424,37 +1424,34 @@
 
 
         async function moveTask(taskId, direction) {
-            // 1. Get current list sorted by position
-            const currentList = [...mikaTasks].sort((a, b) => (a.position || 0) - (b.position || 0));
-            
-            const currentIndex = currentList.findIndex(t => t.id === taskId);
+            // Prevent the parent click (checkbox toggle) from firing
+            if (event) event.stopPropagation();
+        
+            // Get the current list for the specific tab
+            const currentTabTasks = mikaTasks
+                .filter(t => (t.category || 'General') === activeMikaTab)
+                .sort((a, b) => (a.position || 0) - (b.position || 0));
+        
+            const currentIndex = currentTabTasks.findIndex(t => t.id === taskId);
             const targetIndex = currentIndex + direction;
         
-            // Boundary check: Don't move if already at top or bottom
-            if (targetIndex < 0 || targetIndex >= currentList.length) return;
+            if (targetIndex < 0 || targetIndex >= currentTabTasks.length) return;
         
-            const currentItem = currentList[currentIndex];
-            const targetItem = currentList[targetIndex];
+            const currentItem = currentTabTasks[currentIndex];
+            const targetItem = currentTabTasks[targetIndex];
         
-            // Swap positions
-            const currentPos = currentItem.position || 0;
-            const targetPos = targetItem.position || 0;
+            // Swap position values
+            const oldPos = currentItem.position || 0;
+            const newPos = targetItem.position || 0;
         
-            // Use a batch update for Firestore to ensure both change at once
-            if (currentUser && !isGuestMode) {
-                try {
-                    const batch = db.batch();
-                    batch.update(db.collection('mika_checklist').doc(currentItem.id), { position: targetPos });
-                    batch.update(db.collection('mika_checklist').doc(targetItem.id), { position: currentPos });
-                    await batch.commit();
-                    // UI will auto-refresh via the onSnapshot listener
-                } catch (error) {
-                    console.error("Error moving task:", error);
-                }
+            if (!isGuestMode && currentUser) {
+                const batch = db.batch();
+                batch.update(db.collection('mika_checklist').doc(currentItem.id), { position: newPos });
+                batch.update(db.collection('mika_checklist').doc(targetItem.id), { position: oldPos });
+                await batch.commit();
             } else {
-                // Guest Mode: Update local array and storage
-                currentItem.position = targetPos;
-                targetItem.position = currentPos;
+                currentItem.position = newPos;
+                targetItem.position = oldPos;
                 localStorage.setItem('mikaChecklist', JSON.stringify(mikaTasks));
                 renderChecklist();
             }
