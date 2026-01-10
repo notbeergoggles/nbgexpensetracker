@@ -887,37 +887,59 @@
             flex-shrink: 0;
         }
 
-        /* Edit Modal Styles */
+        /* Updated Glass-Style Edit Modal */
         .edit-modal {
             display: none;
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px); /* Matches your app's blurred look */
             z-index: 2000;
             justify-content: center;
             align-items: center;
+            padding: 20px;
         }
         
         .edit-modal-content {
-            background: var(--color-white);
+            background: var(--color-cream-50);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             padding: var(--space-24);
-            border-radius: 20px;
-            width: 90%;
+            border-radius: 24px; /* Matches your dashboard cards */
+            width: 100%;
             max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
         
-        .btn-edit-item {
-            background: none;
-            border: none;
+        .edit-modal-content h3 {
+            margin-top: 0;
+            margin-bottom: var(--space-20);
+            color: var(--color-black);
+            font-size: 1.25rem;
+        }
+        
+        /* Ensure form labels are visible */
+        .edit-modal-content label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
             color: var(--color-gray-300);
-            padding: 8px;
-            cursor: pointer;
-            transition: color 0.2s;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
-        .btn-edit-item:hover {
-            color: var(--color-primary);
+        /* Style inputs to match the "Add Expense" form */
+        .edit-modal-content .form-input {
+            background: white;
+            border: 1px solid var(--color-gray-200);
+            border-radius: 12px;
+            padding: 12px;
+            width: 100%;
+            margin-bottom: 16px;
+            font-family: inherit;
+            box-sizing: border-box;
         }
 
     </style>
