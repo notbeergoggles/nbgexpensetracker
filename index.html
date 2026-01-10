@@ -730,42 +730,37 @@
 
        
         /* Checklist Specific Styling - Theme Aware */
-        /* Improved Mobile-Responsive Checklist Items */
-        /* Updated Checklist Styles for Mobile Comfort */
         .checklist-item {
-            display: flex;
+            display: flex !important;       /* Force horizontal row */
+            flex-direction: row !important;  /* Ensure it doesn't switch to column */
             justify-content: space-between;
             align-items: center;
-            padding: 14px 16px;
+            padding: 12px 15px;
+            gap: 12px;
             background: var(--color-charcoal-700);
             border-radius: 16px;
             margin-bottom: 10px;
-            border: 1px solid var(--color-gray-200);
-            gap: 12px;
         }
         
         .checklist-content {
             display: flex;
             align-items: center;
             gap: 12px;
-            flex: 1;
-            min-width: 0; /* CRITICAL: Allows flex child to shrink and wrap text */
-            cursor: pointer;
+            flex: 1;         /* Take up all available middle space */
+            min-width: 0;    /* Essential for text wrapping */
         }
         
         .checklist-text {
+            white-space: normal;      /* Allow wrapping */
+            word-break: break-word;   /* Prevent long words from breaking layout */
             font-size: 14px;
-            color: var(--color-black);
-            line-height: 1.4;
-            white-space: normal; 
-            word-break: break-word; /* Prevents long URLs/words from breaking layout */
         }
         
         .expense-actions {
             display: flex;
             align-items: center;
             gap: 8px;
-            flex-shrink: 0; /* Prevents buttons from being squashed */
+            flex-shrink: 0;  /* Prevent buttons from getting squashed */
         }
         
         .expense-actions button {
