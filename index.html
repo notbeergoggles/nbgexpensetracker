@@ -1276,7 +1276,17 @@
             
             // 2. Logic to untick boxes every new day
             async function checkDailyReset() {
-                const today = new Date().toISOString().split('T')[0];
+                // Get the current date string specifically in Singapore's timezone
+                // If the time is before 4am, we want it to still return "yesterday's" date
+                const now = new Date();
+                const adjusted = new Date(now.getTime() - (4 * 60 * 60 * 1000));
+                
+                const today = adjusted.toLocaleDateString('en-SG', {
+                    timeZone: 'Asia/Singapore',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                }).split('/').reverse().join('-'); // Formats to YYYY-MM-DD
                 
                 // 1. Get the global reset date from a 'metadata' collection
                 const metadataRef = db.collection('mika_metadata').doc('checklist_status');
