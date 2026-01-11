@@ -2196,8 +2196,6 @@ async function deleteExpenseFromFirebase(id) {
 
         function updateDashboard() {
             const t = calculateTotals();
-            // Use the filtered list from calculateTotals to ensure Month/Year filters work
-    const filteredExpenses = t.filteredExpenses || expenses;
 
             document.getElementById('yourTotal').textContent = 'SGD ' + t.kennyTotalPaid.toFixed(2);
             document.getElementById('herTotal').textContent = 'SGD ' + t.sayuriTotalPaid.toFixed(2);
@@ -2214,71 +2212,6 @@ async function deleteExpenseFromFirebase(id) {
 
             renderCategoryBars(t.categoryTotals, t.totalExpenses);
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
-
-
-
-            // for individual spending
-            const individualSpendingContent = document.getElementById('individualSpendingContent');
-            const individualData = {
-                'Kenny': {},
-                'Sayuri': {}
-            };
-            
-            filteredExpenses.forEach(exp => {
-                // Only process actual expenses (ignore "Paid Back" settlements)
-                if (exp.type === 'expense') {
-                    const rawPayer = exp.paidBy; // This pulls "You" or "Her" from Firestore
-                    let personKey = '';
-            
-                    // Map the Firestore values to our display keys
-                    if (rawPayer === 'You' || rawPayer === 'Kenny') {
-                        personKey = 'Kenny';
-                    } else if (rawPayer === 'Her' || rawPayer === 'Sayuri') {
-                        personKey = 'Sayuri';
-                    }
-            
-                    if (personKey) {
-                        const cat = exp.category || 'Uncategorized';
-                        const amount = parseFloat(exp.amount) || 0;
-            
-                        if (!individualData[personKey][cat]) {
-                            individualData[personKey][cat] = 0;
-                        }
-                        individualData[personKey][cat] += amount;
-                    }
-                }
-            });
-            
-            // Render the results to the Dashboard
-            let individualHtml = '';
-            for (const person in individualData) {
-                const categories = individualData[person];
-                const total = Object.values(categories).reduce((a, b) => a + b, 0);
-            
-                individualHtml += `
-                    <div style="margin-bottom: 25px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px;">
-                            <span style="font-weight: 700; color: var(--color-primary); font-size: 15px;">${person}</span>
-                            <span style="font-weight: 700; color: var(--color-text);">SGD ${total.toFixed(2)}</span>
-                        </div>
-                        ${Object.keys(categories).length === 0 ? 
-                            '<div style="font-size: 12px; color: var(--color-text-secondary); padding: 10px;">No expenses this month.</div>' : 
-                            `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                ${Object.entries(categories).map(([cat, amt]) => `
-                                    <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 12px; border-radius: 12px; box-shadow: var(--shadow-sm);">
-                                        <div style="font-size: 10px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">${cat}</div>
-                                        <div style="font-size: 14px; font-weight: 700; color: var(--color-text);">$${amt.toFixed(2)}</div>
-                                    </div>
-                                `).join('')}
-                            </div>`
-                        }
-                    </div>
-                `;
-            }
-            
-            individualSpendingContent.innerHTML = individualHtml;
-
-            
         }
 
         function renderCategoryPie(categoryTotals, total) {
