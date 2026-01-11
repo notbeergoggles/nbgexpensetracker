@@ -2503,8 +2503,8 @@ async function handleDeleteExpense(id) {
         
             if (type === 'payment') {
                 // Active Styles
-                btnPay.className = 'btn btn--primary';
-                btnExp.className = 'btn btn--secondary';
+                btnPay.className = 'toggle-btn active';
+                btnExp.className = 'toggle-btn';
                 
                 // Show/Hide Fields
                 senderGrp.style.display = 'block';
@@ -2520,8 +2520,8 @@ async function handleDeleteExpense(id) {
                 catInput.required = false; // Not needed for payment
             } else {
                 // Active Styles
-                btnExp.className = 'btn btn--primary';
-                btnPay.className = 'btn btn--secondary';
+                btnExp.className = 'toggle-btn active';
+                btnPay.className = 'toggle-btn';
                 
                 // Show/Hide Fields
                 senderGrp.style.display = 'none';
