@@ -2196,6 +2196,8 @@ async function deleteExpenseFromFirebase(id) {
 
         function updateDashboard() {
             const t = calculateTotals();
+            // Use the filtered list from calculateTotals to ensure Month/Year filters work
+    const filteredExpenses = t.filteredExpenses || expenses;
 
             document.getElementById('yourTotal').textContent = 'SGD ' + t.kennyTotalPaid.toFixed(2);
             document.getElementById('herTotal').textContent = 'SGD ' + t.sayuriTotalPaid.toFixed(2);
