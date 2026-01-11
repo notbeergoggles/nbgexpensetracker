@@ -2197,6 +2197,23 @@ async function deleteExpenseFromFirebase(id) {
         function updateDashboard() {
             const t = calculateTotals();
 
+            document.getElementById('yourTotal').textContent = 'SGD ' + t.kennyTotalPaid.toFixed(2);
+            document.getElementById('herTotal').textContent = 'SGD ' + t.sayuriTotalPaid.toFixed(2);
+
+            document.getElementById('yourShare').textContent = 'SGD ' + t.kennyTotalShare.toFixed(2);
+            document.getElementById('herShare').textContent = 'SGD ' + t.sayuriTotalShare.toFixed(2);
+
+            document.getElementById('totalExpenses').textContent = 'SGD ' + t.totalExpenses.toFixed(2);
+            document.getElementById('entryCount').textContent = t.entryCount;
+            document.getElementById('dailyBurnRate').textContent = `SGD ${t.dailyBurn.toFixed(2)}`;
+
+            document.getElementById('settlement').textContent = 'SGD ' + Math.abs(t.net).toFixed(2);
+            document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
+
+            renderCategoryBars(t.categoryTotals, t.totalExpenses);
+            renderCategoryPie(t.categoryTotals, t.totalExpenses);
+
+
 
             // for individual spending
             const individualSpendingContent = document.getElementById('individualSpendingContent');
@@ -2205,7 +2222,7 @@ async function deleteExpenseFromFirebase(id) {
                 'Sayuri': {}
             };
             
-            expenses.forEach(exp => {
+            filteredExpenses.forEach(exp => {
                 // Only process actual expenses (ignore "Paid Back" settlements)
                 if (exp.type === 'expense') {
                     const rawPayer = exp.paidBy; // This pulls "You" or "Her" from Firestore
@@ -2258,26 +2275,6 @@ async function deleteExpenseFromFirebase(id) {
             }
             
             individualSpendingContent.innerHTML = individualHtml;
-
-
-            
-
-            document.getElementById('yourTotal').textContent = 'SGD ' + t.kennyTotalPaid.toFixed(2);
-            document.getElementById('herTotal').textContent = 'SGD ' + t.sayuriTotalPaid.toFixed(2);
-
-            document.getElementById('yourShare').textContent = 'SGD ' + t.kennyTotalShare.toFixed(2);
-            document.getElementById('herShare').textContent = 'SGD ' + t.sayuriTotalShare.toFixed(2);
-
-            document.getElementById('totalExpenses').textContent = 'SGD ' + t.totalExpenses.toFixed(2);
-            document.getElementById('entryCount').textContent = t.entryCount;
-            document.getElementById('dailyBurnRate').textContent = `SGD ${t.dailyBurn.toFixed(2)}`;
-
-            document.getElementById('settlement').textContent = 'SGD ' + Math.abs(t.net).toFixed(2);
-            document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
-
-            renderCategoryBars(t.categoryTotals, t.totalExpenses);
-            renderCategoryPie(t.categoryTotals, t.totalExpenses);
-
 
             
         }
