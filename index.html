@@ -2542,6 +2542,7 @@ async function handleDeleteExpense(id) {
         });
 
         document.getElementById('historySearch')?.addEventListener('input', renderExpenseList);
+        
 
         // initialize UI from local storage if guest or before auth
         (function init() {
@@ -2552,6 +2553,12 @@ async function handleDeleteExpense(id) {
                 renderExpenseList();
             }
         })();
+
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Only start the app logic once the HTML is fully loaded
+            init(); 
+        });
 
         // --- NEW LOGIC FOR PAYMENT TOGGLE ---
         let currentEntryType = 'expense';
