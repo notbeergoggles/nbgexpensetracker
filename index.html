@@ -2190,8 +2190,7 @@ async function deleteExpenseFromFirebase(id) {
                 entryCount: filteredExpenses.length,
                 categoryTotals,
                 net,
-                dailyBurn: dailyBurn || 0,
-                filteredExpenses: filtered
+                dailyBurn: dailyBurn || 0
             };
         }
 
@@ -2213,65 +2212,6 @@ async function deleteExpenseFromFirebase(id) {
 
             renderCategoryBars(t.categoryTotals, t.totalExpenses);
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
-
-            // 2. NEW: Spending by Individual Logic
-            const individualSpendingContent = document.getElementById('individualSpendingContent');
-            const individualData = {
-                'Kenny': {},
-                'Sayuri': {}
-            };
-        
-            // Use the filtered list directly from t (provided by calculateTotals)
-            // to ensure the dashboard respect the Month/Year dropdown
-            const filteredList = t.filteredExpenses || expenses;
-        
-            filteredList.forEach(exp => {
-                // Only count actual expenses, not "Paid Back" settlements
-                if (exp.type === 'expense') {
-                    const payer = exp.paidBy;
-                    let key = '';
-        
-                    // This handles the "You/Her" vs "Kenny/Sayuri" discrepancy
-                    if (payer === 'You' || payer === 'Kenny') key = 'Kenny';
-                    else if (payer === 'Her' || payer === 'Sayuri') key = 'Sayuri';
-        
-                    if (key) {
-                        const cat = exp.category || 'Other';
-                        const amt = parseFloat(exp.amount) || 0;
-                        
-                        if (!individualData[key][cat]) individualData[key][cat] = 0;
-                        individualData[key][cat] += amt;
-                    }
-                }
-            });
-        
-            // 3. Render HTML
-            let html = '';
-            for (const person in individualData) {
-                const categories = individualData[person];
-                const personTotal = Object.values(categories).reduce((a, b) => a + b, 0);
-        
-                html += `
-                    <div style="margin-bottom: 25px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px;">
-                            <span style="font-weight: 700; color: var(--color-primary); font-size: 15px;">${person}</span>
-                            <span style="font-weight: 700; color: var(--color-text);">SGD ${personTotal.toFixed(2)}</span>
-                        </div>
-                        ${Object.keys(categories).length === 0 ? 
-                            '<div style="font-size: 12px; color: var(--color-text-secondary); padding: 10px;">No expenses found for this period.</div>' :
-                            `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                ${Object.entries(categories).map(([cat, amt]) => `
-                                    <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 12px; border-radius: 12px; box-shadow: var(--shadow-sm);">
-                                        <div style="font-size: 10px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">${cat}</div>
-                                        <div style="font-size: 14px; font-weight: 700; color: var(--color-text);">$${amt.toFixed(2)}</div>
-                                    </div>
-                                `).join('')}
-                            </div>`
-                        }
-                    </div>
-                `;
-            }
-            individualSpendingContent.innerHTML = html;
         }
 
         function renderCategoryPie(categoryTotals, total) {
