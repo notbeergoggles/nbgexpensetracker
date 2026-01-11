@@ -970,44 +970,44 @@
         }
 
 
-        /* Base style for both toggle buttons */
+        /* Target the buttons specifically */
         .toggle-btn {
-            flex: 1;
-            padding: 12px;
-            font-size: 14px;
+            /* Layout */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 140px; /* Fixed width helps the "sliding" illusion */
+            padding: 10px 20px;
+            
+            /* Style */
+            border: none;
+            background-color: var(--color-gray-200); /* Inactive background */
+            color: var(--color-gray-300);
             font-weight: 600;
             cursor: pointer;
-            border: none;
-            background-color: var(--color-gray-200); /* Inactive light gray */
-            color: var(--color-gray-300);
             
-            /* This creates the smooth 'sliding' feel */
+            /* Animation */
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            
-            /* Ensure they sit side-by-side with no gap */
-            display: inline-block;
-            margin: 0;
         }
         
-        /* Round only the LEFT side of the Expense button */
-        button[onclick*="setEntryType('Expense')"] {
+        /* Round the outer corners only to make it look like one unit */
+        .toggle-btn:first-of-type {
             border-radius: 12px 0 0 12px;
+            margin-right: -1px; /* Remove the tiny gap between them */
         }
         
-        /* Round only the RIGHT side of the Paid Back button */
-        button[onclick*="setEntryType('Paid Back')"] {
+        .toggle-btn:last-of-type {
             border-radius: 0 12px 12px 0;
-            margin-left: -1px; /* Overlap borders to remove the white line gap */
         }
         
-        /* The Active State (Managed by your JS) */
+        /* The Active State (Triggered by your existing JS) */
         .toggle-btn.active {
-            background-color: var(--color-black) !important;
-            color: white !important;
-            /* This shadow makes the active button look like it's sliding over the top */
+            background-color: var(--color-black);
+            color: white;
+            /* Optional: shadow makes the active one look like it's "above" the other */
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            position: relative;
             z-index: 2;
+            position: relative;
         }
 
     </style>
