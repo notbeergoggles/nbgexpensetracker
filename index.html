@@ -1115,7 +1115,7 @@
 
             <div class="card" style="margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="font-size: 16px; font-weight: 700; color: var(--color-black);">Spending by Individual</h3>
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--color-white);">Spending by Individual</h3>
                     <i class="fas fa-user-tag" style="color: var(--color-gray-300);"></i>
                 </div>
                 
@@ -2214,25 +2214,34 @@ async function deleteExpenseFromFirebase(id) {
 
 
             // for individual spending
-                const individualSpendingContent = document.getElementById('individualSpendingContent');
-                const individualData = {
-                    'Kenny': {},
-                    'Sayuri': {}
-                };
-                
-                // Process expenses
-                expenses.forEach(exp => {
-                    if (exp.type === 'expense') {
-                        const payer = exp.paidBy; // Assuming 'Kenny' or 'Sayuri'
+            const individualSpendingContent = document.getElementById('individualSpendingContent');
+            const individualData = {
+                'Kenny': {},
+                'Sayuri': {}
+            };
+            
+            expenses.forEach(exp => {
+                // 1. Only count 'expense' types (ignore 'payment' settlements)
+                if (exp.type === 'expense') {
+                    let payer = exp.paidBy || '';
+                    
+                    // 2. Normalize the name to match our keys
+                    let personKey = '';
+                    if (payer.toLowerCase() === 'kenny') personKey = 'Kenny';
+                    if (payer.toLowerCase() === 'sayuri') personKey = 'Sayuri';
+            
+                    if (personKey) {
                         const cat = exp.category || 'Uncategorized';
                         const amount = parseFloat(exp.amount) || 0;
-                
-                        if (!individualData[payer][cat]) {
-                            individualData[payer][cat] = 0;
+            
+                        if (!individualData[personKey][cat]) {
+                            individualData[personKey][cat] = 0;
                         }
-                        individualData[payer][cat] += amount;
+                        individualData[personKey][cat] += amount;
                     }
-                });
+                }
+            });
+
                 
                 // Render the UI
                 let html = '';
