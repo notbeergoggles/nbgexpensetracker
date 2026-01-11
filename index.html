@@ -2221,21 +2221,27 @@ async function deleteExpenseFromFirebase(id) {
                 'Sayuri': {}
             };
             
-            // Process records from the 'shared_expenses' collection
             expenses.forEach(exp => {
-                // Only count actual expenses, not "Paid Back" settlements
+                // Only process actual expenses (ignore "Paid Back" settlements)
                 if (exp.type === 'expense') {
-                    const payer = exp.paidBy; // Firestore stores 'Kenny' or 'Sayuri'
-                    
-                    // Ensure the payer exists in our data object
-                    if (individualData[payer]) {
+                    const rawPayer = exp.paidBy; // This pulls "You" or "Her" from Firestore
+                    let personKey = '';
+            
+                    // Map the Firestore values to our display keys
+                    if (rawPayer === 'You' || rawPayer === 'Kenny') {
+                        personKey = 'Kenny';
+                    } else if (rawPayer === 'Her' || rawPayer === 'Sayuri') {
+                        personKey = 'Sayuri';
+                    }
+            
+                    if (personKey) {
                         const cat = exp.category || 'Uncategorized';
                         const amount = parseFloat(exp.amount) || 0;
             
-                        if (!individualData[payer][cat]) {
-                            individualData[payer][cat] = 0;
+                        if (!individualData[personKey][cat]) {
+                            individualData[personKey][cat] = 0;
                         }
-                        individualData[payer][cat] += amount;
+                        individualData[personKey][cat] += amount;
                     }
                 }
             });
