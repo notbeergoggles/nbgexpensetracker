@@ -969,46 +969,6 @@
             transition: all 0.2s ease;
         }
 
-        /* Target the buttons specifically */
-        .toggle-btn {
-            /* Layout */
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 140px; /* Fixed width helps the "sliding" illusion */
-            padding: 10px 20px;
-            
-            /* Style */
-            border: none;
-            background-color: var(--color-gray-200); /* Inactive background */
-            color: var(--color-gray-300);
-            font-weight: 600;
-            cursor: pointer;
-            
-            /* Animation */
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        /* Round the outer corners only to make it look like one unit */
-        .toggle-btn:first-of-type {
-            border-radius: 12px 0 0 12px;
-            margin-right: -1px; /* Remove the tiny gap between them */
-        }
-        
-        .toggle-btn:last-of-type {
-            border-radius: 0 12px 12px 0;
-        }
-        
-        /* The Active State (Triggered by your existing JS) */
-        .toggle-btn.active {
-            background-color: var(--color-black);
-            color: white;
-            /* Optional: shadow makes the active one look like it's "above" the other */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 2;
-            position: relative;
-        }
-
     </style>
 </head>
 <body>
@@ -1137,10 +1097,10 @@
                 <h2>Add Entry</h2>
                 
                 <div style="display: flex; gap: 10px; margin: 20px 0;">
-                    <button type="button" id="btnTypeExpense" class="toggle-btn active" style="flex: 1;" onclick="setEntryType('expense')">
+                    <button type="button" id="btnTypeExpense" class="btn btn--primary" style="flex: 1;" onclick="setEntryType('expense')">
                         <i class="fas fa-receipt"></i> Expense
                     </button>
-                    <button type="button" id="btnTypePayment" class="toggle-btn" style="flex: 1;" onclick="setEntryType('payment')">
+                    <button type="button" id="btnTypePayment" class="btn btn--secondary" style="flex: 1;" onclick="setEntryType('payment')">
                         <i class="fas fa-hand-holding-usd"></i> Paid Back
                     </button>
                 </div>
