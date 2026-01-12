@@ -2181,13 +2181,14 @@ async function deleteExpenseFromFirebase(id) {
             let sayuriTotalShare = 0;
             let categoryTotals = {};
             
-            // NEW 1: Initialize the bucket for individual data
+            // Initialize the bucket for individual data
             let individualTotals = { 'Kenny': {}, 'Sayuri': {} }; 
         
             filteredExpenses.forEach(e => {
                 const amt = Number(e.amount) || 0;
                 
                 if (e.isPayment) {
+                    // Payment logic remains the same (Cash flow only)
                     if (e.paidBy === 'Kenny' || e.paidBy === 'You') {
                         kennyTotalPaid += amt;
                         sayuriTotalShare += amt; 
@@ -2198,20 +2199,32 @@ async function deleteExpenseFromFirebase(id) {
                 } else {
                     totalExpenses += amt;
                     
+                    // 1. Who SWIPED the card? (Cash Flow)
                     if (e.paidBy === 'Kenny') kennyTotalPaid += amt;
                     else sayuriTotalPaid += amt;
         
+                    // 2. Who OWES what? (Liability)
                     kennyTotalShare += Number(e.yourShare || 0);
                     sayuriTotalShare += Number(e.herShare || 0);
         
                     if (e.category) {
                         categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amt;
         
-                        // NEW 2: Sort into individual buckets
-                        // This handles "You/Her" vs "Kenny/Sayuri" automatically
-                        let person = (e.paidBy === 'Kenny' || e.paidBy === 'You') ? 'Kenny' : 'Sayuri';
-                        if (!individualTotals[person][e.category]) individualTotals[person][e.category] = 0;
-                        individualTotals[person][e.category] += amt;
+                        // --- NEW CORRECTED LOGIC STARTS HERE ---
+                        // Instead of checking who paid, we check who 'consumed' the value.
+                        
+                        // Add Kenny's Share (if any) to Kenny's breakdown
+                        if (e.yourShare > 0) {
+                            if (!individualTotals['Kenny'][e.category]) individualTotals['Kenny'][e.category] = 0;
+                            individualTotals['Kenny'][e.category] += Number(e.yourShare);
+                        }
+        
+                        // Add Sayuri's Share (if any) to Sayuri's breakdown
+                        if (e.herShare > 0) {
+                            if (!individualTotals['Sayuri'][e.category]) individualTotals['Sayuri'][e.category] = 0;
+                            individualTotals['Sayuri'][e.category] += Number(e.herShare);
+                        }
+                        // --- NEW CORRECTED LOGIC ENDS HERE ---
                     }
                 }
             });
@@ -2233,7 +2246,7 @@ async function deleteExpenseFromFirebase(id) {
                 totalExpenses,
                 entryCount: filteredExpenses.length,
                 categoryTotals,
-                individualTotals, // NEW 3: Pass this data out so the dashboard can use it
+                individualTotals, // Passed to dashboard
                 net,
                 dailyBurn: dailyBurn || 0
             };
