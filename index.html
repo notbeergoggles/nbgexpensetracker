@@ -2102,57 +2102,73 @@ async function deleteExpenseFromFirebase(id) {
         });
 
         function calculateTotals() {
-            const selectedMonth = parseInt(document.getElementById('monthFilter').value);
-            const selectedYear = parseInt(document.getElementById('yearFilter').value);
-        
-            let kennyTotalPaid = 0, sayuriTotalPaid = 0;
-            let kennyTotalShare = 0, sayuriTotalShare = 0;
-            let totalExpenses = 0, entryCount = 0;
-            const categoryTotals = {};
+            // 1. Filter out the 'Master Templates'
+            const activeExpenses = expenses.filter(e => e.isRecurring !== true);
             
-            // NEW: Initialize individual breakdown
-            const individualBreakdown = {
-                'Kenny': {},
-                'Sayuri': {}
-            };
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            const currentDay = now.getDate();
+            
+            // 2. Get the filter value
+            const filter = document.getElementById('monthFilter')?.value || 'current';
         
-            const filtered = expenses.filter(exp => {
-                const date = new Date(exp.date);
-                return (selectedMonth === -1 || date.getMonth() === selectedMonth) && 
-                       (date.getFullYear() === selectedYear);
-            });
-        
-            filtered.forEach(exp => {
-                const amt = parseFloat(exp.amount) || 0;
-                if (exp.type === 'expense') {
-                    totalExpenses += amt;
-                    entryCount++;
-        
-                    // 1. Handle Settlement Logic (Original)
-                    if (exp.paidBy === 'Kenny' || exp.paidBy === 'You') kennyTotalPaid += amt;
-                    else sayuriTotalPaid += amt;
-        
-                    if (exp.split === 'Equally') {
-                        kennyTotalShare += amt / 2;
-                        sayuriTotalShare += amt / 2;
-                    } else if (exp.split === 'Kenny Only' || exp.split === 'You Only') {
-                        kennyTotalShare += amt;
-                    } else {
-                        sayuriTotalShare += amt;
-                    }
-        
-                    // 2. Handle Category Totals (Original)
-                    categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amt;
-        
-                    // 3. NEW: Handle Individual Breakdown
-                    let person = (exp.paidBy === 'Kenny' || exp.paidBy === 'You') ? 'Kenny' : 'Sayuri';
-                    let cat = exp.category || 'Other';
-                    if (!individualBreakdown[person][cat]) individualBreakdown[person][cat] = 0;
-                    individualBreakdown[person][cat] += amt;
+            const filteredExpenses = activeExpenses.filter(e => {
+                if (filter === 'all') return true;
+                
+                const d = new Date(e.date);
+                const expenseYear = d.getFullYear();
+                const expenseMonth = d.getMonth();
+            
+                if (filter === 'current') {
+                    const now = new Date();
+                    return expenseYear === now.getFullYear() && expenseMonth === now.getMonth();
+                } else {
+                    const [selYear, selMonth] = filter.split('-');
+                    return expenseYear === parseInt(selYear) && expenseMonth === (parseInt(selMonth) - 1);
                 }
             });
         
-            
+            let totalExpenses = 0;
+            let kennyTotalPaid = 0;
+            let sayuriTotalPaid = 0;
+            let kennyTotalShare = 0;
+            let sayuriTotalShare = 0;
+            let categoryTotals = {};
+        
+            // 3. Main Calculation Loop
+            filteredExpenses.forEach(e => {
+                const amt = Number(e.amount) || 0;
+                
+                if (e.isPayment) {
+                    // --- PAYMENT LOGIC ---
+                    // If Kenny pays Sayuri, he increases his 'Paid' amount, 
+                    // and we increase Sayuri's 'Share' (as she received the cash).
+                    // This balances the equation: Net = Paid - Share.
+                    if (e.paidBy === 'Kenny' || e.paidBy === 'You') {
+                        kennyTotalPaid += amt;
+                        sayuriTotalShare += amt; 
+                    } else {
+                        sayuriTotalPaid += amt;
+                        kennyTotalShare += amt;
+                    }
+                    // Note: Payments are NOT added to 'totalExpenses' or 'categoryTotals'
+                    
+                } else {
+                    // --- STANDARD EXPENSE LOGIC ---
+                    totalExpenses += amt;
+                    
+                    if (e.paidBy === 'Kenny') kennyTotalPaid += amt;
+                    else sayuriTotalPaid += amt;
+        
+                    kennyTotalShare += Number(e.yourShare || 0);
+                    sayuriTotalShare += Number(e.herShare || 0);
+        
+                    if (e.category) {
+                        categoryTotals[e.category] = (categoryTotals[e.category] || 0) + amt;
+                    }
+                }
+            });
         
             // 4. Daily Burn Rate (Expenses only)
             const monthOnlyExpenses = activeExpenses.filter(e => {
@@ -2196,33 +2212,6 @@ async function deleteExpenseFromFirebase(id) {
 
             renderCategoryBars(t.categoryTotals, t.totalExpenses);
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
-
-            // --- NEW: Render Individual Spending ---
-            const container = document.getElementById('individualSpendingContent');
-            if (!container) return;
-        
-            let html = '';
-            for (const person in t.individualBreakdown) {
-                const cats = t.individualBreakdown[person];
-                const personTotal = Object.values(cats).reduce((a, b) => a + b, 0);
-        
-                html += `
-                    <div style="margin-bottom: 24px;">
-                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--color-border); padding-bottom: 8px; margin-bottom: 12px;">
-                            <span style="font-weight: 700; color: var(--color-primary);">${person}</span>
-                            <span style="font-weight: 700;">SGD ${personTotal.toFixed(2)}</span>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            ${Object.keys(cats).length === 0 ? '<div style="color:var(--color-text-secondary); font-size:12px;">No spending</div>' : 
-                                Object.entries(cats).map(([c, a]) => `
-                                <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 10px; border-radius: 12px;">
-                                    <div style="font-size: 10px; color: var(--color-text-secondary); text-transform: uppercase;">${c}</div>
-                                    <div style="font-size: 14px; font-weight: 600;">$${a.toFixed(2)}</div>
-                                </div>`).join('')}
-                        </div>
-                    </div>`;
-            }
-            container.innerHTML = html;
         }
 
         function renderCategoryPie(categoryTotals, total) {
