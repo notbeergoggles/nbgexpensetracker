@@ -2637,51 +2637,7 @@ async function handleDeleteExpense(id) {
         };
 
 
-        // This function is "Isolated" - it won't break your main dashboard if it fails
-        function renderIndividualBreakdown() {
-            try {
-                const container = document.getElementById('individualSpendingContent');
-                const monthEl = document.getElementById('monthFilter');
-                const yearEl = document.getElementById('yearFilter');
-                
-                // If the HTML elements aren't ready, just quit quietly
-                if (!container || !monthEl || !yearEl || !expenses) return;
         
-                const selMonth = parseInt(monthEl.value);
-                const selYear = parseInt(yearEl.value);
-                const data = { 'Kenny': {}, 'Sayuri': {} };
-        
-                expenses.forEach(exp => {
-                    const d = new Date(exp.date);
-                    if (exp.type === 'expense' && d.getFullYear() === selYear && (selMonth === -1 || d.getMonth() === selMonth)) {
-                        let p = (exp.paidBy === 'Kenny' || exp.paidBy === 'You') ? 'Kenny' : 'Sayuri';
-                        data[p][exp.category] = (data[p][exp.category] || 0) + parseFloat(exp.amount || 0);
-                    }
-                });
-        
-                let html = '';
-                for (const p in data) {
-                    const total = Object.values(data[p]).reduce((a, b) => a + b, 0);
-                    html += `<div style="margin-bottom:20px;">
-                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-border); padding-bottom:5px; margin-bottom:10px;">
-                            <span style="font-weight:bold; color:var(--color-primary);">${p}</span>
-                            <span style="font-weight:bold;">$${total.toFixed(2)}</span>
-                        </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                            ${Object.entries(data[p]).map(([c, a]) => `
-                                <div style="background:var(--color-surface); border:1px solid var(--color-border); padding:8px; border-radius:10px;">
-                                    <div style="font-size:9px; color:var(--color-text-secondary); text-transform:uppercase;">${c}</div>
-                                    <div style="font-size:13px; font-weight:600;">$${a.toFixed(2)}</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>`;
-                }
-                container.innerHTML = html || '<p>No data</p>';
-            } catch (e) {
-                console.log("Individual breakdown plugin skipped to prevent crash.");
-            }
-        }
         
     </script>
     <div id="successToast" style="display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #4BB543; color: white; padding: 12px 24px; border-radius: 50px; z-index: 3000; box-shadow: 0 10px 20px rgba(0,0,0,0.2); font-weight: 600; font-size: 14px; align-items: center; gap: 8px;">
