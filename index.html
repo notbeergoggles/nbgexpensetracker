@@ -2152,16 +2152,7 @@ async function deleteExpenseFromFirebase(id) {
                 }
             });
         
-            const net = kennyTotalPaid - kennyTotalShare;
-            const daysInMonth = selectedMonth === -1 ? 30 : new Date(selectedYear, selectedMonth + 1, 0).getDate();
-            const dailyBurn = totalExpenses / daysInMonth;
-        
-            return {
-                kennyTotalPaid, sayuriTotalPaid, kennyTotalShare, sayuriTotalShare,
-                totalExpenses, net, entryCount, dailyBurn, categoryTotals,
-                individualBreakdown // <--- Pass the new data out
-            };
-        }
+            
         
             // 4. Daily Burn Rate (Expenses only)
             const monthOnlyExpenses = activeExpenses.filter(e => {
