@@ -1282,6 +1282,7 @@
                 <div class="mika-tabs" id="mikaTabContainer">
                     <button class="mika-tab-btn active" id="btnMikaGeneral" onclick="switchMikaTab('General')">General</button>
                     <button class="mika-tab-btn" id="btnMikaFood" onclick="switchMikaTab('Food')">Food</button>
+                    <button class="mika-tab-btn" id="btnMikaDuties" onclick="switchMikaTab('Duties')">Duties</button>
                 </div>
         
                 <form onsubmit="event.preventDefault(); addChecklistItem();" style="display: flex; gap: 10px; margin-bottom: 20px;">
@@ -1293,6 +1294,7 @@
                     <div id="mikaSlider" class="mika-slider">
                         <div id="checklistGeneral" class="mika-pane"></div>
                         <div id="checklistFood" class="mika-pane"></div>
+                        <div id="checklistDuties" class="mika-pane"></div>
                     </div>
                 </div>
             </div>
@@ -1579,6 +1581,7 @@
             
                 renderPane('General', 'checklistGeneral');
                 renderPane('Food', 'checklistFood');
+                renderPane('Duties', 'checklistDuties');
             }
 
         
