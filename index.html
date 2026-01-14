@@ -865,6 +865,11 @@
         .mika-tabs.active-food::before {
             transform: translateX(100%);
         }
+
+        /* This moves the background pill when Duties is active */
+        .mika-tabs.active-duties::before {
+            transform: translateX(200%);
+        }
         
         .mika-tab-btn {
             flex: 1;
@@ -1421,14 +1426,18 @@
             // Update Button Text Colors
             document.getElementById('btnMikaGeneral').classList.toggle('active', tab === 'General');
             document.getElementById('btnMikaFood').classList.toggle('active', tab === 'Food');
+            document.getElementById('btnMikaDuties').classList.toggle('active', tab === 'Duties');
             
             // Handle the visual slides
             if (tab === 'General') {
                 container.classList.remove('active-food'); // Moves pill to left
                 slider.style.transform = 'translateX(0%)'; // Slides list to left
-            } else {
-                container.classList.add('active-food');    // Moves pill to right
-                slider.style.transform = 'translateX(-50%)'; // Slides list to right
+            } else if (tab === 'Food') {
+                container.classList.add('active-food'); 
+                slider.style.transform = 'translateX(-33.33%)'; // Move to 2nd pane
+            } else if (tab === 'Duties') {
+                container.classList.add('active-duties');
+                slider.style.transform = 'translateX(-66.66%)'; // Move to 3rd pane
             }
             
             renderChecklist();
