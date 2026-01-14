@@ -1468,52 +1468,100 @@
             
             // 2. Logic to untick boxes every new day
             async function checkDailyReset() {
-                // Get the current date string specifically in Singapore's timezone
-                // If the time is before 4am, we want it to still return "yesterday's" date
                 const now = new Date();
-                const adjusted = new Date(now.getTime() - (4 * 60 * 60 * 1000));
-                
-                const today = adjusted.toLocaleDateString('en-SG', {
-                    timeZone: 'Asia/Singapore',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                }).split('/').reverse().join('-'); // Formats to YYYY-MM-DD
-                
-                // 1. Get the global reset date from a 'metadata' collection
+                const currentTime = now.getTime();
+            
+                // --- 1. DAILY RESET (General & Food) @ 4AM ---
+                // Subtract 4 hours so that before 4am counts as "yesterday"
+                const adjustedDaily = new Date(currentTime - (4 * 60 * 60 * 1000));
+                const todayStr = adjustedDaily.toLocaleDateString('en-SG', {
+                    timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit'
+                }).split('/').reverse().join('-');
+            
+                // --- 2. EVERY OTHER DAY RESET (Duties) @ 5AM ---
+                // Subtract 5 hours so that before 5am counts as the previous cycle
+                const adjustedDuties = new Date(currentTime - (5 * 60 * 60 * 1000));
+                const fortyEightHours = 48 * 60 * 60 * 1000;
+            
+                // Fetch Metadata
                 const metadataRef = db.collection('mika_metadata').doc('checklist_status');
                 const doc = await metadataRef.get();
                 
                 let lastGlobalReset = "";
+                let lastDutiesResetTime = 0;
+            
                 if (doc.exists) {
-                    lastGlobalReset = doc.data().lastReset;
+                    lastGlobalReset = doc.data().lastReset || "";
+                    lastDutiesResetTime = doc.data().lastDutiesResetTime || 0;
                 }
             
-                // 2. If the global date is not today, perform the reset
-                if (lastGlobalReset !== today) {
-                    console.log("Global reset triggered for a new day.");
-                    const batch = db.batch();
-                    let needsReset = false;
+                const batch = db.batch();
+                let metadataUpdates = {};
+                let globalResetTriggered = false;
+                let dutiesResetTriggered = false;
             
+                // --- LOGIC A: Handle Daily Tabs (General/Food) ---
+                if (lastGlobalReset !== todayStr) {
+                    console.log("Global daily reset triggered.");
                     mikaTasks.forEach(task => {
-                        if (task.completed) {
+                        // Only reset non-Duties tasks here
+                        if (task.completed && task.category !== 'Duties') {
                             const ref = db.collection('mika_checklist').doc(task.id);
                             batch.update(ref, { completed: false });
-                            needsReset = true;
                         }
                     });
-            
-                    // Update the global date in Firebase so the second person doesn't trigger this again
-                    batch.set(metadataRef, { lastReset: today }, { merge: true });
-            
-                    if (needsReset || !doc.exists || lastGlobalReset !== today) {
-                        await batch.commit();
-                    }
-                    
-                    document.getElementById('lastResetDate').textContent = "Last Reset: " + today;
-                } else {
-                    document.getElementById('lastResetDate').textContent = "Refreshed for: " + today;
+                    metadataUpdates.lastReset = todayStr;
+                    globalResetTriggered = true;
                 }
+            
+                // --- LOGIC B: Handle Duties Tab (Every 48 Hours) ---
+                // Check if 48 hours have passed since the last stored Duty reset
+                if (currentTime - lastDutiesResetTime >= fortyEightHours) {
+                    console.log("Duties reset triggered (48-hour cycle).");
+                    mikaTasks.forEach(task => {
+                        // Only reset Duties tasks
+                        if (task.completed && task.category === 'Duties') {
+                            const ref = db.collection('mika_checklist').doc(task.id);
+                            batch.update(ref, { completed: false });
+                        }
+                    });
+                    // Store current time as the new baseline for the next 48 hours
+                    metadataUpdates.lastDutiesResetTime = currentTime;
+                    dutiesResetTriggered = true;
+                }
+            
+                // Commit changes if either reset occurred
+                if (globalResetTriggered || dutiesResetTriggered) {
+                    batch.set(metadataRef, metadataUpdates, { merge: true });
+                    await batch.commit();
+                    document.getElementById('lastResetDate').textContent = "Reset triggered for: " + todayStr;
+                } else {
+                    document.getElementById('lastResetDate').textContent = "Refreshed for: " + todayStr;
+                }
+
+                
+
+                const statusEl = document.getElementById('lastResetDate');
+                
+                // Calculate hours remaining for Duties
+                const msSinceLastDuty = currentTime - lastDutiesResetTime;
+                const msRemaining = fortyEightHours - msSinceLastDuty;
+                const hoursRemaining = Math.max(0, Math.floor(msRemaining / (1000 * 60 * 60)));
+            
+                let statusHtml = `
+                    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--color-text-secondary);">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-calendar-day" style="width: 14px;"></i>
+                            <span>Daily Tabs: <b style="color: var(--color-text-primary);">Refreshed (${todayStr})</b></span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-clock" style="width: 14px;"></i>
+                            <span>Duties Reset: <b style="color: var(--color-text-primary);">${hoursRemaining}h remaining</b></span>
+                        </div>
+                    </div>
+                `;
+            
+                statusEl.innerHTML = statusHtml;
             }
             
             // 3. Add Item
