@@ -852,7 +852,7 @@
             position: absolute;
             top: 4px;
             left: 4px;
-            width: calc(50% - 4px);
+            width: calc(33.33% - 4px);
             height: calc(100% - 8px);
             background: var(--color-charcoal-700);
             border-radius: 8px;
@@ -863,12 +863,12 @@
         
         /* Move pill to right when Food is active */
         .mika-tabs.active-food::before {
-            transform: translateX(33.33%);
+            transform: translateX(100%);
         }
 
         /* This moves the background pill when Duties is active */
         .mika-tabs.active-duties::before {
-            transform: translateX(66.66%);
+            transform: translateX(200%);
         }
         
         .mika-tab-btn {
@@ -895,12 +895,12 @@
         
         .mika-slider {
             display: flex;
-            width: 100%;
+            width: 300%;
             transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .mika-pane {
-            width: 50%;
+            width: 33.33%;
             flex-shrink: 0;
         }
 
@@ -1423,25 +1423,27 @@
             const container = document.getElementById('mikaTabContainer');
             const slider = document.getElementById('mikaSlider');
             
-            // Update Button Text Colors
+            // 1. Update Button Text Colors
             document.getElementById('btnMikaGeneral').classList.toggle('active', tab === 'General');
             document.getElementById('btnMikaFood').classList.toggle('active', tab === 'Food');
             document.getElementById('btnMikaDuties').classList.toggle('active', tab === 'Duties');
             
-            // Handle the visual slides
+            // 2. Reset container classes
+            container.classList.remove('active-food', 'active-duties');
+            
+            // 3. Handle visual movements
             if (tab === 'General') {
-                container.classList.remove('active-food'); // Moves pill to left
-                slider.style.transform = 'translateX(0%)'; // Slides list to left
+                slider.style.transform = 'translateX(0%)';
             } else if (tab === 'Food') {
-                container.classList.add('active-food'); 
-                slider.style.transform = 'translateX(-33.33%)'; // Move to 2nd pane
+                container.classList.add('active-food');
+                slider.style.transform = 'translateX(-33.33%)';
             } else if (tab === 'Duties') {
                 container.classList.add('active-duties');
-                slider.style.transform = 'translateX(-66.66%)'; // Move to 3rd pane
+                slider.style.transform = 'translateX(-66.66%)';
             }
             
             renderChecklist();
-        }             
+        }           
 
             // 1. Initialize Checklist Listener
             let isCheckingReset = false;
