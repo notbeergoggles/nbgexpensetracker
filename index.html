@@ -1019,23 +1019,32 @@
 
 
         /* The container creates a responsive box */
-    .hammy-iframe {
-        position: relative;
-        width: 100%;            /* Fills the width of the mobile screen */
-        padding-top: 60%;       /* This sets the Aspect Ratio (300/500 = 60%) */
-        overflow: hidden;
-        border-radius: 12px;    /* Optional: matches your app's aesthetic */
-    }
-    
-    /* The iframe fills the container exactly */
-    .hammy-iframe iframe {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border: 0;
-    }
+        .hammy-iframe {
+            position: relative;
+            width: 100%;            /* Fills the width of the mobile screen */
+            padding-top: 60%;       /* This sets the Aspect Ratio (300/500 = 60%) */
+            overflow: hidden;
+            border-radius: 12px;    /* Optional: matches your app's aesthetic */
+        }
+        
+        /* The iframe fills the container exactly */
+        .hammy-iframe iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .separator-pill {
+            border: 0;
+            height: 4px;
+            width: 40px; /* Small centered dash */
+            background-color: var(--color-gray-200);
+            border-radius: 10px;
+            margin: 40px auto; /* Centers it */
+        }
 
     </style>
 </head>
