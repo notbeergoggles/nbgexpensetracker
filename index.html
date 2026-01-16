@@ -1047,6 +1047,30 @@
             width: 100%;
         }
 
+        .btn-hammy-nav {
+            background: var(--color-secondary);
+            border: 1px solid var(--color-gray-200);
+            border-radius: 8px;
+            padding: 0 12px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-hammy-nav:hover {
+            background: var(--color-gray-200);
+            transform: translateY(-1px);
+        }
+        
+        .btn-hammy-nav.active {
+            background: var(--color-charcoal-700);
+            border-color: var(--color-charcoal-700);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
     </style>
 </head>
 <body>
@@ -1080,7 +1104,10 @@
                 <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-4);">Logged in as:</div>
                 <div class="user-email" id="userEmail">user@email.com</div>
             </div>
-            <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-hammy-nav" data-tab="hammy">🐹</button>
+                <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
+            </div>
         </div>
 
         <h1>💰 NotBeerGoggles Shared Expenses Tracker</h1>
@@ -1098,7 +1125,6 @@
             <button type="button" class="tab-button" data-tab="add-expense">Add Expense</button>
             <button type="button" class="tab-button" data-tab="history">History</button>
             <button type="button" class="tab-button" data-tab="mika">🐾 Mika</button>
-            <button type="button" class="tab-button" data-tab="hammy">Hammy</button>
         </div>
 
         <!-- Dashboard Tab -->
@@ -2077,12 +2103,21 @@ async function deleteExpenseFromFirebase(id) {
         });
 
         function switchTab(tabName) {
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            // 1. Remove active class from ALL buttons that have a data-tab attribute
+            // This now finds both .tab-button and .btn-hammy-nav
+            document.querySelectorAll('[data-tab]').forEach(btn => btn.classList.remove('active'));
+            
+            // 2. Hide all tab content
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            // 3. Add active class to the specific button(s) that match the tabName
+            // We use querySelectorAll in case you have multiple buttons for the same tab
+            document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(btn => btn.classList.add('active'));
+            
+            // 4. Show the actual content div
             document.getElementById(tabName).classList.add('active');
             
+            // 5. Run specific tab logic
             if (tabName === 'history') {
                 renderExpenseList();
             } else if (tabName === 'dashboard') {
