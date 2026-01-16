@@ -2104,20 +2104,22 @@ async function deleteExpenseFromFirebase(id) {
 
         function switchTab(tabName) {
             // 1. Remove active class from ALL buttons that have a data-tab attribute
-            // This now finds both .tab-button and .btn-hammy-nav
+            // This finds .tab-button AND your new .btn-hammy-nav
             document.querySelectorAll('[data-tab]').forEach(btn => btn.classList.remove('active'));
             
             // 2. Hide all tab content
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
-            // 3. Add active class to the specific button(s) that match the tabName
-            // We use querySelectorAll in case you have multiple buttons for the same tab
+            // 3. Add active class to any button matching the clicked tab
             document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(btn => btn.classList.add('active'));
             
-            // 4. Show the actual content div
-            document.getElementById(tabName).classList.add('active');
+            // 4. Show the target content
+            const targetContent = document.getElementById(tabName);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
             
-            // 5. Run specific tab logic
+            // 5. Run tab-specific refreshes
             if (tabName === 'history') {
                 renderExpenseList();
             } else if (tabName === 'dashboard') {
