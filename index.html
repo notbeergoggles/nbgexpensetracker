@@ -1089,7 +1089,9 @@
             bottom: -100px;
             width: 40px;
             height: 40px;
-            background: rgba(0, 123, 255, 0.15);
+            /* This adds the "bling" glow effect */
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.5), 0 0 15px rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 50%;
             animation: rise 15s infinite ease-in;
         }
@@ -1100,6 +1102,15 @@
             100% { bottom: 100vh; transform: translateX(100px); opacity: 0; }
         }
 
+        /* Small & Fast */
+        .bubble-sm { width: 15px; height: 15px; animation-duration: 10s; opacity: 0.6; }
+        
+        /* Medium & Normal */
+        .bubble-md { width: 35px; height: 35px; animation-duration: 15s; opacity: 0.4; }
+        
+        /* Large & Slow */
+        .bubble-lg { width: 60px; height: 60px; animation-duration: 22s; opacity: 0.2; }
+
     </style>
 </head>
 <body>
@@ -1107,11 +1118,7 @@
     
     <!-- UI Fluff -->
     
-    <div class="bg-bubbles">
-    <div class="bubble" style="left: 10%; animation-delay: 0s;"></div>
-    <div class="bubble" style="left: 30%; animation-delay: 5s; width: 20px; height: 20px;"></div>
-    <div class="bubble" style="left: 70%; animation-delay: 2s; width: 60px; height: 60px;"></div>
-    </div>
+    <div id="bubble-container" class="bg-bubbles"></div>
 
     
     <!-- Auth Screen -->
@@ -2876,7 +2883,44 @@ async function handleDeleteExpense(id) {
         };
 
 
+        /* UI FLUFF */
         
+        function createBubbles() {
+            const container = document.getElementById('bubble-container');
+            const bubbleCount = 15; // Change this number for more/less bling!
+            const colors = [
+                'rgba(173, 216, 230, 0.3)', // Blue
+                'rgba(255, 182, 193, 0.3)', // Pink
+                'rgba(255, 255, 255, 0.4)'  // White
+            ];
+        
+            for (let i = 0; i < bubbleCount; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                
+                // Randomize Size (between 15px and 65px)
+                const size = Math.floor(Math.random() * 50) + 15;
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                
+                // Randomize Position (0% to 100%)
+                bubble.style.left = `${Math.random() * 100}%`;
+                
+                // Randomize Delay (so they don't all start at once)
+                bubble.style.animationDelay = `${Math.random() * 15}s`;
+                
+                // Randomize Speed (between 10s and 25s)
+                bubble.style.animationDuration = `${Math.random() * 15 + 10}s`;
+                
+                // Randomize Color from our array
+                bubble.style.background = colors[Math.floor(Math.random() * colors.length)];
+                
+                container.appendChild(bubble);
+            }
+        }
+        
+        // Run the function when the page loads
+        window.addEventListener('load', createBubbles);
         
     </script>
     <div id="successToast" style="display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #4BB543; color: white; padding: 12px 24px; border-radius: 50px; z-index: 3000; box-shadow: 0 10px 20px rgba(0,0,0,0.2); font-weight: 600; font-size: 14px; align-items: center; gap: 8px;">
