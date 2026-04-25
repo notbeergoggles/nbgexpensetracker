@@ -1775,8 +1775,10 @@
                 renderPane('Duties', 'checklistDuties');
             }
 
-        
+
+        let isProcessingRecurring = false;
         async function processRecurringExpenses() {
+            if (isProcessingRecurring) return;
             if (expenses.length === 0) return;
         
             const now = new Date();
@@ -2097,6 +2099,7 @@
                 expenses = [];
                 updateDashboard();
                 renderExpenseList();
+                await processRecurringExpenses();
             } catch (error) {
                 alert('Error logging out: ' + error.message);
             }
@@ -2125,7 +2128,6 @@
             expenses.push({ id: doc.id, ...doc.data() });
         });
         populateMonthFilter();
-        processRecurringExpenses();
         updateDashboard();
         renderExpenseList();
     });
