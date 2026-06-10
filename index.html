@@ -1139,6 +1139,7 @@
             <button type="button" class="tab-button" data-tab="add-expense">Add Expense</button>
             <button type="button" class="tab-button" data-tab="history">History</button>
             <button type="button" class="tab-button" data-tab="mika">🐾 Mika</button>
+            <button type="button" class="tab-button" data-tab="terrarium">🌿 Terrarium</button>
         </div>
 
         <!-- Dashboard Tab -->
@@ -1437,6 +1438,334 @@
         </div>
     </div>
 
+    <!-- ============ TERRARIUM TAB ============ -->
+    <style>
+        .terra-wrap { max-width: 760px; margin: 0 auto; }
+        .terra-topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: var(--space-12); margin-bottom: var(--space-16);
+        }
+        .terra-coins {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-weight: 700; font-size: var(--font-size-xl);
+            background: linear-gradient(135deg, #FFD86E, #F7B733);
+            color: #5a3e00; padding: 8px 18px; border-radius: 50px;
+            box-shadow: var(--shadow-sm);
+        }
+        .terra-hint { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+        /* The glass jar */
+        .terra-jar {
+            position: relative; width: 100%; aspect-ratio: 4 / 3;
+            border-radius: 18px 18px 26px 26px;
+            background:
+                linear-gradient(to bottom,
+                    rgba(180,225,255,0.35) 0%,
+                    rgba(180,225,255,0.15) 45%,
+                    rgba(200,235,210,0.25) 46%,
+                    rgba(170,215,180,0.30) 100%);
+            border: 3px solid rgba(255,255,255,0.55);
+            box-shadow: inset 0 4px 30px rgba(255,255,255,0.45),
+                        inset 0 -10px 40px rgba(120,90,60,0.25),
+                        var(--shadow-md);
+            overflow: hidden; cursor: pointer;
+            transition: filter 0.6s ease;
+        }
+        .terra-jar.night { filter: brightness(0.62) saturate(0.8) hue-rotate(205deg); }
+        .terra-lid {
+            position: absolute; top: -2px; left: 50%; transform: translateX(-50%);
+            width: 70%; height: 16px; border-radius: 0 0 12px 12px;
+            background: linear-gradient(#caa472, #a07c4a);
+        }
+        .terra-soil {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 22%;
+            background: linear-gradient(to bottom, #6b4a2f, #4a3220);
+            border-radius: 0 0 22px 22px;
+        }
+        .terra-glint {
+            position: absolute; top: 8%; left: 8%; width: 22%; height: 60%;
+            background: linear-gradient(120deg, rgba(255,255,255,0.5), transparent 60%);
+            border-radius: 50%; filter: blur(6px); pointer-events: none;
+        }
+        .terra-item {
+            position: absolute; transform: translate(-50%, -100%);
+            font-size: 34px; line-height: 1; user-select: none;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
+            animation: terraPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+            cursor: pointer; transition: transform 0.15s;
+        }
+        .terra-item:hover { transform: translate(-50%, -105%) scale(1.08); }
+        @keyframes terraPop { from { transform: translate(-50%,-100%) scale(0); } }
+        .terra-coinfx {
+            position: absolute; font-weight: 800; color: #F7B733; pointer-events: none;
+            animation: coinFloat 1s ease-out forwards; font-size: 20px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2); z-index: 50;
+        }
+        @keyframes coinFloat { to { transform: translateY(-40px); opacity: 0; } }
+        .terra-shop { margin-top: var(--space-20); }
+        .terra-shop-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+            gap: var(--space-8);
+        }
+        .terra-shop-item {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            padding: 10px 4px; border: 1px solid var(--color-border);
+            border-radius: var(--radius-base); background: var(--color-surface);
+            cursor: pointer; transition: all 0.15s; text-align: center;
+        }
+        .terra-shop-item:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+        .terra-shop-item.selected { border-color: var(--color-primary); background: rgba(33,128,141,0.08); }
+        .terra-shop-item .emo { font-size: 26px; }
+        .terra-shop-item .cost { font-size: 11px; font-weight: 600; color: #b8860b; }
+        .terra-cat-tabs { display: flex; gap: 6px; margin-bottom: var(--space-12); flex-wrap: wrap; }
+        .terra-cat-tab {
+            padding: 5px 12px; border-radius: 50px; border: 1px solid var(--color-border);
+            background: none; cursor: pointer; font-size: var(--font-size-sm); color: var(--color-text-secondary);
+        }
+        .terra-cat-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+        .terra-toolbar { display: flex; gap: 8px; margin-top: var(--space-12); flex-wrap: wrap; }
+    </style>
+
+    <div id="terrarium" class="tab-content">
+        <div class="terra-wrap">
+            <div class="terra-topbar">
+                <div class="terra-coins">🪙 <span id="terraCoins">0</span></div>
+                <button type="button" class="btn btn--secondary" id="terraDayNight">🌙 Night</button>
+            </div>
+            <p class="terra-hint" id="terraModeHint">Pick an item below, then tap inside the jar to place it. Tap a placed item to remove it (refunds half).</p>
+
+            <div class="terra-jar" id="terraJar">
+                <div class="terra-lid"></div>
+                <div class="terra-glint"></div>
+                <div class="terra-soil"></div>
+                <!-- items injected here -->
+            </div>
+
+            <div class="terra-toolbar">
+                <button type="button" class="btn btn--secondary" id="terraClaimBtn">🎁 Claim daily visit (+15)</button>
+                <button type="button" class="btn btn--secondary" id="terraClearBtn" style="margin-left:auto;">Clear jar</button>
+            </div>
+
+            <div class="card terra-shop">
+                <h3 style="margin-bottom:var(--space-12);">🛒 Shop</h3>
+                <div class="terra-cat-tabs" id="terraCatTabs"></div>
+                <div class="terra-shop-grid" id="terraShopGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function initTerrarium() {
+        // ----- Catalog -----
+        const CATALOG = {
+            Plants: [
+                { id:'fern',     emo:'🌿', cost:10 },
+                { id:'moss',     emo:'🍀', cost:8  },
+                { id:'succulent',emo:'🪴', cost:15 },
+                { id:'leaf',     emo:'🌱', cost:6  },
+                { id:'palm',     emo:'🌴', cost:25 },
+                { id:'cactus',   emo:'🌵', cost:18 },
+                { id:'flower',   emo:'🌸', cost:12 },
+                { id:'tulip',    emo:'🌷', cost:12 },
+            ],
+            Critters: [
+                { id:'frog',   emo:'🐸', cost:30 },
+                { id:'snail',  emo:'🐌', cost:20 },
+                { id:'beetle', emo:'🪲', cost:22 },
+                { id:'ladybug',emo:'🐞', cost:18 },
+                { id:'bee',    emo:'🐝', cost:18 },
+                { id:'caterpillar',emo:'🐛', cost:16 },
+                { id:'butterfly',emo:'🦋', cost:35 },
+                { id:'lizard', emo:'🦎', cost:28 },
+            ],
+            Decor: [
+                { id:'rock',    emo:'🪨', cost:8  },
+                { id:'log',     emo:'🪵', cost:10 },
+                { id:'mushroom',emo:'🍄', cost:14 },
+                { id:'lights',  emo:'✨', cost:20 },
+                { id:'crystal', emo:'💎', cost:40 },
+                { id:'shell',   emo:'🐚', cost:16 },
+                { id:'lantern', emo:'🏮', cost:24 },
+                { id:'feather', emo:'🪶', cost:12 },
+            ],
+        };
+        const ALL = Object.values(CATALOG).flat();
+        const findItem = id => ALL.find(i => i.id === id);
+        const DAILY_BONUS = 15;
+        const LOG_REWARD = 5; // coins per expense logged (handled in addExpense hook below)
+
+        // ----- State -----
+        let state = { coins: 0, items: [], lastClaim: null, night: false };
+        let selectedShopId = null;
+        let activeCat = 'Plants';
+        let terraUnsub = null;
+        let suppressWrite = false;
+
+        const TERRA_DOC = () => db.collection('terrarium').doc('shared');
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+
+        // ----- Persistence -----
+        async function saveState() {
+            if (suppressWrite) return;
+            if (isLive()) {
+                try { await TERRA_DOC().set(state); }
+                catch (e) { console.error('terra save', e); }
+            } else {
+                localStorage.setItem('terrariumState', JSON.stringify(state));
+            }
+        }
+        function loadLocal() {
+            const raw = localStorage.getItem('terrariumState');
+            if (raw) { try { state = JSON.parse(raw); } catch(e){} }
+            renderAll();
+        }
+        function listenLive() {
+            if (terraUnsub) terraUnsub();
+            terraUnsub = TERRA_DOC().onSnapshot(snap => {
+                if (snap.exists) {
+                    suppressWrite = true;
+                    state = Object.assign({ coins:0, items:[], lastClaim:null, night:false }, snap.data());
+                    suppressWrite = false;
+                } else {
+                    TERRA_DOC().set(state);
+                }
+                renderAll();
+            }, err => console.error('terra listen', err));
+        }
+
+        // ----- Rendering -----
+        function renderCoins() {
+            const el = document.getElementById('terraCoins');
+            if (el) el.textContent = state.coins;
+        }
+        function renderCatTabs() {
+            const wrap = document.getElementById('terraCatTabs');
+            if (!wrap) return;
+            wrap.innerHTML = '';
+            Object.keys(CATALOG).forEach(cat => {
+                const b = document.createElement('button');
+                b.className = 'terra-cat-tab' + (cat === activeCat ? ' active' : '');
+                b.textContent = cat;
+                b.onclick = () => { activeCat = cat; selectedShopId = null; renderCatTabs(); renderShop(); };
+                wrap.appendChild(b);
+            });
+        }
+        function renderShop() {
+            const grid = document.getElementById('terraShopGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            CATALOG[activeCat].forEach(item => {
+                const d = document.createElement('div');
+                d.className = 'terra-shop-item' + (selectedShopId === item.id ? ' selected' : '');
+                d.innerHTML = `<span class="emo">${item.emo}</span><span class="cost">🪙 ${item.cost}</span>`;
+                d.onclick = () => {
+                    selectedShopId = (selectedShopId === item.id) ? null : item.id;
+                    renderShop();
+                };
+                grid.appendChild(d);
+            });
+        }
+        function renderJar() {
+            const jar = document.getElementById('terraJar');
+            if (!jar) return;
+            jar.classList.toggle('night', !!state.night);
+            jar.querySelectorAll('.terra-item').forEach(n => n.remove());
+            (state.items || []).forEach((it, idx) => {
+                const cat = findItem(it.id);
+                if (!cat) return;
+                const span = document.createElement('span');
+                span.className = 'terra-item';
+                span.textContent = cat.emo;
+                span.style.left = it.x + '%';
+                span.style.top = it.y + '%';
+                span.title = 'Tap to remove (refund ' + Math.floor(cat.cost/2) + ')';
+                span.onclick = (e) => { e.stopPropagation(); removeItem(idx); };
+                jar.appendChild(span);
+            });
+        }
+        function renderDayNight() {
+            const b = document.getElementById('terraDayNight');
+            if (b) b.textContent = state.night ? '☀️ Day' : '🌙 Night';
+        }
+        function renderAll() { renderCoins(); renderCatTabs(); renderShop(); renderJar(); renderDayNight(); }
+
+        // ----- Actions -----
+        function coinFx(jar, x, y, txt) {
+            const fx = document.createElement('span');
+            fx.className = 'terra-coinfx';
+            fx.textContent = txt;
+            fx.style.left = x + '%'; fx.style.top = y + '%';
+            jar.appendChild(fx);
+            setTimeout(() => fx.remove(), 1000);
+        }
+        function placeAt(e) {
+            const jar = document.getElementById('terraJar');
+            if (!selectedShopId) return;
+            const item = findItem(selectedShopId);
+            if (!item) return;
+            if (state.coins < item.cost) { coinFx(jar, 50, 30, 'Need more 🪙'); return; }
+            const rect = jar.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            state.coins -= item.cost;
+            state.items.push({ id: item.id, x: Math.max(6, Math.min(94, x)), y: Math.max(20, Math.min(96, y)) });
+            renderCoins(); renderJar();
+            coinFx(jar, x, y, '-' + item.cost);
+            saveState();
+        }
+        function removeItem(idx) {
+            const it = state.items[idx];
+            const cat = findItem(it.id);
+            const refund = cat ? Math.floor(cat.cost/2) : 0;
+            state.items.splice(idx, 1);
+            state.coins += refund;
+            renderCoins(); renderJar();
+            saveState();
+        }
+        function todayStr() { return new Date().toLocaleDateString('en-CA'); }
+        function claimDaily() {
+            const jar = document.getElementById('terraJar');
+            if (state.lastClaim === todayStr()) { coinFx(jar, 50, 30, 'Come back tomorrow!'); return; }
+            state.coins += DAILY_BONUS;
+            state.lastClaim = todayStr();
+            renderCoins();
+            coinFx(jar, 50, 40, '+' + DAILY_BONUS);
+            saveState();
+        }
+
+        // ----- Wire up -----
+        function bind() {
+            const jar = document.getElementById('terraJar');
+            if (jar) jar.addEventListener('click', placeAt);
+            const dn = document.getElementById('terraDayNight');
+            if (dn) dn.onclick = () => { state.night = !state.night; renderDayNight(); renderJar(); saveState(); };
+            const claim = document.getElementById('terraClaimBtn');
+            if (claim) claim.onclick = claimDaily;
+            const clear = document.getElementById('terraClearBtn');
+            if (clear) clear.onclick = () => {
+                if (!state.items.length) return;
+                if (confirm('Clear all items? (no refund)')) { state.items = []; renderJar(); saveState(); }
+            };
+        }
+        bind();
+        renderAll();
+
+        // ----- Expose hooks for the rest of the app -----
+        // Called when an expense is logged, to reward coins.
+        window.terraRewardLog = function() {
+            state.coins += LOG_REWARD;
+            renderCoins();
+            saveState();
+        };
+        // Called by auth handler when a real user signs in.
+        window.terraInitLive = function() { listenLive(); };
+        // Called for guest / signed-out mode.
+        window.terraInitLocal = function() { if (terraUnsub){terraUnsub();terraUnsub=null;} loadLocal(); };
+
+        // If auth already resolved before this script ran:
+        if (isLive()) listenLive(); else loadLocal();
+    })();
+    </script>
+
     <script>
         // 1. Initialize Health Listener
         function initMikaHealth() {
@@ -1715,48 +2044,111 @@
             }
 
         
+        let isProcessingRecurring = false; // re-entrancy guard
+
         async function processRecurringExpenses() {
             if (expenses.length === 0) return;
-        
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
-        
-            const templates = expenses.filter(e => e.isRecurring === true);
-        
-            for (const template of templates) {
-                const templateDate = new Date(template.date);
-                
-                // Skip if the template was created THIS month (to avoid the double-entry bug)
-                if (templateDate.getMonth() === currentMonth && templateDate.getFullYear() === currentYear) {
-                    continue;
-                }
-        
-                // Check if installment expired
-                if (template.recurringUntil && now > new Date(template.recurringUntil)) continue;
-        
-                // Check if an instance for this month already exists
-                const alreadyLogged = expenses.some(e => {
-                    const expDate = new Date(e.date);
-                    return e.description === template.description && 
-                           e.amount === template.amount &&
-                           expDate.getMonth() === currentMonth &&
-                           expDate.getFullYear() === currentYear &&
-                           e.isRecurring !== true;
-                });
-        
-                if (!alreadyLogged) {
+            if (isProcessingRecurring) return; // a pass is already in flight
+            if (!currentUser || isGuestMode) return; // deterministic IDs only matter for Firestore
+            isProcessingRecurring = true;
+
+            try {
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+
+                const templates = expenses.filter(e => e.isRecurring === true);
+
+                for (const template of templates) {
+                    const templateDate = new Date(template.date);
+
+                    // Skip if the template was created THIS month (first instance was added at creation time)
+                    if (templateDate.getMonth() === currentMonth && templateDate.getFullYear() === currentYear) {
+                        continue;
+                    }
+
+                    // Check if installment expired
+                    if (template.recurringUntil && now > new Date(template.recurringUntil)) continue;
+
+                    // Legacy safety net: an instance for this month was already created
+                    // the old way (random ID) — don't create a deterministic one on top.
+                    const alreadyLogged = expenses.some(e => {
+                        const expDate = new Date(e.date);
+                        return e.description === template.description &&
+                               e.amount === template.amount &&
+                               expDate.getMonth() === currentMonth &&
+                               expDate.getFullYear() === currentYear &&
+                               e.isRecurring !== true;
+                    });
+                    if (alreadyLogged) continue;
+
+                    // DETERMINISTIC ID: same template + same month -> same doc ID.
+                    // Even if both devices race, they write to the SAME document.
+                    const instanceId = `rec_${template.id}_${monthKey}`;
+                    const instanceRef = db.collection('shared_expenses').doc(instanceId);
+
                     const newInstance = {
                         ...template,
-                        date: new Date().toISOString().split('T')[0],
+                        date: now.toISOString().split('T')[0],
                         isRecurring: false,
+                        sourceTemplateId: template.id,
+                        instanceMonth: monthKey,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     };
                     delete newInstance.id;
-                    await db.collection('shared_expenses').add(newInstance);
+
+                    // Transaction: only create if it doesn't exist yet.
+                    // Protects later manual edits to the instance from being overwritten.
+                    try {
+                        await db.runTransaction(async (tx) => {
+                            const snap = await tx.get(instanceRef);
+                            if (!snap.exists) {
+                                tx.set(instanceRef, newInstance);
+                            }
+                        });
+                    } catch (err) {
+                        console.error('Recurring instance txn failed:', err);
+                    }
                 }
+            } finally {
+                isProcessingRecurring = false;
             }
         }
+
+        // One-time console helper: removes existing duplicate recurring instances,
+        // keeping the earliest-created copy of each (description+amount+month) group.
+        // Run from DevTools console: cleanupRecurringDuplicates()        (dry run)
+        //                            cleanupRecurringDuplicates(true)    (actually delete)
+        window.cleanupRecurringDuplicates = async function(commit = false) {
+            const snap = await db.collection('shared_expenses').get();
+            const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const groups = {};
+            docs.filter(d => d.isRecurring !== true && d.date).forEach(d => {
+                const key = `${d.description}|${d.amount}|${d.date.slice(0, 7)}`;
+                (groups[key] = groups[key] || []).push(d);
+            });
+            const toDelete = [];
+            Object.values(groups).forEach(g => {
+                if (g.length <= 1) return;
+                g.sort((a, b) => {
+                    const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                    const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                    return ta - tb;
+                });
+                toDelete.push(...g.slice(1)); // keep the first, delete the rest
+            });
+            console.log(`Found ${toDelete.length} duplicate(s):`, toDelete.map(d => `${d.description} ${d.date} (${d.id})`));
+            if (commit) {
+                for (const d of toDelete) {
+                    await db.collection('shared_expenses').doc(d.id).delete();
+                }
+                console.log('Deleted.');
+            } else {
+                console.log('Dry run only. Call cleanupRecurringDuplicates(true) to delete.');
+            }
+            return toDelete.length;
+        };
         
         // Logic to show/hide the date picker
         // Add this in your script section where other listeners are
@@ -1981,10 +2373,12 @@
                     listenToExpensesChanges();
                     initMikaChecklist();
                     initMikaHealth();
+                    if (window.terraInitLive) window.terraInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
                     renderExpenseList();
+                    if (window.terraInitLocal) window.terraInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -2270,6 +2664,9 @@ async function deleteExpenseFromFirebase(id) {
                     renderExpenseList();
                 }
         
+                // Reward terrarium coins for logging
+                if (window.terraRewardLog) window.terraRewardLog();
+
                 // Success Message
                 const successMsg = document.createElement('div');
                 successMsg.className = 'success-message';
