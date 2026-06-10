@@ -1151,16 +1151,16 @@
         <!-- ===== Mobile bottom nav + drawer ===== -->
         <nav class="bottom-nav" id="bottomNav">
             <button type="button" class="bnav-item active" data-tab="dashboard">
-                <span class="bnav-ico">📊</span><span class="bnav-label">Dashboard</span>
+                <span class="bnav-ico"><i class="fa-solid fa-chart-pie"></i></span><span class="bnav-label">Dashboard</span>
             </button>
             <button type="button" class="bnav-item" data-tab="add-expense">
-                <span class="bnav-ico">➕</span><span class="bnav-label">Add</span>
+                <span class="bnav-ico"><i class="fa-solid fa-circle-plus"></i></span><span class="bnav-label">Add</span>
             </button>
             <button type="button" class="bnav-item" data-tab="history">
-                <span class="bnav-ico">📜</span><span class="bnav-label">History</span>
+                <span class="bnav-ico"><i class="fa-solid fa-clock-rotate-left"></i></span><span class="bnav-label">History</span>
             </button>
             <button type="button" class="bnav-item" id="bnavMore">
-                <span class="bnav-ico">⋯</span><span class="bnav-label">More</span>
+                <span class="bnav-ico"><i class="fa-solid fa-ellipsis"></i></span><span class="bnav-label">More</span>
             </button>
         </nav>
 
@@ -2619,8 +2619,8 @@ async function deleteExpenseFromFirebase(id) {
         // To add a future tab: add its tab-content div + top tab-button as usual,
         // then add ONE entry here -> it appears in the mobile drawer automatically.
         const NAV_CONFIG = [
-            { tab: 'mika',      label: 'Mika',      ico: '🐾' },
-            { tab: 'terrarium', label: 'Terrarium', ico: '🌿' },
+            { tab: 'mika',      label: 'Mika',      ico: 'fa-solid fa-paw' },
+            { tab: 'terrarium', label: 'Terrarium', ico: 'fa-solid fa-seedling' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
@@ -2636,7 +2636,7 @@ async function deleteExpenseFromFirebase(id) {
                 b.type = 'button';
                 b.className = 'drawer-item';
                 b.setAttribute('data-tab', item.tab);
-                b.innerHTML = `<span class="ico">${item.ico}</span><span>${item.label}</span>`;
+                b.innerHTML = `<span class="ico"><i class="${item.ico}"></i></span><span>${item.label}</span>`;
                 b.addEventListener('click', () => { switchTab(item.tab); closeDrawer(); });
                 grid.appendChild(b);
             });
