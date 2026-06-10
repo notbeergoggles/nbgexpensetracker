@@ -117,7 +117,11 @@
             gap: var(--space-8);
             border-bottom: 1px solid var(--color-border);
             margin-bottom: var(--space-24);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
         }
+        .tabs::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
         .tab-button {
             padding: var(--space-12) var(--space-16);
@@ -128,6 +132,8 @@
             font-size: var(--font-size-base);
             color: var(--color-text-secondary);
             transition: all 150ms;
+            white-space: nowrap; /* prevent individual buttons from wrapping */
+            flex-shrink: 0;
         }
 
         .tab-button:hover {
