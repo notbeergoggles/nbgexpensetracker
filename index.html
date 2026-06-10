@@ -1148,6 +1148,89 @@
             <button type="button" class="tab-button" data-tab="terrarium">🌿 Terrarium</button>
         </div>
 
+        <!-- ===== Mobile bottom nav + drawer ===== -->
+        <nav class="bottom-nav" id="bottomNav">
+            <button type="button" class="bnav-item active" data-tab="dashboard">
+                <span class="bnav-ico">📊</span><span class="bnav-label">Dashboard</span>
+            </button>
+            <button type="button" class="bnav-item" data-tab="add-expense">
+                <span class="bnav-ico">➕</span><span class="bnav-label">Add</span>
+            </button>
+            <button type="button" class="bnav-item" data-tab="history">
+                <span class="bnav-ico">📜</span><span class="bnav-label">History</span>
+            </button>
+            <button type="button" class="bnav-item" id="bnavMore">
+                <span class="bnav-ico">⋯</span><span class="bnav-label">More</span>
+            </button>
+        </nav>
+
+        <div class="drawer-overlay" id="drawerOverlay"></div>
+        <div class="drawer" id="navDrawer">
+            <div class="drawer-handle"></div>
+            <h3 style="margin-bottom: var(--space-12);">More</h3>
+            <div class="drawer-grid" id="drawerGrid"><!-- generated from NAV_CONFIG --></div>
+        </div>
+
+        <style>
+            .bottom-nav { display: none; }
+            @media (max-width: 767px) {
+                .tabs { display: none; } /* hide top tabs on mobile */
+                body { padding-bottom: 84px; } /* room for bottom nav */
+                .bottom-nav {
+                    display: flex;
+                    position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
+                    background: var(--color-surface);
+                    border-top: 1px solid var(--color-border);
+                    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+                    justify-content: space-around;
+                    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+                }
+            }
+            .bnav-item {
+                flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+                background: none; border: none; cursor: pointer;
+                color: var(--color-text-secondary); padding: 6px 0;
+                border-radius: var(--radius-base); transition: color 0.15s;
+            }
+            .bnav-item.active { color: var(--color-primary); }
+            .bnav-ico { font-size: 20px; line-height: 1; }
+            .bnav-label { font-size: 11px; font-weight: 600; }
+
+            .drawer-overlay {
+                display: none; position: fixed; inset: 0; z-index: 210;
+                background: rgba(0,0,0,0.45); opacity: 0; transition: opacity 0.25s;
+            }
+            .drawer-overlay.open { display: block; opacity: 1; }
+            .drawer {
+                position: fixed; left: 0; right: 0; bottom: 0; z-index: 220;
+                background: var(--color-surface);
+                border-radius: 18px 18px 0 0;
+                padding: 10px var(--space-16) calc(var(--space-24) + env(safe-area-inset-bottom));
+                transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+                box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
+            }
+            .drawer.open { transform: translateY(0); }
+            .drawer-handle {
+                width: 40px; height: 4px; border-radius: 2px;
+                background: var(--color-border); margin: 0 auto var(--space-12);
+            }
+            .drawer-grid {
+                display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+                gap: var(--space-12);
+            }
+            .drawer-item {
+                display: flex; flex-direction: column; align-items: center; gap: 6px;
+                padding: var(--space-16) var(--space-8);
+                border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+                background: none; cursor: pointer; color: var(--color-text);
+                font-size: var(--font-size-sm); font-weight: 600;
+                transition: all 0.15s;
+            }
+            .drawer-item:hover { border-color: var(--color-primary); }
+            .drawer-item.active { border-color: var(--color-primary); color: var(--color-primary); background: rgba(33,128,141,0.08); }
+            .drawer-item .ico { font-size: 26px; }
+        </style>
+
         <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content active">
             <div class="grid grid-2">
@@ -1547,7 +1630,10 @@
             </div>
 
             <div class="terra-toolbar">
-                <button type="button" class="btn btn--secondary" id="terraClaimBtn">🎁 Claim daily visit (+15)</button>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <button type="button" class="btn btn--secondary" id="terraClaimBtn">🎁 Claim daily visit (+15)</button>
+                    <span class="terra-hint" id="terraCountdown" style="text-align:center;"></span>
+                </div>
                 <button type="button" class="btn btn--secondary" id="terraClearBtn" style="margin-left:auto;">Clear jar</button>
             </div>
 
@@ -1692,7 +1778,7 @@
             const b = document.getElementById('terraDayNight');
             if (b) b.textContent = state.night ? '☀️ Day' : '🌙 Night';
         }
-        function renderAll() { renderCoins(); renderCatTabs(); renderShop(); renderJar(); renderDayNight(); }
+        function renderAll() { renderCoins(); renderCatTabs(); renderShop(); renderJar(); renderDayNight(); renderCountdown(); }
 
         // ----- Actions -----
         function coinFx(jar, x, y, txt) {
@@ -1727,13 +1813,40 @@
             renderCoins(); renderJar();
             saveState();
         }
-        function todayStr() { return new Date().toLocaleDateString('en-CA'); }
+        // --- Singapore-time day boundary (UTC+8), independent of device timezone ---
+        const SGT_OFFSET_MS = 8 * 60 * 60 * 1000;
+        function sgtNow() { return new Date(Date.now() + SGT_OFFSET_MS); } // treat UTC fields as SGT
+        function todayStr() {
+            const d = sgtNow();
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        }
+        function msUntilSgtMidnight() {
+            const d = sgtNow();
+            const nextMidnightUTCfields = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+            return nextMidnightUTCfields - d.getTime() + 0; // both in the same shifted frame
+        }
+        function renderCountdown() {
+            const el = document.getElementById('terraCountdown');
+            if (!el) return;
+            if (state.lastClaim !== todayStr()) {
+                el.textContent = '✨ Daily bonus available!';
+                return;
+            }
+            let ms = msUntilSgtMidnight();
+            const h = Math.floor(ms / 3600000); ms %= 3600000;
+            const m = Math.floor(ms / 60000); ms %= 60000;
+            const s = Math.floor(ms / 1000);
+            el.textContent = `Resets in ${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+        }
+        setInterval(renderCountdown, 1000);
+
         function claimDaily() {
             const jar = document.getElementById('terraJar');
             if (state.lastClaim === todayStr()) { coinFx(jar, 50, 30, 'Come back tomorrow!'); return; }
             state.coins += DAILY_BONUS;
             state.lastClaim = todayStr();
             renderCoins();
+            renderCountdown();
             coinFx(jar, 50, 40, '+' + DAILY_BONUS);
             saveState();
         }
@@ -2502,6 +2615,45 @@ async function deleteExpenseFromFirebase(id) {
             });
         });
 
+        // ===== Hybrid nav: drawer config =====
+        // To add a future tab: add its tab-content div + top tab-button as usual,
+        // then add ONE entry here -> it appears in the mobile drawer automatically.
+        const NAV_CONFIG = [
+            { tab: 'mika',      label: 'Mika',      ico: '🐾' },
+            { tab: 'terrarium', label: 'Terrarium', ico: '🌿' },
+        ];
+        const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
+
+        (function initHybridNav() {
+            const grid = document.getElementById('drawerGrid');
+            const overlay = document.getElementById('drawerOverlay');
+            const drawer = document.getElementById('navDrawer');
+            const moreBtn = document.getElementById('bnavMore');
+            if (!grid || !overlay || !drawer || !moreBtn) return;
+
+            NAV_CONFIG.forEach(item => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'drawer-item';
+                b.setAttribute('data-tab', item.tab);
+                b.innerHTML = `<span class="ico">${item.ico}</span><span>${item.label}</span>`;
+                b.addEventListener('click', () => { switchTab(item.tab); closeDrawer(); });
+                grid.appendChild(b);
+            });
+
+            function openDrawer() { overlay.classList.add('open'); drawer.classList.add('open'); }
+            function closeDrawer() { overlay.classList.remove('open'); drawer.classList.remove('open'); }
+            window.closeNavDrawer = closeDrawer;
+
+            moreBtn.addEventListener('click', openDrawer);
+            overlay.addEventListener('click', closeDrawer);
+
+            // Bottom nav pinned buttons
+            document.querySelectorAll('.bnav-item[data-tab]').forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+            });
+        })();
+
         function switchTab(tabName) {
             // 1. Remove active class from ALL buttons that have a data-tab attribute
             // Remove active class from ALL buttons that have a data-tab attribute
@@ -2512,6 +2664,12 @@ async function deleteExpenseFromFirebase(id) {
             
             // 3. Add active class to any button matching the clicked tab
             document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(btn => btn.classList.add('active'));
+
+            // 3b. If the active tab lives in the drawer, highlight the "More" button
+            const moreBtn = document.getElementById('bnavMore');
+            if (moreBtn) {
+                moreBtn.classList.toggle('active', typeof DRAWER_TABS !== 'undefined' && DRAWER_TABS.includes(tabName));
+            }
             
             // 4. Show the target content
             const targetContent = document.getElementById(tabName);
