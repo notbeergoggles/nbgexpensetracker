@@ -1456,7 +1456,11 @@
                 </div>
                 
                 <div id="expenseList" class="expense-list">
-                    <div class="empty-state">No expenses yet. Add one to get started!</div>
+                    <div class="empty-state" style="text-align:center; padding:36px 20px;">
+                        <div style="font-size:44px; line-height:1; margin-bottom:8px;">🐌<span style="font-size:20px;">💤</span></div>
+                        <div style="font-weight:600; margin-bottom:2px;">Nothing here... yet</div>
+                        <div style="font-size:13px;">Add an expense to wake the snail.</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1650,7 +1654,7 @@
                 <div class="terra-coins">🪙 <span id="terraCoins">0</span></div>
                 <button type="button" class="btn btn--secondary" id="terraDayNight">🌙 Night</button>
             </div>
-            <p class="terra-hint" id="terraModeHint">Pick an item below, then tap inside the jar to place it. Tap a placed item to remove it (refunds half).</p>
+            <p class="terra-hint" id="terraModeHint">Pick an item below, then tap inside the jar to place it. Tap a placed item to remove it (refunds half). Long-press any item to see who placed it.</p>
 
             <div class="terra-jar" id="terraJar">
                 <div class="terra-lid"></div>
@@ -1710,7 +1714,12 @@
                 { id:'feather', emo:'🪶', cost:12 },
             ],
         };
-        const ALL = Object.values(CATALOG).flat();
+        const VISITORS = [
+            { id:'hedgehog', emo:'🦔', cost:0 },
+            { id:'turtle',   emo:'🐢', cost:0 },
+            { id:'parrot',   emo:'🦜', cost:0 },
+        ];
+        const ALL = Object.values(CATALOG).flat().concat(VISITORS);
         const findItem = id => ALL.find(i => i.id === id);
         const DAILY_BONUS = 15;
         const LOG_REWARD = 5; // coins per expense logged (handled in addExpense hook below)
@@ -1751,6 +1760,7 @@
                     TERRA_DOC().set(state);
                 }
                 renderAll();
+                maybeRareVisitor();
             }, err => console.error('terra listen', err));
         }
 
@@ -1800,7 +1810,26 @@
                 span.style.left = it.x + '%';
                 span.style.top = it.y + '%';
                 span.title = 'Tap to remove (refund ' + Math.floor(cat.cost/2) + ')';
-                span.onclick = (e) => { e.stopPropagation(); removeItem(idx); };
+                // Long-press: show who placed it; suppresses the tap-to-remove
+                let lpTimer = null, lpFired = false;
+                const startLP = (e) => {
+                    lpFired = false;
+                    lpTimer = setTimeout(() => {
+                        lpFired = true;
+                        showPlacedBy(it, jar);
+                    }, 550);
+                };
+                const cancelLP = () => { clearTimeout(lpTimer); };
+                span.addEventListener('pointerdown', startLP);
+                span.addEventListener('pointerup', cancelLP);
+                span.addEventListener('pointerleave', cancelLP);
+                span.addEventListener('pointermove', cancelLP);
+                span.addEventListener('contextmenu', e => e.preventDefault());
+                span.onclick = (e) => {
+                    e.stopPropagation();
+                    if (lpFired) { lpFired = false; return; } // long-press consumed this tap
+                    removeItem(idx);
+                };
                 jar.appendChild(span);
             });
         }
@@ -1829,7 +1858,12 @@
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             state.coins -= item.cost;
-            state.items.push({ id: item.id, x: Math.max(6, Math.min(94, x)), y: Math.max(20, Math.min(96, y)) });
+            state.items.push({
+                id: item.id,
+                x: Math.max(6, Math.min(94, x)), y: Math.max(20, Math.min(96, y)),
+                by: (typeof currentUser !== 'undefined' && currentUser && currentUser.email) || 'guest',
+                at: Date.now()
+            });
             renderCoins(); renderJar();
             coinFx(jar, x, y, '-' + item.cost);
             saveState();
@@ -1869,6 +1903,43 @@
             el.textContent = `Resets in ${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
         }
         setInterval(renderCountdown, 1000);
+
+        // Who-placed-it toast
+        function whoIs(email) {
+            if (!email || email === 'guest') return 'Guest';
+            if (email === '✨wild') return 'A wild visitor — it wandered in on its own!';
+            return email.toLowerCase().startsWith('kkennyytan') ? 'Kenny' : 'Sayuri';
+        }
+        function showPlacedBy(it, jar) {
+            const who = whoIs(it.by);
+            const when = it.at ? new Date(it.at).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric' }) : '';
+            const old = jar.querySelector('.terra-placedby');
+            if (old) old.remove();
+            const t = document.createElement('div');
+            t.className = 'terra-placedby';
+            t.textContent = it.by === '✨wild' ? whoIs(it.by) : `Placed by ${who}${when ? ' · ' + when : ''}`;
+            t.style.cssText = 'position:absolute;left:50%;top:8%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:6px 14px;border-radius:50px;font-size:12px;z-index:60;white-space:nowrap;';
+            jar.appendChild(t);
+            setTimeout(() => t.remove(), 2200);
+        }
+
+        // Rare visitor: once per day (shared), 0.1% chance a free creature wanders in
+        function maybeRareVisitor() {
+            if (!state || state.lastVisitorRoll === todayStr()) return;
+            state.lastVisitorRoll = todayStr();
+            if (Math.random() < 0.001) {
+                const v = VISITORS[Math.floor(Math.random() * VISITORS.length)];
+                state.items.push({
+                    id: v.id,
+                    x: 10 + Math.random() * 80, y: 60 + Math.random() * 30,
+                    by: '✨wild', at: Date.now()
+                });
+                renderJar();
+                const jar = document.getElementById('terraJar');
+                if (jar) coinFx(jar, 50, 35, '✨ A visitor appeared!');
+            }
+            saveState();
+        }
 
         function claimDaily() {
             const jar = document.getElementById('terraJar');
@@ -3140,7 +3211,11 @@ async function deleteExpenseFromFirebase(id) {
             list.innerHTML = '';
         
             if (sortedExpenses.length === 0) {
-                list.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">No expenses found for this period.</div>';
+                list.innerHTML = `<div class="empty-state" style="text-align:center; padding:36px 20px; color:#999;">
+                    <div style="font-size:44px; line-height:1; margin-bottom:8px;">🐌<span style="font-size:20px;">💤</span></div>
+                    <div style="font-weight:600; margin-bottom:2px;">Nothing here... yet</div>
+                    <div style="font-size:13px;">The snail is napping until an expense shows up.</div>
+                </div>`;
                 return;
             }
         
@@ -3819,6 +3894,112 @@ async function handleDeleteExpense(id) {
             setTimeout(wiggleLoop, 8000 + Math.random() * 4000); // 8-12s
         }
         setTimeout(wiggleLoop, 5000);
+    })();
+    </script>
+    <!-- ============ EXTRAS PACK ============ -->
+    <style>
+        /* Anniversary mode (Nov 5): warm gold accent + banner */
+        body.anniversary {
+            --color-primary: #c9962e;
+        }
+        body.anniversary .bnav-item.active,
+        body.anniversary .tab-button.active { color: #d4a836; }
+        .anniv-banner {
+            text-align: center; padding: 10px 16px; margin-bottom: var(--space-16);
+            background: linear-gradient(135deg, rgba(212,168,54,0.16), rgba(255,200,220,0.14));
+            border: 1px solid rgba(212,168,54,0.4); border-radius: var(--radius-lg);
+            font-weight: 600; animation: cardEnter 0.6s ease both;
+        }
+        /* Pull-to-refresh sprout */
+        .ptr-indicator {
+            position: fixed; top: 0; left: 50%; transform: translate(-50%, -60px);
+            z-index: 300; font-size: 26px; line-height: 1;
+            transition: transform 0.1s linear; pointer-events: none;
+        }
+        .ptr-indicator.release { animation: ptrSpin 0.6s linear infinite; }
+        @keyframes ptrSpin { to { rotate: 360deg; } }
+    </style>
+    <script>
+    (function extrasPack() {
+        // ----- Haptic feedback -----
+        const canBuzz = 'vibrate' in navigator;
+        function buzz(pattern) { if (canBuzz) navigator.vibrate(pattern); }
+        window.hapticBuzz = buzz;
+        // Nav taps
+        document.querySelectorAll('.bnav-item, .tab-button').forEach(b =>
+            b.addEventListener('click', () => buzz(10)));
+        // Drawer items get bound on creation; delegate instead:
+        const dg = document.getElementById('drawerGrid');
+        if (dg) dg.addEventListener('click', e => { if (e.target.closest('.drawer-item')) buzz(10); });
+        // Coin moments: wrap reward + claim
+        const prevReward2 = window.terraRewardLog;
+        window.terraRewardLog = function() { if (prevReward2) prevReward2(); buzz([12, 40, 12]); };
+        const claimBtn = document.getElementById('terraClaimBtn');
+        if (claimBtn) claimBtn.addEventListener('click', () => buzz([12, 40, 12]));
+
+        // ----- Anniversary mode: Nov 5 (SGT) -----
+        (function annivCheck() {
+            const d = new Date(Date.now() + 8 * 3600 * 1000);
+            if (d.getUTCMonth() + 1 === 11 && d.getUTCDate() === 5) {
+                document.body.classList.add('anniversary');
+                const container = document.querySelector('.container') || document.body;
+                const banner = document.createElement('div');
+                banner.className = 'anniv-banner';
+                const years = d.getUTCFullYear() - 2020; // Nov 5 2026 = 6th anniversary
+                banner.textContent = `💍 Happy ${years}${years===1?'st':years===2?'nd':years===3?'rd':'th'} Anniversary, Kenny & Sayuri 🌸`;
+                container.prepend(banner);
+                // Force sakura petals today regardless of season
+                setInterval(() => {
+                    if (document.hidden) return;
+                    const p = document.createElement('span');
+                    p.className = 'season-particle';
+                    p.textContent = Math.random() < 0.7 ? '🌸' : '✨';
+                    p.style.left = Math.random() * 100 + 'vw';
+                    p.style.fontSize = (10 + Math.random() * 14) + 'px';
+                    p.style.setProperty('--drift', (Math.random() * 120 - 60) + 'px');
+                    p.style.setProperty('--spin', (Math.random() * 720 - 360) + 'deg');
+                    p.style.animationDuration = (9 + Math.random() * 9) + 's';
+                    document.body.appendChild(p);
+                    setTimeout(() => p.remove(), 19000);
+                }, 1800);
+            }
+        })();
+
+        // ----- Pull-to-refresh with sprout -----
+        const THRESHOLD = 85;
+        let startY = null, pulling = false;
+        const ind = document.createElement('div');
+        ind.className = 'ptr-indicator';
+        ind.textContent = '🌱';
+        document.body.appendChild(ind);
+
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY <= 0) { startY = e.touches[0].clientY; pulling = true; }
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (!pulling || startY === null) return;
+            const dy = e.touches[0].clientY - startY;
+            if (dy > 0 && window.scrollY <= 0) {
+                const pull = Math.min(dy * 0.45, 110);
+                ind.style.transform = `translate(-50%, ${pull - 50}px) rotate(${pull * 3}deg) scale(${0.6 + pull / 140})`;
+                ind.classList.toggle('release', false);
+                if (pull >= THRESHOLD) ind.textContent = '🌿';
+                else ind.textContent = '🌱';
+            }
+        }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            if (!pulling || startY === null) { pulling = false; return; }
+            const dy = (e.changedTouches[0].clientY - startY) * 0.45;
+            pulling = false; startY = null;
+            if (dy >= THRESHOLD) {
+                ind.classList.add('release');
+                ind.style.transform = 'translate(-50%, 30px)';
+                buzz(15);
+                setTimeout(() => location.reload(), 450);
+            } else {
+                ind.style.transform = 'translate(-50%, -60px)';
+            }
+        }, { passive: true });
     })();
     </script>
 </body>
