@@ -3924,6 +3924,9 @@ async function handleDeleteExpense(id) {
     </script>
     <!-- ============ EXTRAS PACK ============ -->
     <style>
+        /* Disable Chrome's native pull-to-refresh; our sprout PTR handles it */
+        html, body { overscroll-behavior-y: none; }
+
         /* Anniversary mode (Nov 5): warm gold accent + banner */
         body.anniversary {
             --color-primary: #c9962e;
@@ -3949,19 +3952,41 @@ async function handleDeleteExpense(id) {
     (function extrasPack() {
         // ----- Haptic feedback -----
         const canBuzz = 'vibrate' in navigator;
-        function buzz(pattern) { if (canBuzz) try { navigator.vibrate(pattern); } catch(e){} }
+        let lastBuzzOk = null;
+        function buzz(pattern) {
+            if (!canBuzz) return;
+            try { lastBuzzOk = navigator.vibrate(pattern); } catch(e) { lastBuzzOk = false; }
+        }
         window.hapticBuzz = buzz;
-        // Delegate: any nav element, drawer item, or jar tap buzzes (30ms - 10ms is
-        // imperceptible on many Android motors)
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.bnav-item, .tab-button, .drawer-item')) buzz(30);
-            else if (e.target.closest('#terraJar')) buzz(20);
+        // Fire on pointerdown (not click): Chrome gates vibrate on gesture freshness,
+        // and pointerdown is the rawest moment of a tap.
+        document.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('.bnav-item, .tab-button, .drawer-item')) buzz(35);
+            else if (e.target.closest('#terraJar')) buzz(25);
         }, true);
         // Coin moments: wrap reward + claim with a da-dum pattern
         const prevReward2 = window.terraRewardLog;
-        window.terraRewardLog = function() { if (prevReward2) prevReward2(); buzz([30, 60, 30]); };
+        window.terraRewardLog = function() { if (prevReward2) prevReward2(); buzz([35, 60, 35]); };
         const claimBtn = document.getElementById('terraClaimBtn');
-        if (claimBtn) claimBtn.addEventListener('click', () => buzz([30, 60, 30]));
+        if (claimBtn) claimBtn.addEventListener('pointerdown', () => buzz([35, 60, 35]));
+        // Diagnostic: tap the coin pill 5 times quickly to see haptic support status
+        const coinPill = document.querySelector('.terra-coins');
+        if (coinPill) {
+            let taps = 0, tapTimer = null;
+            coinPill.addEventListener('pointerdown', () => {
+                taps++;
+                clearTimeout(tapTimer);
+                tapTimer = setTimeout(() => taps = 0, 1500);
+                if (taps >= 5) {
+                    taps = 0;
+                    buzz(200);
+                    alert('Haptics diagnostic:\n' +
+                        'API supported: ' + canBuzz + '\n' +
+                        'Last vibrate() returned: ' + lastBuzzOk + '\n\n' +
+                        '(true = browser accepted the call; if you still feel nothing, the OS/browser is suppressing it)');
+                }
+            });
+        }
 
         // ----- Anniversary mode: Nov 5 (SGT) -----
         (function annivCheck() {
