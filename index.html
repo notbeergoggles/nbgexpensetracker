@@ -1612,9 +1612,20 @@
         .terra-item {
             position: absolute; transform: translate(-50%, -100%);
             font-size: 34px; line-height: 1; user-select: none;
+            -webkit-user-select: none; -webkit-touch-callout: none;
+            touch-action: manipulation;
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
             animation: terraPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
             cursor: pointer; transition: transform 0.15s;
+        }
+        .terra-item.armed {
+            animation: armedShake 0.4s ease infinite;
+            filter: drop-shadow(0 0 6px rgba(255,80,80,0.8));
+        }
+        @keyframes armedShake {
+            0%, 100% { transform: translate(-50%, -100%) rotate(0deg); }
+            25%      { transform: translate(-50%, -100%) rotate(-6deg); }
+            75%      { transform: translate(-50%, -100%) rotate(6deg); }
         }
         .terra-item:hover { transform: translate(-50%, -105%) scale(1.08); }
         @keyframes terraPop { from { transform: translate(-50%,-100%) scale(0); } }
@@ -1810,25 +1821,37 @@
                 span.style.left = it.x + '%';
                 span.style.top = it.y + '%';
                 span.title = 'Tap to remove (refund ' + Math.floor(cat.cost/2) + ')';
-                // Long-press: show who placed it; suppresses the tap-to-remove
-                let lpTimer = null, lpFired = false;
-                const startLP = (e) => {
-                    lpFired = false;
+                // Long-press: show who placed it. Movement threshold so touch jitter
+                // doesn't cancel the timer (the old bug).
+                let lpTimer = null, lpFired = false, lpX = 0, lpY = 0;
+                span.addEventListener('pointerdown', (e) => {
+                    lpFired = false; lpX = e.clientX; lpY = e.clientY;
+                    clearTimeout(lpTimer);
                     lpTimer = setTimeout(() => {
                         lpFired = true;
+                        if (navigator.vibrate) navigator.vibrate(30);
                         showPlacedBy(it, jar);
-                    }, 550);
-                };
-                const cancelLP = () => { clearTimeout(lpTimer); };
-                span.addEventListener('pointerdown', startLP);
-                span.addEventListener('pointerup', cancelLP);
-                span.addEventListener('pointerleave', cancelLP);
-                span.addEventListener('pointermove', cancelLP);
+                    }, 500);
+                });
+                span.addEventListener('pointermove', (e) => {
+                    if (Math.hypot(e.clientX - lpX, e.clientY - lpY) > 12) clearTimeout(lpTimer);
+                });
+                span.addEventListener('pointerup', () => clearTimeout(lpTimer));
+                span.addEventListener('pointercancel', () => clearTimeout(lpTimer));
+                span.addEventListener('pointerleave', () => clearTimeout(lpTimer));
                 span.addEventListener('contextmenu', e => e.preventDefault());
+                // Tap-twice removal: first tap arms, second tap within 2.5s removes
                 span.onclick = (e) => {
                     e.stopPropagation();
                     if (lpFired) { lpFired = false; return; } // long-press consumed this tap
-                    removeItem(idx);
+                    if (span.classList.contains('armed')) {
+                        removeItem(idx);
+                    } else {
+                        jar.querySelectorAll('.terra-item.armed').forEach(s => s.classList.remove('armed'));
+                        span.classList.add('armed');
+                        showToast(jar, `Tap again to remove (+${Math.floor(cat.cost/2)} 🪙 refund)`);
+                        setTimeout(() => span.classList.remove('armed'), 2500);
+                    }
                 };
                 jar.appendChild(span);
             });
@@ -1905,6 +1928,16 @@
         setInterval(renderCountdown, 1000);
 
         // Who-placed-it toast
+        function showToast(jar, msg) {
+            const old = jar.querySelector('.terra-placedby');
+            if (old) old.remove();
+            const t = document.createElement('div');
+            t.className = 'terra-placedby';
+            t.textContent = msg;
+            t.style.cssText = 'position:absolute;left:50%;top:8%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:6px 14px;border-radius:50px;font-size:12px;z-index:60;white-space:nowrap;';
+            jar.appendChild(t);
+            setTimeout(() => t.remove(), 2200);
+        }
         function whoIs(email) {
             if (!email || email === 'guest') return 'Guest';
             if (email === '✨wild') return 'A wild visitor — it wandered in on its own!';
@@ -1913,14 +1946,7 @@
         function showPlacedBy(it, jar) {
             const who = whoIs(it.by);
             const when = it.at ? new Date(it.at).toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric' }) : '';
-            const old = jar.querySelector('.terra-placedby');
-            if (old) old.remove();
-            const t = document.createElement('div');
-            t.className = 'terra-placedby';
-            t.textContent = it.by === '✨wild' ? whoIs(it.by) : `Placed by ${who}${when ? ' · ' + when : ''}`;
-            t.style.cssText = 'position:absolute;left:50%;top:8%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:6px 14px;border-radius:50px;font-size:12px;z-index:60;white-space:nowrap;';
-            jar.appendChild(t);
-            setTimeout(() => t.remove(), 2200);
+            showToast(jar, it.by === '✨wild' ? whoIs(it.by) : `Placed by ${who}${when ? ' · ' + when : ''}`);
         }
 
         // Rare visitor: once per day (shared), 0.1% chance a free creature wanders in
@@ -3923,19 +3949,19 @@ async function handleDeleteExpense(id) {
     (function extrasPack() {
         // ----- Haptic feedback -----
         const canBuzz = 'vibrate' in navigator;
-        function buzz(pattern) { if (canBuzz) navigator.vibrate(pattern); }
+        function buzz(pattern) { if (canBuzz) try { navigator.vibrate(pattern); } catch(e){} }
         window.hapticBuzz = buzz;
-        // Nav taps
-        document.querySelectorAll('.bnav-item, .tab-button').forEach(b =>
-            b.addEventListener('click', () => buzz(10)));
-        // Drawer items get bound on creation; delegate instead:
-        const dg = document.getElementById('drawerGrid');
-        if (dg) dg.addEventListener('click', e => { if (e.target.closest('.drawer-item')) buzz(10); });
-        // Coin moments: wrap reward + claim
+        // Delegate: any nav element, drawer item, or jar tap buzzes (30ms - 10ms is
+        // imperceptible on many Android motors)
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.bnav-item, .tab-button, .drawer-item')) buzz(30);
+            else if (e.target.closest('#terraJar')) buzz(20);
+        }, true);
+        // Coin moments: wrap reward + claim with a da-dum pattern
         const prevReward2 = window.terraRewardLog;
-        window.terraRewardLog = function() { if (prevReward2) prevReward2(); buzz([12, 40, 12]); };
+        window.terraRewardLog = function() { if (prevReward2) prevReward2(); buzz([30, 60, 30]); };
         const claimBtn = document.getElementById('terraClaimBtn');
-        if (claimBtn) claimBtn.addEventListener('click', () => buzz([12, 40, 12]));
+        if (claimBtn) claimBtn.addEventListener('click', () => buzz([30, 60, 30]));
 
         // ----- Anniversary mode: Nov 5 (SGT) -----
         (function annivCheck() {
