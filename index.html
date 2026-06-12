@@ -3526,8 +3526,7 @@ async function handleDeleteExpense(id) {
             if (m === 3 || m === 4) return ['🌸','🌸','💮'];          // sakura season
             if (m === 12 || m === 1) return ['❄️','❄️','✨'];          // winter
             if (m === 10) return ['🍂','🍁'];                          // autumn
-            if (m === 6 || m === 7) return ['🫧'];                     // lazy summer bubbles
-            return null; // off-season: no particles
+            return null; // off-season: no particles (default blur bubbles already cover it)
         }
         function spawnParticle(set) {
             const p = document.createElement('span');
@@ -3587,6 +3586,239 @@ async function handleDeleteExpense(id) {
             setTimeout(() => paw.remove(), 6500);
         }
         setTimeout(maybePaw, 4000 + Math.random() * 8000); // appears a little after page load
+    })();
+    </script>
+    <!-- ============ BEAUTY PACK ============ -->
+    <style>
+        /* 1. Glassmorphism cards: frosted glass so bubbles/aurora glow through */
+        .card {
+            background: color-mix(in srgb, var(--color-surface) 74%, transparent);
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
+            backdrop-filter: blur(14px) saturate(1.25);
+            position: relative;
+            overflow: hidden;
+        }
+        @supports not (background: color-mix(in srgb, red 50%, blue)) {
+            .card { background: var(--color-surface); } /* fallback */
+        }
+
+        /* 2. Card glow following the pointer */
+        .card::before {
+            content: '';
+            position: absolute; inset: 0; pointer-events: none;
+            background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%),
+                        rgba(50, 184, 198, 0.13), transparent 65%);
+            opacity: 0; transition: opacity 0.35s;
+        }
+        .card:hover::before, .card.glow-touch::before { opacity: 1; }
+
+        /* 3. Staggered card entrance on tab switch */
+        @keyframes cardEnter {
+            from { opacity: 0; transform: translateY(14px) scale(0.985); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .stagger-in { animation: cardEnter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @media (prefers-reduced-motion: reduce) {
+            .stagger-in { animation: none; }
+        }
+
+        /* 4. Progress bar shimmer */
+        .category-bar-fill { position: relative; overflow: hidden; }
+        .category-bar-fill::after {
+            content: '';
+            position: absolute; top: 0; bottom: 0; width: 45%;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent);
+            animation: barShimmer 3.4s ease-in-out infinite;
+        }
+        @keyframes barShimmer {
+            0%   { left: -50%; }
+            55%  { left: 110%; }
+            100% { left: 110%; }
+        }
+
+        /* 6. Currency fade: "SGD" steps back, the number is the hero */
+        .cur-faded {
+            font-size: 0.68em;
+            opacity: 0.55;
+            font-weight: 500;
+            margin-right: 2px;
+            letter-spacing: 0.02em;
+        }
+
+        /* 7. Jar condensation droplets */
+        .terra-drop {
+            position: absolute; pointer-events: none;
+            width: 5px; height: 8px; border-radius: 50% 50% 60% 60%;
+            background: linear-gradient(rgba(255,255,255,0.55), rgba(200,235,255,0.25));
+            box-shadow: 0 1px 2px rgba(255,255,255,0.3);
+            opacity: 0.7;
+        }
+        .terra-drop.slide { animation: dropSlide var(--dur, 4s) ease-in forwards; }
+        @keyframes dropSlide {
+            0%   { transform: translateY(0) scaleY(1); }
+            15%  { transform: translateY(4px) scaleY(1.4); }
+            100% { transform: translateY(var(--fall, 120px)) scaleY(1.2); opacity: 0; }
+        }
+
+        /* 8. Critter idle wiggle */
+        @keyframes critterWiggle {
+            0%, 100% { transform: translate(-50%, -100%) rotate(0deg); }
+            25%      { transform: translate(-50%, -102%) rotate(-7deg); }
+            50%      { transform: translate(-50%, -104%) rotate(5deg); }
+            75%      { transform: translate(-50%, -101%) rotate(-3deg); }
+        }
+        .terra-item.wiggle { animation: critterWiggle 0.7s ease-in-out; }
+
+        /* 9. Sunbeam through the jar (day mode only) */
+        .terra-jar::after {
+            content: '';
+            position: absolute; top: -20%; left: 15%;
+            width: 30%; height: 150%;
+            background: linear-gradient(rgba(255, 245, 180, 0.22), rgba(255, 245, 180, 0.02));
+            transform: rotate(22deg);
+            pointer-events: none;
+            transition: opacity 1s ease;
+            animation: beamBreathe 8s ease-in-out infinite;
+        }
+        .terra-jar.night::after { opacity: 0; }
+        @keyframes beamBreathe {
+            0%, 100% { opacity: 0.55; }
+            50%      { opacity: 0.95; }
+        }
+    </style>
+    <script>
+    (function beautyPack() {
+        // ----- 2. Card glow: track pointer position per card -----
+        document.addEventListener('pointermove', (e) => {
+            const card = e.target.closest && e.target.closest('.card');
+            if (!card) return;
+            const r = card.getBoundingClientRect();
+            card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+            card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+        }, { passive: true });
+        // Touch: brief glow at tap point
+        document.addEventListener('touchstart', (e) => {
+            const card = e.target.closest && e.target.closest('.card');
+            if (!card) return;
+            const t = e.touches[0];
+            const r = card.getBoundingClientRect();
+            card.style.setProperty('--mx', ((t.clientX - r.left) / r.width * 100) + '%');
+            card.style.setProperty('--my', ((t.clientY - r.top) / r.height * 100) + '%');
+            card.classList.add('glow-touch');
+            setTimeout(() => card.classList.remove('glow-touch'), 700);
+        }, { passive: true });
+
+        // ----- 3. Staggered entrance: wrap switchTab -----
+        if (typeof switchTab === 'function') {
+            const origSwitch = switchTab;
+            switchTab = function(tabName) {
+                origSwitch(tabName);
+                const pane = document.getElementById(tabName);
+                if (!pane) return;
+                const cards = pane.querySelectorAll('.card, .category-bar-wrapper');
+                cards.forEach((c, i) => {
+                    c.classList.remove('stagger-in');
+                    void c.offsetWidth; // restart animation
+                    c.style.animationDelay = (i * 60) + 'ms';
+                    c.classList.add('stagger-in');
+                });
+            };
+        }
+
+        // ----- 5. Parallax bubbles -----
+        const bubbleBg = document.getElementById('bubble-container');
+        if (bubbleBg) {
+            let ticking = false;
+            window.addEventListener('scroll', () => {
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(() => {
+                    bubbleBg.style.transform = `translateY(${window.scrollY * -0.06}px)`;
+                    ticking = false;
+                });
+            }, { passive: true });
+        }
+
+        // ----- 6. Currency fade: wrap "SGD" prefixes in a subtle span -----
+        let curBusy = false;
+        function fadeCurrency(root) {
+            if (curBusy) return;
+            curBusy = true;
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                acceptNode(n) {
+                    if (!n.nodeValue || !/\bSGD\b/.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+                    if (n.parentElement && (n.parentElement.closest('.cur-faded') ||
+                        ['SCRIPT','STYLE','TEXTAREA','INPUT','OPTION'].includes(n.parentElement.tagName)))
+                        return NodeFilter.FILTER_REJECT;
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            });
+            const nodes = [];
+            while (walker.nextNode()) nodes.push(walker.currentNode);
+            nodes.forEach(n => {
+                const frag = document.createDocumentFragment();
+                n.nodeValue.split(/(\bSGD\b)/).forEach(part => {
+                    if (part === 'SGD') {
+                        const s = document.createElement('span');
+                        s.className = 'cur-faded';
+                        s.textContent = 'SGD';
+                        frag.appendChild(s);
+                    } else if (part) {
+                        frag.appendChild(document.createTextNode(part));
+                    }
+                });
+                n.parentNode.replaceChild(frag, n);
+            });
+            curBusy = false;
+        }
+        let curTimer = null;
+        const curObserver = new MutationObserver(() => {
+            clearTimeout(curTimer);
+            curTimer = setTimeout(() => fadeCurrency(document.body), 150);
+        });
+        curObserver.observe(document.body, { childList: true, subtree: true });
+        fadeCurrency(document.body);
+
+        // ----- 7. Jar condensation -----
+        const jar = document.getElementById('terraJar');
+        if (jar) {
+            // static droplets that occasionally slide down
+            for (let i = 0; i < 7; i++) {
+                const d = document.createElement('div');
+                d.className = 'terra-drop';
+                d.style.left = (8 + Math.random() * 84) + '%';
+                d.style.top = (10 + Math.random() * 35) + '%';
+                jar.appendChild(d);
+            }
+            setInterval(() => {
+                if (document.hidden) return;
+                const drops = jar.querySelectorAll('.terra-drop:not(.slide)');
+                if (!drops.length) return;
+                const d = drops[Math.floor(Math.random() * drops.length)];
+                d.style.setProperty('--fall', (60 + Math.random() * 100) + 'px');
+                d.style.setProperty('--dur', (3 + Math.random() * 3) + 's');
+                d.classList.add('slide');
+                setTimeout(() => { // respawn fresh droplet at top
+                    d.classList.remove('slide');
+                    d.style.left = (8 + Math.random() * 84) + '%';
+                    d.style.top = (8 + Math.random() * 30) + '%';
+                }, 6500);
+            }, 7000);
+        }
+
+        // ----- 8. Critter idle wiggle (every 8-12s) -----
+        const CRITTER_EMO = ['🐸','🐌','🪲','🐞','🐝','🐛','🦋','🦎'];
+        function wiggleLoop() {
+            const critters = [...document.querySelectorAll('#terraJar .terra-item')]
+                .filter(el => CRITTER_EMO.includes(el.textContent));
+            if (critters.length && !document.hidden) {
+                const c = critters[Math.floor(Math.random() * critters.length)];
+                c.classList.add('wiggle');
+                setTimeout(() => c.classList.remove('wiggle'), 750);
+            }
+            setTimeout(wiggleLoop, 8000 + Math.random() * 4000); // 8-12s
+        }
+        setTimeout(wiggleLoop, 5000);
     })();
     </script>
 </body>
