@@ -3471,5 +3471,123 @@ async function handleDeleteExpense(id) {
     <div id="successToast" style="display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #4BB543; color: white; padding: 12px 24px; border-radius: 50px; z-index: 3000; box-shadow: 0 10px 20px rgba(0,0,0,0.2); font-weight: 600; font-size: 14px; align-items: center; gap: 8px;">
     <i class="fas fa-check-circle"></i> Transaction Updated Successfully!
 </div>
+    <!-- ============ POINTLESS DELIGHTS ============ -->
+    <style>
+        /* Aurora gradient: a huge soft blob that drifts hue very slowly behind everything */
+        .aurora {
+            position: fixed; inset: -30%; z-index: 0; pointer-events: none;
+            background: radial-gradient(ellipse at 30% 20%, rgba(33,128,141,0.10), transparent 55%),
+                        radial-gradient(ellipse at 75% 70%, rgba(168,75,255,0.07), transparent 55%);
+            animation: auroraShift 90s linear infinite;
+            filter: blur(20px);
+        }
+        @keyframes auroraShift {
+            0%   { filter: blur(20px) hue-rotate(0deg);   transform: rotate(0deg) scale(1); }
+            50%  { filter: blur(20px) hue-rotate(60deg);  transform: rotate(3deg) scale(1.06); }
+            100% { filter: blur(20px) hue-rotate(0deg);   transform: rotate(0deg) scale(1); }
+        }
+        /* Seasonal particles */
+        .season-particle {
+            position: fixed; top: -5vh; z-index: 1; pointer-events: none;
+            animation: particleFall linear forwards;
+            will-change: transform;
+        }
+        @keyframes particleFall {
+            to { transform: translateY(110vh) translateX(var(--drift, 30px)) rotate(var(--spin, 360deg)); }
+        }
+        /* Coin confetti */
+        .coin-burst {
+            position: fixed; z-index: 9999; pointer-events: none; font-size: 18px;
+            animation: coinBurst 0.9s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+        }
+        @keyframes coinBurst {
+            to { transform: translate(var(--cx), var(--cy)) rotate(var(--cr)); opacity: 0; }
+        }
+        /* Mika's daily paw print */
+        .mika-paw {
+            position: fixed; z-index: 1; pointer-events: none;
+            font-size: 26px; opacity: 0;
+            animation: pawFade 6s ease forwards;
+        }
+        @keyframes pawFade {
+            0% { opacity: 0; } 15% { opacity: 0.22; } 85% { opacity: 0.22; } 100% { opacity: 0; }
+        }
+    </style>
+    <script>
+    (function pointlessDelights() {
+        // ----- 1. Aurora gradient -----
+        const aurora = document.createElement('div');
+        aurora.className = 'aurora';
+        document.body.prepend(aurora);
+
+        // ----- 2. Seasonal particles -----
+        function seasonEmoji() {
+            const m = new Date().getMonth() + 1;
+            if (m === 3 || m === 4) return ['🌸','🌸','💮'];          // sakura season
+            if (m === 12 || m === 1) return ['❄️','❄️','✨'];          // winter
+            if (m === 10) return ['🍂','🍁'];                          // autumn
+            if (m === 6 || m === 7) return ['🫧'];                     // lazy summer bubbles
+            return null; // off-season: no particles
+        }
+        function spawnParticle(set) {
+            const p = document.createElement('span');
+            p.className = 'season-particle';
+            p.textContent = set[Math.floor(Math.random() * set.length)];
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.fontSize = (10 + Math.random() * 14) + 'px';
+            p.style.setProperty('--drift', (Math.random() * 120 - 60) + 'px');
+            p.style.setProperty('--spin', (Math.random() * 720 - 360) + 'deg');
+            p.style.animationDuration = (9 + Math.random() * 9) + 's';
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 19000);
+        }
+        const set = seasonEmoji();
+        if (set) {
+            setInterval(() => { if (!document.hidden) spawnParticle(set); }, 2600);
+        }
+
+        // ----- 3. Coin confetti on expense log -----
+        // Wraps the terrarium reward hook so confetti fires alongside the coins.
+        const prevReward = window.terraRewardLog;
+        window.terraRewardLog = function() {
+            if (prevReward) prevReward();
+            const ox = window.innerWidth / 2, oy = window.innerHeight / 2;
+            for (let i = 0; i < 10; i++) {
+                const c = document.createElement('span');
+                c.className = 'coin-burst';
+                c.textContent = '🪙';
+                c.style.left = ox + 'px'; c.style.top = oy + 'px';
+                const ang = (Math.PI * 2 * i) / 10 + Math.random() * 0.5;
+                const dist = 70 + Math.random() * 90;
+                c.style.setProperty('--cx', Math.cos(ang) * dist + 'px');
+                c.style.setProperty('--cy', (Math.sin(ang) * dist - 40) + 'px');
+                c.style.setProperty('--cr', (Math.random() * 360 - 180) + 'deg');
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 950);
+            }
+        };
+
+        // ----- 4. Mika's daily paw print -----
+        // Once per SGT day, a faint paw appears in a random corner for a few seconds.
+        function maybePaw() {
+            const d = new Date(Date.now() + 8 * 3600 * 1000);
+            const today = `${d.getUTCFullYear()}-${d.getUTCMonth()+1}-${d.getUTCDate()}`;
+            if (localStorage.getItem('mikaPawDay') === today) return;
+            localStorage.setItem('mikaPawDay', today);
+            const paw = document.createElement('span');
+            paw.className = 'mika-paw';
+            paw.textContent = '🐾';
+            const corners = [
+                { left: '4%',  top: '12%' }, { right: '5%', top: '18%' },
+                { left: '6%',  bottom: '14%' }, { right: '4%', bottom: '20%' },
+            ];
+            Object.assign(paw.style, corners[Math.floor(Math.random() * corners.length)]);
+            paw.style.transform = `rotate(${Math.random() * 60 - 30}deg)`;
+            document.body.appendChild(paw);
+            setTimeout(() => paw.remove(), 6500);
+        }
+        setTimeout(maybePaw, 4000 + Math.random() * 8000); // appears a little after page load
+    })();
+    </script>
 </body>
 </html>
