@@ -1554,12 +1554,323 @@
 
     <!-- ============ WEDDING TAB ============ -->
     <div id="wedding" class="tab-content">
-        <div class="card" style="text-align:center; padding: var(--space-24);">
-            <div style="font-size: 48px; margin-bottom: var(--space-12);"><i class="fa-solid fa-ring" style="color: var(--color-primary);"></i></div>
-            <h2 style="margin-bottom: var(--space-8);">Wedding Planning</h2>
-            <p style="color: var(--color-text-secondary);">November 2026 · Coming soon — budgets, vendor tracking, and countdowns will live here.</p>
+        <div class="wedding-wrap">
+            <!-- Budget card -->
+            <div class="card wedding-budget-card">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-12);">
+                    <h2 style="margin: 0; font-size: var(--font-size-lg);">💍 Wedding Budget</h2>
+                    <button type="button" class="btn btn--secondary" id="weddingEditBudget" style="padding: 4px 10px; font-size: 12px;">✏️ Edit</button>
+                </div>
+                <div style="font-size: 32px; font-weight: 700; color: var(--color-primary); margin-bottom: var(--space-8);">
+                    <span class="cur-faded">SGD</span><span id="weddingBudgetDisplay">0</span>
+                </div>
+
+                <!-- Progress bar: projected vs actual -->
+                <div style="margin-bottom: var(--space-16);">
+                    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px;">Spending breakdown</div>
+                    <div style="width: 100%; height: 8px; border-radius: 4px; background: var(--color-border); overflow: hidden; position: relative;">
+                        <div id="weddingProgressProjected" style="position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg, rgba(33,128,141,0.7), rgba(33,128,141,0.4)); width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; color: var(--color-text-secondary);">
+                        <span>Projected: <strong id="weddingProjected">SGD 0</strong></span>
+                        <span>Actual: <strong id="weddingActual">SGD 0</strong></span>
+                        <span>Remaining: <strong id="weddingRemaining">SGD 0</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget expenses -->
+            <div class="card">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-12);">
+                    <h3 style="margin: 0;">📋 Budget Expenses</h3>
+                    <button type="button" class="btn btn--primary" id="weddingAddExpense" style="padding: 4px 10px; font-size: 12px;">+ Add</button>
+                </div>
+                <div id="weddingExpensesList" class="wedding-list"></div>
+            </div>
+
+            <!-- Off-budget expenses -->
+            <div class="card">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-12);">
+                    <h3 style="margin: 0;">🎁 Off-Budget</h3>
+                    <button type="button" class="btn btn--secondary" id="weddingAddOffBudget" style="padding: 4px 10px; font-size: 12px;">+ Add</button>
+                </div>
+                <div id="weddingOffBudgetList" class="wedding-list"></div>
+                <div style="margin-top: var(--space-12); padding-top: var(--space-12); border-top: 1px solid var(--color-border); font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                    Off-budget total: <strong id="weddingOffBudgetTotal">SGD 0</strong>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Wedding modal: add/edit expense -->
+    <div id="weddingModal" class="wedding-modal" style="display: none;">
+        <div class="wedding-modal-overlay"></div>
+        <div class="wedding-modal-content">
+            <h3 style="margin-top: 0;">Add Expense</h3>
+            <div class="form-group">
+                <label class="form-label">Label</label>
+                <input type="text" id="weddingModalLabel" class="form-input" placeholder="e.g. Photographer, Catering, Flowers">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (SGD)</label>
+                <input type="number" id="weddingModalAmount" class="form-input" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Who Paid</label>
+                <select id="weddingModalPaidBy" class="form-input">
+                    <option value="">Select...</option>
+                    <option value="Kenny">Kenny</option>
+                    <option value="Sayuri">Sayuri</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button type="button" class="btn btn--secondary" id="weddingModalCancel">Cancel</button>
+                <button type="button" class="btn btn--primary" id="weddingModalSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wedding budget edit modal -->
+    <div id="weddingBudgetModal" class="wedding-modal" style="display: none;">
+        <div class="wedding-modal-overlay"></div>
+        <div class="wedding-modal-content">
+            <h3 style="margin-top: 0;">Edit Budget</h3>
+            <div class="form-group">
+                <label class="form-label">Total Budget (SGD)</label>
+                <input type="number" id="weddingBudgetInput" class="form-input" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button type="button" class="btn btn--secondary" id="weddingBudgetCancel">Cancel</button>
+                <button type="button" class="btn btn--primary" id="weddingBudgetSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .wedding-wrap { max-width: 760px; margin: 0 auto; }
+        .wedding-budget-card { background: linear-gradient(135deg, rgba(33,128,141,0.08), rgba(33,128,141,0.03)); border-color: var(--color-primary); }
+        .wedding-list { display: flex; flex-direction: column; gap: var(--space-8); }
+        .wedding-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: var(--space-12); border-radius: var(--radius-base);
+            background: var(--color-background); border: 1px solid var(--color-border);
+            font-size: var(--font-size-sm);
+        }
+        .wedding-item-left { flex: 1; }
+        .wedding-item-label { font-weight: 600; margin-bottom: 2px; }
+        .wedding-item-who { font-size: 11px; color: var(--color-text-secondary); }
+        .wedding-item-amount { font-weight: 700; color: var(--color-primary); min-width: 80px; text-align: right; }
+        .wedding-item-actions { display: flex; gap: 6px; margin-left: var(--space-8); }
+        .wedding-item-actions button { padding: 4px 8px; font-size: 11px; }
+        .wedding-list:empty::after {
+            content: 'No expenses yet. Add one to get started.';
+            text-align: center; padding: var(--space-16); color: var(--color-text-secondary); font-size: var(--font-size-sm);
+        }
+        .wedding-modal { position: fixed; inset: 0; z-index: 300; display: flex; align-items: flex-end; }
+        .wedding-modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+        .wedding-modal-content {
+            position: relative; z-index: 1; background: var(--color-surface); width: 100%; max-width: 500px;
+            border-radius: 18px 18px 0 0; padding: var(--space-20) calc(var(--space-20) + env(safe-area-inset-bottom));
+            animation: slideUp 0.3s ease both;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } }
+        @media (min-width: 768px) {
+            .wedding-modal { align-items: center; justify-content: center; }
+            .wedding-modal-content { width: 90%; max-width: 400px; border-radius: var(--radius-lg); padding: var(--space-20); }
+        }
+    </style>
+
+    <script>
+    (function initWedding() {
+        const WEDDING_DOC = () => db.collection('weddings').doc('2026-nov');
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+
+        let state = { budget: 0, budgetExpenses: [], offBudgetExpenses: [] };
+        let weddingUnsub = null;
+        let suppressWrite = false;
+        let editingType = null; // 'budget' or 'offBudget'
+        let editingIdx = null;
+
+        // ----- Persistence -----
+        async function saveState() {
+            if (suppressWrite) return;
+            if (isLive()) {
+                try { await WEDDING_DOC().set(state); }
+                catch (e) { console.error('wedding save', e); }
+            } else {
+                localStorage.setItem('weddingState', JSON.stringify(state));
+            }
+        }
+        function loadLocal() {
+            const raw = localStorage.getItem('weddingState');
+            if (raw) { try { state = JSON.parse(raw); } catch(e){} }
+            renderAll();
+        }
+        function listenLive() {
+            if (weddingUnsub) weddingUnsub();
+            weddingUnsub = WEDDING_DOC().onSnapshot(snap => {
+                if (snap.exists) {
+                    suppressWrite = true;
+                    state = Object.assign({ budget: 0, budgetExpenses: [], offBudgetExpenses: [] }, snap.data());
+                    suppressWrite = false;
+                } else {
+                    WEDDING_DOC().set(state);
+                }
+                renderAll();
+            }, err => console.error('wedding listen', err));
+        }
+
+        // ----- Rendering -----
+        function renderBudget() {
+            const el = document.getElementById('weddingBudgetDisplay');
+            if (el) el.textContent = state.budget.toFixed(2);
+        }
+        function renderSummary() {
+            const projected = (state.budgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            const actual = projected; // for now, same as projected
+            const remaining = Math.max(0, state.budget - projected);
+
+            document.getElementById('weddingProjected').textContent = `SGD ${projected.toFixed(2)}`;
+            document.getElementById('weddingActual').textContent = `SGD ${actual.toFixed(2)}`;
+            document.getElementById('weddingRemaining').textContent = `SGD ${remaining.toFixed(2)}`;
+
+            const pct = state.budget > 0 ? (projected / state.budget) * 100 : 0;
+            const bar = document.getElementById('weddingProgressProjected');
+            if (bar) bar.style.width = Math.min(pct, 100) + '%';
+        }
+        function renderExpenses() {
+            const list = document.getElementById('weddingExpensesList');
+            if (!list) return;
+            list.innerHTML = '';
+            (state.budgetExpenses || []).forEach((exp, idx) => {
+                const item = document.createElement('div');
+                item.className = 'wedding-item';
+                item.innerHTML = `
+                    <div class="wedding-item-left">
+                        <div class="wedding-item-label">${exp.label || 'Untitled'}</div>
+                        <div class="wedding-item-who">Paid by ${exp.paidBy || '—'}</div>
+                    </div>
+                    <div class="wedding-item-amount">SGD ${(parseFloat(exp.amount) || 0).toFixed(2)}</div>
+                    <div class="wedding-item-actions">
+                        <button type="button" class="btn btn--secondary" onclick="window.editWeddingExpense('budget', ${idx})">Edit</button>
+                        <button type="button" class="btn btn--secondary" onclick="window.deleteWeddingExpense('budget', ${idx})">Delete</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+        function renderOffBudget() {
+            const list = document.getElementById('weddingOffBudgetList');
+            if (!list) return;
+            list.innerHTML = '';
+            (state.offBudgetExpenses || []).forEach((exp, idx) => {
+                const item = document.createElement('div');
+                item.className = 'wedding-item';
+                item.innerHTML = `
+                    <div class="wedding-item-left">
+                        <div class="wedding-item-label">${exp.label || 'Untitled'}</div>
+                        <div class="wedding-item-who">Paid by ${exp.paidBy || '—'}</div>
+                    </div>
+                    <div class="wedding-item-amount">SGD ${(parseFloat(exp.amount) || 0).toFixed(2)}</div>
+                    <div class="wedding-item-actions">
+                        <button type="button" class="btn btn--secondary" onclick="window.editWeddingExpense('offBudget', ${idx})">Edit</button>
+                        <button type="button" class="btn btn--secondary" onclick="window.deleteWeddingExpense('offBudget', ${idx})">Delete</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            const total = (state.offBudgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            document.getElementById('weddingOffBudgetTotal').textContent = `SGD ${total.toFixed(2)}`;
+        }
+        function renderAll() { renderBudget(); renderSummary(); renderExpenses(); renderOffBudget(); }
+
+        // ----- Modal logic -----
+        function openAddExpenseModal(type) {
+            editingType = type;
+            editingIdx = null;
+            document.getElementById('weddingModalLabel').value = '';
+            document.getElementById('weddingModalAmount').value = '';
+            document.getElementById('weddingModalPaidBy').value = '';
+            document.getElementById('weddingModal').style.display = 'flex';
+        }
+        function closeExpenseModal() {
+            document.getElementById('weddingModal').style.display = 'none';
+            editingType = null;
+            editingIdx = null;
+        }
+        function saveExpense() {
+            const label = document.getElementById('weddingModalLabel').value.trim();
+            const amount = parseFloat(document.getElementById('weddingModalAmount').value) || 0;
+            const paidBy = document.getElementById('weddingModalPaidBy').value;
+            if (!label || amount <= 0 || !paidBy) { alert('Please fill all fields'); return; }
+
+            const arr = editingType === 'budget' ? state.budgetExpenses : state.offBudgetExpenses;
+            const exp = { label, amount, paidBy, date: new Date().toISOString() };
+            if (editingIdx !== null) {
+                arr[editingIdx] = exp;
+            } else {
+                arr.push(exp);
+            }
+            renderAll();
+            saveState();
+            closeExpenseModal();
+        }
+        window.editWeddingExpense = function(type, idx) {
+            editingType = type;
+            editingIdx = idx;
+            const arr = type === 'budget' ? state.budgetExpenses : state.offBudgetExpenses;
+            const exp = arr[idx];
+            document.getElementById('weddingModalLabel').value = exp.label || '';
+            document.getElementById('weddingModalAmount').value = exp.amount || '';
+            document.getElementById('weddingModalPaidBy').value = exp.paidBy || '';
+            document.getElementById('weddingModal').style.display = 'flex';
+        };
+        window.deleteWeddingExpense = function(type, idx) {
+            if (!confirm('Delete this expense?')) return;
+            const arr = type === 'budget' ? state.budgetExpenses : state.offBudgetExpenses;
+            arr.splice(idx, 1);
+            renderAll();
+            saveState();
+        };
+
+        // Budget edit modal
+        function openBudgetModal() {
+            document.getElementById('weddingBudgetInput').value = state.budget.toFixed(2);
+            document.getElementById('weddingBudgetModal').style.display = 'flex';
+        }
+        function closeBudgetModal() {
+            document.getElementById('weddingBudgetModal').style.display = 'none';
+        }
+        function saveBudget() {
+            const val = parseFloat(document.getElementById('weddingBudgetInput').value) || 0;
+            if (val < 0) { alert('Budget must be ≥ 0'); return; }
+            state.budget = val;
+            renderAll();
+            saveState();
+            closeBudgetModal();
+        }
+
+        // Wire up buttons
+        document.getElementById('weddingAddExpense').onclick = () => openAddExpenseModal('budget');
+        document.getElementById('weddingAddOffBudget').onclick = () => openAddExpenseModal('offBudget');
+        document.getElementById('weddingEditBudget').onclick = openBudgetModal;
+        document.getElementById('weddingModalSave').onclick = saveExpense;
+        document.getElementById('weddingModalCancel').onclick = closeExpenseModal;
+        document.getElementById('weddingBudgetSave').onclick = saveBudget;
+        document.getElementById('weddingBudgetCancel').onclick = closeBudgetModal;
+        document.getElementById('weddingModal').addEventListener('click', (e) => {
+            if (e.target.id === 'weddingModal') closeExpenseModal();
+        });
+        document.getElementById('weddingBudgetModal').addEventListener('click', (e) => {
+            if (e.target.id === 'weddingBudgetModal') closeBudgetModal();
+        });
+
+        // Init
+        if (isLive()) listenLive(); else loadLocal();
+        window.weddingInitLive = function() { listenLive(); };
+        window.weddingInitLocal = function() { if (weddingUnsub) weddingUnsub(); loadLocal(); };
+    })();
+    </script>
 
     <!-- ============ TERRARIUM TAB ============ -->
     <style>
@@ -2620,11 +2931,13 @@
                     initMikaChecklist();
                     initMikaHealth();
                     if (window.terraInitLive) window.terraInitLive();
+                    if (window.weddingInitLive) window.weddingInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
                     renderExpenseList();
                     if (window.terraInitLocal) window.terraInitLocal();
+                    if (window.weddingInitLocal) window.weddingInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
