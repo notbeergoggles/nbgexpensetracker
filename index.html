@@ -1723,16 +1723,16 @@
         // ----- Rendering -----
         function renderBudget() {
             const el = document.getElementById('weddingBudgetDisplay');
-            if (el) el.textContent = state.budget.toFixed(2);
+            if (el) el.textContent = (state.budget || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
         function renderSummary() {
             const projected = (state.budgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
             const actual = projected; // for now, same as projected
             const remaining = Math.max(0, state.budget - projected);
 
-            document.getElementById('weddingProjected').textContent = `SGD ${projected.toFixed(2)}`;
-            document.getElementById('weddingActual').textContent = `SGD ${actual.toFixed(2)}`;
-            document.getElementById('weddingRemaining').textContent = `SGD ${remaining.toFixed(2)}`;
+            document.getElementById('weddingProjected').textContent = `SGD ${projected.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('weddingActual').textContent = `SGD ${actual.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('weddingRemaining').textContent = `SGD ${remaining.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
             const pct = state.budget > 0 ? (projected / state.budget) * 100 : 0;
             const bar = document.getElementById('weddingProgressProjected');
@@ -1750,7 +1750,7 @@
                         <div class="wedding-item-label">${exp.label || 'Untitled'}</div>
                         <div class="wedding-item-who">Paid by ${exp.paidBy || '—'}</div>
                     </div>
-                    <div class="wedding-item-amount">SGD ${(parseFloat(exp.amount) || 0).toFixed(2)}</div>
+                    <div class="wedding-item-amount">SGD ${(parseFloat(exp.amount) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     <div class="wedding-item-actions">
                         <button type="button" class="btn btn--secondary" onclick="window.editWeddingExpense('budget', ${idx})">Edit</button>
                         <button type="button" class="btn btn--secondary" onclick="window.deleteWeddingExpense('budget', ${idx})">Delete</button>
@@ -1771,7 +1771,7 @@
                         <div class="wedding-item-label">${exp.label || 'Untitled'}</div>
                         <div class="wedding-item-who">Paid by ${exp.paidBy || '—'}</div>
                     </div>
-                    <div class="wedding-item-amount">SGD ${(parseFloat(exp.amount) || 0).toFixed(2)}</div>
+                    <div class="wedding-item-amount">SGD ${(parseFloat(exp.amount) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     <div class="wedding-item-actions">
                         <button type="button" class="btn btn--secondary" onclick="window.editWeddingExpense('offBudget', ${idx})">Edit</button>
                         <button type="button" class="btn btn--secondary" onclick="window.deleteWeddingExpense('offBudget', ${idx})">Delete</button>
@@ -1780,7 +1780,7 @@
                 list.appendChild(item);
             });
             const total = (state.offBudgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-            document.getElementById('weddingOffBudgetTotal').textContent = `SGD ${total.toFixed(2)}`;
+            document.getElementById('weddingOffBudgetTotal').textContent = `SGD ${total.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         function renderAll() { renderBudget(); renderSummary(); renderExpenses(); renderOffBudget(); }
 
@@ -1835,7 +1835,7 @@
 
         // Budget edit modal
         function openBudgetModal() {
-            document.getElementById('weddingBudgetInput').value = state.budget.toFixed(2);
+            document.getElementById('weddingBudgetInput').value = parseFloat(state.budget || 0).toFixed(2);
             document.getElementById('weddingBudgetModal').style.display = 'flex';
         }
         function closeBudgetModal() {
