@@ -1088,6 +1088,26 @@
     </style>
 </head>
 <body>
+    <!-- Global save-error toast -->
+    <div id="saveErrorToast" style="display:none; position:fixed; left:50%; bottom:90px; transform:translateX(-50%); z-index:9999; background:#d4453e; color:#fff; padding:12px 18px; border-radius:50px; font-size:14px; font-weight:600; box-shadow:0 4px 20px rgba(0,0,0,0.25); max-width:90%; text-align:center;"></div>
+    <script>
+        window.showSaveError = (function() {
+            let hideTimer = null;
+            return function(label, err) {
+                console.error(label + ' save failed:', err);
+                const t = document.getElementById('saveErrorToast');
+                if (!t) return;
+                const perm = err && (err.code === 'permission-denied' || /permission/i.test(err.message || ''));
+                t.textContent = perm
+                    ? `⚠️ Couldn't save ${label} — permission denied (check Firestore rules)`
+                    : `⚠️ Couldn't save ${label} — check your connection`;
+                t.style.display = 'block';
+                if (navigator.vibrate) try { navigator.vibrate([40, 60, 40]); } catch(e){}
+                clearTimeout(hideTimer);
+                hideTimer = setTimeout(() => { t.style.display = 'none'; }, 5000);
+            };
+        })();
+    </script>
     
     
     <!-- UI Fluff -->
@@ -1661,7 +1681,7 @@
         async function save() {
             if (suppressWrite) return;
             if (isLive()) {
-                try { await VOUCHER_DOC().set({ vouchers }); } catch (e) { console.error('voucher save', e); }
+                try { await VOUCHER_DOC().set({ vouchers }); } catch (e) { window.showSaveError && window.showSaveError('vouchers', e); }
             } else {
                 localStorage.setItem('vouchersState', JSON.stringify(vouchers));
             }
@@ -1899,7 +1919,7 @@
             if (suppressWrite) return;
             if (isLive()) {
                 try { await TODO_DOC().set({ tasks }); }
-                catch (e) { console.error('todo save', e); }
+                catch (e) { window.showSaveError && window.showSaveError('to-do', e); }
             } else {
                 localStorage.setItem('todoTasks', JSON.stringify(tasks));
             }
@@ -2187,7 +2207,7 @@
             if (suppressWrite) return;
             if (isLive()) {
                 try { await WEDDING_DOC().set(state); }
-                catch (e) { console.error('wedding save', e); }
+                catch (e) { window.showSaveError && window.showSaveError('wedding', e); }
             } else {
                 localStorage.setItem('weddingState', JSON.stringify(state));
             }
@@ -2583,7 +2603,7 @@
             if (suppressWrite) return;
             if (isLive()) {
                 try { await TERRA_DOC().set(state); }
-                catch (e) { console.error('terra save', e); }
+                catch (e) { window.showSaveError && window.showSaveError('terrarium', e); }
             } else {
                 localStorage.setItem('terrariumState', JSON.stringify(state));
             }
