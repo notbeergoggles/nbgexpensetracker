@@ -1565,9 +1565,9 @@
                     <span class="cur-faded">SGD</span><span id="weddingBudgetDisplay">0</span>
                 </div>
 
-                <!-- Progress bar: projected vs actual -->
-                <div style="margin-bottom: var(--space-16);">
-                    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px;">Spending breakdown</div>
+                <!-- Projected vs Actual vs Remaining -->
+                <div style="margin-bottom: var(--space-8);">
+                    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px;">Actual vs Budget</div>
                     <div style="width: 100%; height: 8px; border-radius: 4px; background: var(--color-border); overflow: hidden; position: relative;">
                         <div id="weddingProgressProjected" style="position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg, rgba(33,128,141,0.7), rgba(33,128,141,0.4)); width: 0%; transition: width 0.3s;"></div>
                     </div>
@@ -1579,13 +1579,28 @@
                 </div>
             </div>
 
-            <!-- Budget expenses -->
+            <!-- Projected spending -->
             <div class="card">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-12);">
-                    <h3 style="margin: 0;">📋 Budget Expenses</h3>
+                    <h3 style="margin: 0;">📐 Projected Spending</h3>
+                    <button type="button" class="btn btn--primary" id="weddingAddProjected" style="padding: 4px 10px; font-size: 12px;">+ Add</button>
+                </div>
+                <div id="weddingProjectedList" class="wedding-list"></div>
+                <div style="margin-top: var(--space-12); padding-top: var(--space-12); border-top: 1px solid var(--color-border); font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                    Projected total: <strong id="weddingProjectedTotal">SGD 0</strong>
+                </div>
+            </div>
+
+            <!-- Budget expenses (actual) -->
+            <div class="card">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-12);">
+                    <h3 style="margin: 0;">📋 Actual Expenses</h3>
                     <button type="button" class="btn btn--primary" id="weddingAddExpense" style="padding: 4px 10px; font-size: 12px;">+ Add</button>
                 </div>
                 <div id="weddingExpensesList" class="wedding-list"></div>
+                <div style="margin-top: var(--space-12); padding-top: var(--space-12); border-top: 1px solid var(--color-border); font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                    Actual total: <strong id="weddingActualTotal">SGD 0</strong>
+                </div>
             </div>
 
             <!-- Off-budget expenses -->
@@ -1685,7 +1700,7 @@
         const WEDDING_DOC = () => db.collection('weddings').doc('2026-nov');
         const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
 
-        let state = { budget: 0, budgetExpenses: [], offBudgetExpenses: [] };
+        let state = { budget: 0, projectedExpenses: [], budgetExpenses: [], offBudgetExpenses: [] };
         let weddingUnsub = null;
         let suppressWrite = false;
         let editingType = null; // 'budget' or 'offBudget'
@@ -1711,7 +1726,7 @@
             weddingUnsub = WEDDING_DOC().onSnapshot(snap => {
                 if (snap.exists) {
                     suppressWrite = true;
-                    state = Object.assign({ budget: 0, budgetExpenses: [], offBudgetExpenses: [] }, snap.data());
+                    state = Object.assign({ budget: 0, projectedExpenses: [], budgetExpenses: [], offBudgetExpenses: [] }, snap.data());
                     suppressWrite = false;
                 } else {
                     WEDDING_DOC().set(state);
@@ -1726,17 +1741,40 @@
             if (el) el.textContent = (state.budget || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
         function renderSummary() {
-            const projected = (state.budgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-            const actual = projected; // for now, same as projected
-            const remaining = Math.max(0, state.budget - projected);
+            const projected = (state.projectedExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            const actual = (state.budgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            const remaining = Math.max(0, state.budget - actual);
 
             document.getElementById('weddingProjected').textContent = `SGD ${projected.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             document.getElementById('weddingActual').textContent = `SGD ${actual.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             document.getElementById('weddingRemaining').textContent = `SGD ${remaining.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-            const pct = state.budget > 0 ? (projected / state.budget) * 100 : 0;
+            const pct = state.budget > 0 ? (actual / state.budget) * 100 : 0;
             const bar = document.getElementById('weddingProgressProjected');
             if (bar) bar.style.width = Math.min(pct, 100) + '%';
+        }
+        function renderProjected() {
+            const list = document.getElementById('weddingProjectedList');
+            if (!list) return;
+            list.innerHTML = '';
+            (state.projectedExpenses || []).forEach((exp, idx) => {
+                const item = document.createElement('div');
+                item.className = 'wedding-item';
+                item.innerHTML = `
+                    <div class="wedding-item-left">
+                        <div class="wedding-item-label">${exp.label || 'Untitled'}</div>
+                        <div class="wedding-item-who">Paid by ${exp.paidBy || '—'}</div>
+                    </div>
+                    <div class="wedding-item-amount">SGD ${(parseFloat(exp.amount) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div class="wedding-item-actions">
+                        <button type="button" class="btn btn--secondary" onclick="window.editWeddingExpense('projected', ${idx})">Edit</button>
+                        <button type="button" class="btn btn--secondary" onclick="window.deleteWeddingExpense('projected', ${idx})">Delete</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            const total = (state.projectedExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            document.getElementById('weddingProjectedTotal').textContent = `SGD ${total.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         function renderExpenses() {
             const list = document.getElementById('weddingExpensesList');
@@ -1758,6 +1796,8 @@
                 `;
                 list.appendChild(item);
             });
+            const total = (state.budgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            document.getElementById('weddingActualTotal').textContent = `SGD ${total.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         function renderOffBudget() {
             const list = document.getElementById('weddingOffBudgetList');
@@ -1782,7 +1822,7 @@
             const total = (state.offBudgetExpenses || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
             document.getElementById('weddingOffBudgetTotal').textContent = `SGD ${total.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
-        function renderAll() { renderBudget(); renderSummary(); renderExpenses(); renderOffBudget(); }
+        function renderAll() { renderBudget(); renderSummary(); renderProjected(); renderExpenses(); renderOffBudget(); }
 
         // ----- Modal logic -----
         function openAddExpenseModal(type) {
@@ -1798,13 +1838,18 @@
             editingType = null;
             editingIdx = null;
         }
+        function arrFor(type) {
+            if (type === 'projected') return state.projectedExpenses;
+            if (type === 'offBudget') return state.offBudgetExpenses;
+            return state.budgetExpenses;
+        }
         function saveExpense() {
             const label = document.getElementById('weddingModalLabel').value.trim();
             const amount = parseFloat(document.getElementById('weddingModalAmount').value) || 0;
             const paidBy = document.getElementById('weddingModalPaidBy').value;
             if (!label || amount <= 0 || !paidBy) { alert('Please fill all fields'); return; }
 
-            const arr = editingType === 'budget' ? state.budgetExpenses : state.offBudgetExpenses;
+            const arr = arrFor(editingType);
             const exp = { label, amount, paidBy, date: new Date().toISOString() };
             if (editingIdx !== null) {
                 arr[editingIdx] = exp;
@@ -1818,7 +1863,7 @@
         window.editWeddingExpense = function(type, idx) {
             editingType = type;
             editingIdx = idx;
-            const arr = type === 'budget' ? state.budgetExpenses : state.offBudgetExpenses;
+            const arr = arrFor(type);
             const exp = arr[idx];
             document.getElementById('weddingModalLabel').value = exp.label || '';
             document.getElementById('weddingModalAmount').value = exp.amount || '';
@@ -1827,7 +1872,7 @@
         };
         window.deleteWeddingExpense = function(type, idx) {
             if (!confirm('Delete this expense?')) return;
-            const arr = type === 'budget' ? state.budgetExpenses : state.offBudgetExpenses;
+            const arr = arrFor(type);
             arr.splice(idx, 1);
             renderAll();
             saveState();
@@ -1851,6 +1896,7 @@
         }
 
         // Wire up buttons
+        document.getElementById('weddingAddProjected').onclick = () => openAddExpenseModal('projected');
         document.getElementById('weddingAddExpense').onclick = () => openAddExpenseModal('budget');
         document.getElementById('weddingAddOffBudget').onclick = () => openAddExpenseModal('offBudget');
         document.getElementById('weddingEditBudget').onclick = openBudgetModal;
