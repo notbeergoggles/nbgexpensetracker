@@ -1147,6 +1147,7 @@
             <button type="button" class="tab-button" data-tab="mika">🐾 Mika</button>
             <button type="button" class="tab-button" data-tab="terrarium">🌿 Terrarium</button>
             <button type="button" class="tab-button" data-tab="wedding">💍 Wedding</button>
+            <button type="button" class="tab-button" data-tab="todo">✅ To-Do</button>
         </div>
 
         <!-- ===== Mobile bottom nav + drawer ===== -->
@@ -1551,6 +1552,224 @@
             </form>
         </div>
     </div>
+
+    <!-- ============ TO-DO TAB ============ -->
+    <div id="todo" class="tab-content">
+        <div class="todo-wrap">
+            <!-- Add task -->
+            <div class="card">
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="todoInput" class="form-input" placeholder="Add a task..." style="flex:1;">
+                    <button type="button" class="btn btn--primary" id="todoAddBtn" style="flex-shrink:0;">Add</button>
+                </div>
+            </div>
+
+            <!-- Task list -->
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">📝 My Tasks</h3>
+                    <span class="todo-count" id="todoCount">0 left</span>
+                </div>
+                <div id="todoList" class="todo-list"></div>
+            </div>
+
+            <!-- AI assistant -->
+            <div class="card todo-ai-card">
+                <h3 style="margin:0 0 var(--space-8);">🤖 Ask Claude</h3>
+                <p class="terra-hint" style="margin-bottom:var(--space-12);">Describe what you need and Claude will add tasks to your list. E.g. "plan my week for wedding prep" or "groceries for a Japanese dinner party".</p>
+                <div id="todoChatLog" class="todo-chat-log"></div>
+                <div style="display:flex; gap:8px; margin-top:var(--space-12);">
+                    <input type="text" id="todoChatInput" class="form-input" placeholder="Ask Claude to plan something..." style="flex:1;">
+                    <button type="button" class="btn btn--primary" id="todoChatSend" style="flex-shrink:0;">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .todo-wrap { max-width: 760px; margin: 0 auto; }
+        .todo-count { font-size: 12px; color: var(--color-text-secondary); }
+        .todo-list { display: flex; flex-direction: column; gap: var(--space-8); }
+        .todo-list:empty::after {
+            content: 'No tasks yet. Add one above or ask Claude.';
+            display: block; text-align: center; padding: var(--space-16);
+            color: var(--color-text-secondary); font-size: var(--font-size-sm);
+        }
+        .todo-item {
+            display: flex; align-items: center; gap: var(--space-12);
+            padding: var(--space-12); border-radius: var(--radius-base);
+            background: var(--color-background); border: 1px solid var(--color-border);
+            animation: cardEnter 0.3s ease both;
+        }
+        .todo-checkbox {
+            width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+            border: 2px solid var(--color-border); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s; background: none;
+        }
+        .todo-checkbox.done { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+        .todo-text { flex: 1; font-size: var(--font-size-base); word-break: break-word; }
+        .todo-text.done { text-decoration: line-through; color: var(--color-text-secondary); opacity: 0.7; }
+        .todo-del {
+            flex-shrink: 0; background: none; border: none; cursor: pointer;
+            color: var(--color-text-secondary); font-size: 16px; padding: 4px 8px; border-radius: 6px;
+        }
+        .todo-del:hover { color: #d4453e; background: rgba(212,69,62,0.1); }
+        .todo-ai-card { background: linear-gradient(135deg, rgba(33,128,141,0.06), rgba(168,75,255,0.04)); }
+        .todo-chat-log { display: flex; flex-direction: column; gap: var(--space-8); max-height: 280px; overflow-y: auto; }
+        .todo-chat-log:empty { display: none; }
+        .todo-msg { padding: 8px 12px; border-radius: 12px; font-size: var(--font-size-sm); max-width: 85%; }
+        .todo-msg.user { align-self: flex-end; background: var(--color-primary); color: #fff; border-bottom-right-radius: 4px; }
+        .todo-msg.ai { align-self: flex-start; background: var(--color-surface); border: 1px solid var(--color-border); border-bottom-left-radius: 4px; }
+        .todo-msg.ai.thinking { opacity: 0.6; font-style: italic; }
+    </style>
+
+    <script>
+    (function initTodo() {
+        // ===== CONFIG: paste your Cloudflare Worker URL here =====
+        const WORKER_URL = "https://YOUR-WORKER.workers.dev"; // <-- change this
+        // =========================================================
+
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const TODO_DOC = () => db.collection('todos').doc(currentUser.uid); // private per user
+
+        let tasks = [];
+        let todoUnsub = null;
+        let suppressWrite = false;
+
+        // ----- Persistence -----
+        async function saveTasks() {
+            if (suppressWrite) return;
+            if (isLive()) {
+                try { await TODO_DOC().set({ tasks }); }
+                catch (e) { console.error('todo save', e); }
+            } else {
+                localStorage.setItem('todoTasks', JSON.stringify(tasks));
+            }
+        }
+        function loadLocal() {
+            const raw = localStorage.getItem('todoTasks');
+            tasks = raw ? (JSON.parse(raw) || []) : [];
+            renderTasks();
+        }
+        function listenLive() {
+            if (todoUnsub) todoUnsub();
+            todoUnsub = TODO_DOC().onSnapshot(snap => {
+                suppressWrite = true;
+                tasks = (snap.exists && snap.data().tasks) ? snap.data().tasks : [];
+                suppressWrite = false;
+                renderTasks();
+            }, err => console.error('todo listen', err));
+        }
+
+        // ----- Render -----
+        function renderTasks() {
+            const list = document.getElementById('todoList');
+            if (!list) return;
+            list.innerHTML = '';
+            tasks.forEach((t, idx) => {
+                const row = document.createElement('div');
+                row.className = 'todo-item';
+                const cb = document.createElement('button');
+                cb.className = 'todo-checkbox' + (t.done ? ' done' : '');
+                cb.innerHTML = t.done ? '✓' : '';
+                cb.onclick = () => { tasks[idx].done = !tasks[idx].done; renderTasks(); saveTasks(); };
+                const txt = document.createElement('span');
+                txt.className = 'todo-text' + (t.done ? ' done' : '');
+                txt.textContent = t.text;
+                const del = document.createElement('button');
+                del.className = 'todo-del';
+                del.innerHTML = '🗑️';
+                del.onclick = () => { tasks.splice(idx, 1); renderTasks(); saveTasks(); };
+                row.append(cb, txt, del);
+                list.appendChild(row);
+            });
+            const left = tasks.filter(t => !t.done).length;
+            const countEl = document.getElementById('todoCount');
+            if (countEl) countEl.textContent = `${left} left`;
+        }
+
+        // ----- Add task -----
+        function addTask(text) {
+            const clean = (text || '').trim();
+            if (!clean) return;
+            tasks.push({ text: clean, done: false, created: Date.now() });
+            renderTasks();
+            saveTasks();
+        }
+        const input = document.getElementById('todoInput');
+        document.getElementById('todoAddBtn').onclick = () => { addTask(input.value); input.value = ''; };
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { addTask(input.value); input.value = ''; } });
+
+        // ----- AI chat -----
+        const chatLog = document.getElementById('todoChatLog');
+        const chatInput = document.getElementById('todoChatInput');
+        function addMsg(text, cls) {
+            const m = document.createElement('div');
+            m.className = 'todo-msg ' + cls;
+            m.textContent = text;
+            chatLog.appendChild(m);
+            chatLog.scrollTop = chatLog.scrollHeight;
+            return m;
+        }
+        async function askClaude(prompt) {
+            if (!prompt.trim()) return;
+            if (WORKER_URL.includes('YOUR-WORKER')) {
+                addMsg('⚠️ Worker URL not set yet. Paste your Cloudflare Worker URL into the To-Do script (WORKER_URL).', 'ai');
+                return;
+            }
+            addMsg(prompt, 'user');
+            chatInput.value = '';
+            const thinking = addMsg('Claude is thinking...', 'ai thinking');
+
+            const systemPrompt = "You are a helpful task-planning assistant inside a personal to-do app. " +
+                "The user will describe something they want to accomplish. Break it into clear, actionable to-do items. " +
+                "Respond ONLY with a JSON array of short task strings, nothing else. No markdown, no backticks, no preamble. " +
+                "Example: [\"Book photographer deposit\", \"Confirm guest count with venue\"]. Keep each task concise and actionable. Aim for 3-8 tasks unless the request implies more.";
+
+            try {
+                const res = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-6',
+                        max_tokens: 1024,
+                        system: systemPrompt,
+                        messages: [{ role: 'user', content: prompt }],
+                    }),
+                });
+                const data = await res.json();
+                thinking.remove();
+                if (data.error) { addMsg('Error: ' + (data.error.message || JSON.stringify(data.error)), 'ai'); return; }
+
+                const textOut = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+                let newTasks = [];
+                try {
+                    const clean = textOut.replace(/```json|```/g, '').trim();
+                    newTasks = JSON.parse(clean);
+                } catch (e) {
+                    addMsg("Couldn't parse tasks. Claude said: " + textOut, 'ai');
+                    return;
+                }
+                if (!Array.isArray(newTasks) || !newTasks.length) { addMsg('No tasks generated. Try rephrasing.', 'ai'); return; }
+                newTasks.forEach(t => { if (typeof t === 'string' && t.trim()) tasks.push({ text: t.trim(), done: false, created: Date.now() }); });
+                renderTasks();
+                saveTasks();
+                addMsg(`Added ${newTasks.length} task${newTasks.length > 1 ? 's' : ''} to your list ✅`, 'ai');
+            } catch (err) {
+                thinking.remove();
+                addMsg('Network error reaching Claude. Check your Worker URL and that it\u2019s deployed.', 'ai');
+            }
+        }
+        document.getElementById('todoChatSend').onclick = () => askClaude(chatInput.value);
+        chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') askClaude(chatInput.value); });
+
+        // ----- Init / auth hooks -----
+        if (isLive()) listenLive(); else loadLocal();
+        window.todoInitLive = function() { listenLive(); };
+        window.todoInitLocal = function() { if (todoUnsub) todoUnsub(); loadLocal(); };
+    })();
+    </script>
 
     <!-- ============ WEDDING TAB ============ -->
     <div id="wedding" class="tab-content">
@@ -2978,12 +3197,14 @@
                     initMikaHealth();
                     if (window.terraInitLive) window.terraInitLive();
                     if (window.weddingInitLive) window.weddingInitLive();
+                    if (window.todoInitLive) window.todoInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
                     renderExpenseList();
                     if (window.terraInitLocal) window.terraInitLocal();
                     if (window.weddingInitLocal) window.weddingInitLocal();
+                    if (window.todoInitLocal) window.todoInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -3108,6 +3329,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'mika',      label: 'Mika',      ico: 'fa-solid fa-paw' },
             { tab: 'terrarium', label: 'Terrarium', ico: 'fa-solid fa-seedling' },
             { tab: 'wedding',   label: 'Wedding',   ico: 'fa-solid fa-ring' },
+            { tab: 'todo',      label: 'To-Do',     ico: 'fa-solid fa-square-check' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
