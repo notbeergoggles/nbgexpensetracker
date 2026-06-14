@@ -1148,6 +1148,7 @@
             <button type="button" class="tab-button" data-tab="terrarium">🌿 Terrarium</button>
             <button type="button" class="tab-button" data-tab="wedding">💍 Wedding</button>
             <button type="button" class="tab-button" data-tab="todo">✅ To-Do</button>
+            <button type="button" class="tab-button" data-tab="vouchers">🎟️ Vouchers</button>
         </div>
 
         <!-- ===== Mobile bottom nav + drawer ===== -->
@@ -1553,6 +1554,262 @@
         </div>
     </div>
 
+    <!-- ============ VOUCHERS TAB ============ -->
+    <div id="vouchers" class="tab-content">
+        <div class="vouchers-wrap">
+            <!-- Expiring-soon banner -->
+            <div id="voucherBanner" class="voucher-banner" style="display:none;"></div>
+
+            <!-- Add voucher -->
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">🎟️ Add Voucher</h3>
+                    <button type="button" class="btn btn--primary" id="voucherAddBtn" style="padding:4px 10px; font-size:12px;">+ New</button>
+                </div>
+                <div id="voucherForm" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <input type="text" id="voucherName" class="form-input" placeholder="e.g. Grab $10 off ride">
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">Value (SGD)</label>
+                            <input type="number" id="voucherValue" class="form-input" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">Expiry</label>
+                            <input type="date" id="voucherExpiry" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Where to use</label>
+                        <input type="text" id="voucherWhere" class="form-input" placeholder="e.g. Grab app, FairPrice, Shopee">
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn--secondary" id="voucherFormCancel">Cancel</button>
+                        <button type="button" class="btn btn--primary" id="voucherFormSave">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active vouchers -->
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">Active</h3>
+                    <span class="todo-count" id="voucherActiveCount">0</span>
+                </div>
+                <div id="voucherList" class="voucher-list"></div>
+            </div>
+
+            <!-- Archived (used/expired) -->
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" id="voucherArchiveToggle">
+                    <h3 style="margin:0;">Archived <span class="todo-count" id="voucherArchiveCount" style="margin-left:6px;">0</span></h3>
+                    <span id="voucherArchiveChevron" style="color:var(--color-text-secondary);">▼</span>
+                </div>
+                <div id="voucherArchiveList" class="voucher-list" style="margin-top:var(--space-12); display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .vouchers-wrap { max-width: 760px; margin: 0 auto; }
+        .voucher-banner {
+            padding: 12px 16px; border-radius: var(--radius-lg); margin-bottom: var(--space-16);
+            background: linear-gradient(135deg, rgba(230,160,30,0.16), rgba(230,160,30,0.06));
+            border: 1px solid rgba(230,160,30,0.5); font-weight: 600; font-size: var(--font-size-sm);
+            animation: cardEnter 0.4s ease both;
+        }
+        .voucher-list { display: flex; flex-direction: column; gap: var(--space-8); }
+        .voucher-list:empty::after {
+            content: 'Nothing here.'; display: block; text-align: center;
+            padding: var(--space-16); color: var(--color-text-secondary); font-size: var(--font-size-sm);
+        }
+        .voucher-item {
+            padding: var(--space-12); border-radius: var(--radius-base);
+            background: var(--color-background); border: 1px solid var(--color-border);
+            border-left: 4px solid var(--color-border);
+            animation: cardEnter 0.3s ease both;
+        }
+        .voucher-item.urgent-amber { border-left-color: #e0a020; }
+        .voucher-item.urgent-red { border-left-color: #d4453e; }
+        .voucher-item.urgent-expired { border-left-color: #888; opacity: 0.65; }
+        .voucher-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .voucher-name { font-weight: 600; margin-bottom: 2px; }
+        .voucher-meta { font-size: 12px; color: var(--color-text-secondary); }
+        .voucher-value { font-weight: 700; color: var(--color-primary); white-space: nowrap; }
+        .voucher-expiry-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 50px; display: inline-block; margin-top: 6px; }
+        .voucher-expiry-tag.amber { background: rgba(230,160,30,0.18); color: #b5790f; }
+        .voucher-expiry-tag.red { background: rgba(212,69,62,0.18); color: #d4453e; }
+        .voucher-expiry-tag.expired { background: rgba(136,136,136,0.18); color: #777; }
+        .voucher-expiry-tag.safe { background: rgba(33,128,141,0.14); color: var(--color-primary); }
+        .voucher-actions { display: flex; gap: 6px; margin-top: var(--space-8); flex-wrap: wrap; }
+        .voucher-actions button { padding: 4px 10px; font-size: 11px; }
+    </style>
+
+    <script>
+    (function initVouchers() {
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const VOUCHER_DOC = () => db.collection('vouchers').doc('shared'); // shared
+
+        let vouchers = []; // {id, name, value, expiry(YYYY-MM-DD), where, used, archived}
+        let vUnsub = null;
+        let suppressWrite = false;
+        let archiveOpen = false;
+
+        // ----- Persistence -----
+        async function save() {
+            if (suppressWrite) return;
+            if (isLive()) {
+                try { await VOUCHER_DOC().set({ vouchers }); } catch (e) { console.error('voucher save', e); }
+            } else {
+                localStorage.setItem('vouchersState', JSON.stringify(vouchers));
+            }
+        }
+        function loadLocal() {
+            const raw = localStorage.getItem('vouchersState');
+            vouchers = raw ? (JSON.parse(raw) || []) : [];
+            renderAll();
+        }
+        function listenLive() {
+            if (vUnsub) vUnsub();
+            vUnsub = VOUCHER_DOC().onSnapshot(snap => {
+                suppressWrite = true;
+                vouchers = (snap.exists && snap.data().vouchers) ? snap.data().vouchers : [];
+                suppressWrite = false;
+                renderAll();
+            }, err => console.error('voucher listen', err));
+        }
+
+        // ----- Date helpers (SGT) -----
+        function daysUntil(expiry) {
+            if (!expiry) return Infinity;
+            const today = new Date(Date.now() + 8 * 3600 * 1000);
+            today.setUTCHours(0, 0, 0, 0);
+            const exp = new Date(expiry + 'T00:00:00Z');
+            return Math.round((exp - today) / 86400000);
+        }
+        function urgencyClass(d) {
+            if (d < 0) return 'expired';
+            if (d <= 3) return 'red';
+            if (d <= 14) return 'amber';
+            return 'safe';
+        }
+        function expiryText(d) {
+            if (d < 0) return `Expired ${-d}d ago`;
+            if (d === 0) return 'Expires today';
+            if (d === 1) return 'Expires tomorrow';
+            return `${d} days left`;
+        }
+
+        // ----- Render -----
+        function renderAll() {
+            const active = vouchers.filter(v => !v.archived);
+            const archived = vouchers.filter(v => v.archived);
+            // sort active by soonest expiry
+            active.sort((a, b) => daysUntil(a.expiry) - daysUntil(b.expiry));
+
+            // Banner
+            const soon = active.filter(v => { const d = daysUntil(v.expiry); return d >= 0 && d <= 7; });
+            const banner = document.getElementById('voucherBanner');
+            if (soon.length) {
+                banner.style.display = 'block';
+                banner.textContent = `⏰ ${soon.length} voucher${soon.length > 1 ? 's' : ''} expiring within 7 days — use ${soon.length > 1 ? 'them' : 'it'} soon!`;
+            } else {
+                banner.style.display = 'none';
+            }
+
+            renderList('voucherList', active, false);
+            renderList('voucherArchiveList', archived, true);
+            document.getElementById('voucherActiveCount').textContent = active.length;
+            document.getElementById('voucherArchiveCount').textContent = archived.length;
+        }
+        function renderList(elId, arr, isArchive) {
+            const list = document.getElementById(elId);
+            if (!list) return;
+            list.innerHTML = '';
+            arr.forEach(v => {
+                const d = daysUntil(v.expiry);
+                const uc = urgencyClass(d);
+                const item = document.createElement('div');
+                item.className = 'voucher-item' + (isArchive ? '' : ` urgent-${uc === 'safe' ? '' : uc}`).trimEnd();
+                const valTxt = v.value ? `SGD ${(parseFloat(v.value) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
+                item.innerHTML = `
+                    <div class="voucher-top">
+                        <div style="flex:1;">
+                            <div class="voucher-name">${escapeHtml(v.name || 'Untitled')}</div>
+                            <div class="voucher-meta">${v.where ? '📍 ' + escapeHtml(v.where) : ''}${v.expiry ? (v.where ? ' · ' : '') + 'Exp ' + v.expiry : ''}</div>
+                        </div>
+                        ${valTxt ? `<div class="voucher-value">${valTxt}</div>` : ''}
+                    </div>
+                    ${!isArchive && v.expiry ? `<span class="voucher-expiry-tag ${uc}">${expiryText(d)}</span>` : ''}
+                    ${v.used ? '<span class="voucher-expiry-tag expired">Used</span>' : ''}
+                    <div class="voucher-actions"></div>
+                `;
+                const actions = item.querySelector('.voucher-actions');
+                if (!isArchive) {
+                    actions.appendChild(mkBtn('✓ Mark used', 'btn--primary', () => { v.used = true; v.archived = true; save(); renderAll(); }));
+                    if (v.expiry && d >= 0) actions.appendChild(mkBtn('🔔 Remind', 'btn--secondary', () => remind(v)));
+                    actions.appendChild(mkBtn('🗑️', 'btn--secondary', () => { if (confirm('Delete this voucher?')) { remove(v); } }));
+                } else {
+                    actions.appendChild(mkBtn('↩ Restore', 'btn--secondary', () => { v.archived = false; v.used = false; save(); renderAll(); }));
+                    actions.appendChild(mkBtn('🗑️', 'btn--secondary', () => { if (confirm('Delete permanently?')) { remove(v); } }));
+                }
+                list.appendChild(item);
+            });
+        }
+        function mkBtn(label, cls, onclick) {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn ' + cls; b.textContent = label; b.onclick = onclick;
+            return b;
+        }
+        function remove(v) { vouchers = vouchers.filter(x => x.id !== v.id); save(); renderAll(); }
+        function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+        // ----- Calendar reminder (3 days before expiry) -----
+        function remind(v) {
+            const exp = new Date(v.expiry + 'T00:00:00');
+            const remindDate = new Date(exp.getTime() - 3 * 86400000);
+            remindDate.setHours(10, 0, 0, 0);
+            const end = new Date(remindDate.getTime() + 30 * 60000);
+            const fmt = dt => dt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            const title = encodeURIComponent(`Use voucher: ${v.name}`);
+            const details = encodeURIComponent(`${v.value ? 'Value: SGD ' + v.value + '\\n' : ''}${v.where ? 'Where: ' + v.where + '\\n' : ''}Expires: ${v.expiry}`);
+            const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmt(remindDate)}/${fmt(end)}&details=${details}`;
+            window.open(url, '_blank');
+        }
+
+        // ----- Form -----
+        const form = document.getElementById('voucherForm');
+        document.getElementById('voucherAddBtn').onclick = () => { form.style.display = form.style.display === 'none' ? 'block' : 'none'; };
+        document.getElementById('voucherFormCancel').onclick = () => { form.style.display = 'none'; clearForm(); };
+        function clearForm() {
+            ['voucherName','voucherValue','voucherExpiry','voucherWhere'].forEach(id => document.getElementById(id).value = '');
+        }
+        document.getElementById('voucherFormSave').onclick = () => {
+            const name = document.getElementById('voucherName').value.trim();
+            const value = parseFloat(document.getElementById('voucherValue').value) || 0;
+            const expiry = document.getElementById('voucherExpiry').value;
+            const where = document.getElementById('voucherWhere').value.trim();
+            if (!name) { alert('Please enter a name'); return; }
+            vouchers.push({ id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), name, value, expiry, where, used: false, archived: false });
+            save(); renderAll(); clearForm(); form.style.display = 'none';
+        };
+
+        // Archive toggle
+        document.getElementById('voucherArchiveToggle').onclick = () => {
+            archiveOpen = !archiveOpen;
+            document.getElementById('voucherArchiveList').style.display = archiveOpen ? 'flex' : 'none';
+            document.getElementById('voucherArchiveChevron').textContent = archiveOpen ? '▲' : '▼';
+        };
+
+        // Init
+        if (isLive()) listenLive(); else loadLocal();
+        window.vouchersInitLive = function() { listenLive(); };
+        window.vouchersInitLocal = function() { if (vUnsub) vUnsub(); loadLocal(); };
+    })();
+    </script>
+
     <!-- ============ TO-DO TAB ============ -->
     <div id="todo" class="tab-content">
         <div class="todo-wrap">
@@ -1627,7 +1884,7 @@
     <script>
     (function initTodo() {
         // ===== CONFIG: paste your Cloudflare Worker URL here =====
-        const WORKER_URL = "https://todo-ai-proxy.kkennyytan.workers.dev"; // <-- change this
+        const WORKER_URL = "https://YOUR-WORKER.workers.dev"; // <-- change this
         // =========================================================
 
         const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
@@ -3198,6 +3455,7 @@
                     if (window.terraInitLive) window.terraInitLive();
                     if (window.weddingInitLive) window.weddingInitLive();
                     if (window.todoInitLive) window.todoInitLive();
+                    if (window.vouchersInitLive) window.vouchersInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -3205,6 +3463,7 @@
                     if (window.terraInitLocal) window.terraInitLocal();
                     if (window.weddingInitLocal) window.weddingInitLocal();
                     if (window.todoInitLocal) window.todoInitLocal();
+                    if (window.vouchersInitLocal) window.vouchersInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -3330,6 +3589,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'terrarium', label: 'Terrarium', ico: 'fa-solid fa-seedling' },
             { tab: 'wedding',   label: 'Wedding',   ico: 'fa-solid fa-ring' },
             { tab: 'todo',      label: 'To-Do',     ico: 'fa-solid fa-square-check' },
+            { tab: 'vouchers',  label: 'Vouchers',  ico: 'fa-solid fa-ticket' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
