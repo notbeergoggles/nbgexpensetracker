@@ -558,6 +558,33 @@
     margin: 20px auto;
 }
 
+/* Scroll-triggered pie reveal: clockwise sweep + fade/scale */
+#categoryPieChart svg {
+    opacity: 0;
+    transform: scale(0.85);
+    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#categoryPieChart.revealed svg {
+    opacity: 1;
+    transform: scale(1);
+    -webkit-mask: conic-gradient(#000 0deg 360deg);
+            mask: conic-gradient(#000 0deg 360deg);
+    animation: pieSweep 0.9s ease-out both;
+}
+@keyframes pieSweep {
+    from { -webkit-mask: conic-gradient(#000 0deg, transparent 0deg); mask: conic-gradient(#000 0deg, transparent 0deg); }
+    to   { -webkit-mask: conic-gradient(#000 360deg, transparent 360deg); mask: conic-gradient(#000 360deg, transparent 360deg); }
+}
+#categoryPieChart .pie-center {
+    opacity: 0;
+    transition: opacity 0.4s ease 0.5s; /* fades in after the sweep */
+}
+#categoryPieChart.revealed .pie-center { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+    #categoryPieChart svg, #categoryPieChart.revealed svg { opacity: 1; transform: none; animation: none; -webkit-mask: none; mask: none; }
+    #categoryPieChart .pie-center { opacity: 1; transition: none; }
+}
+
 /* Make sure the center hole doesn't cover the whole thing */
 .pie-center {
     position: absolute;
@@ -4045,6 +4072,29 @@ async function deleteExpenseFromFirebase(id) {
     });
 
     container.appendChild(svg);
+
+    // Scroll-triggered reveal
+    container.classList.remove('revealed');
+    if ('IntersectionObserver' in window) {
+        if (container._pieObserver) container._pieObserver.disconnect();
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    container.classList.add('revealed');
+                    obs.disconnect();
+                }
+            });
+        }, { threshold: 0.35 });
+        obs.observe(container);
+        container._pieObserver = obs;
+        // If already in view on render (e.g. dashboard is the landing tab), reveal next frame
+        requestAnimationFrame(() => {
+            const r = container.getBoundingClientRect();
+            if (r.top < window.innerHeight * 0.85 && r.bottom > 0) container.classList.add('revealed');
+        });
+    } else {
+        container.classList.add('revealed'); // no IO support: just show it
+    }
 }
 
         function renderExpenseList() {
