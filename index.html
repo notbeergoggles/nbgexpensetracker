@@ -1220,6 +1220,37 @@
     <!-- Global save-error toast -->
     <div id="saveErrorToast" style="display:none; position:fixed; left:50%; bottom:90px; transform:translateX(-50%); z-index:9999; background:#d4453e; color:#fff; padding:12px 18px; border-radius:50px; font-size:14px; font-weight:600; box-shadow:0 4px 20px rgba(0,0,0,0.25); max-width:90%; text-align:center;"></div>
     <script>
+        // Global formatting helpers — unified across all tabs
+        window.fmtMoney = function(n, withSGD) {
+            const num = (typeof n === 'number' && isFinite(n)) ? n : (parseFloat(n) || 0);
+            const formatted = num.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return withSGD === false ? formatted : 'SGD ' + formatted;
+        };
+        window.fmtDollar = function(n) {
+            const num = (typeof n === 'number' && isFinite(n)) ? n : (parseFloat(n) || 0);
+            return '$' + num.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        window.fmtDateTime = function(ts) {
+            const d = new Date(ts);
+            if (isNaN(d)) return '';
+            return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) +
+                   ', ' + d.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', hour12: true });
+        };
+        window.fmtDate = function(ts) {
+            const d = new Date(ts);
+            if (isNaN(d)) return '';
+            return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+        // Inject skeleton placeholder rows into a container (cleared on first real render)
+        window.showSkeleton = function(elId, count, tall) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            let html = '<div class="skeleton-list">';
+            for (let i = 0; i < (count || 3); i++) html += `<div class="skeleton-row${tall ? ' tall' : ''}"></div>`;
+            html += '</div>';
+            el.innerHTML = html;
+        };
+
         window.showSaveError = (function() {
             let hideTimer = null;
             return function(label, err) {
@@ -1867,6 +1898,7 @@
         function loadLocal() { const raw = localStorage.getItem('notesState'); notes = raw ? (JSON.parse(raw)||[]) : []; renderAll(); checkPopup(); }
         function listenLive() {
             if (nUnsub) nUnsub();
+            window.showSkeleton && window.showSkeleton('notesLog', 3, true);
             nUnsub = NOTES_DOC().onSnapshot(snap => {
                 suppressWrite = true;
                 notes = (snap.exists && snap.data().notes) ? snap.data().notes : [];
@@ -1923,8 +1955,7 @@
 
         // ----- Render log -----
         function fmtTime(ts) {
-            const d = new Date(ts);
-            return d.toLocaleDateString('en-SG', { day:'numeric', month:'short' }) + ' ' + d.toLocaleTimeString('en-SG', { hour:'numeric', minute:'2-digit', hour12:true });
+            return window.fmtDateTime ? window.fmtDateTime(ts) : new Date(ts).toLocaleString();
         }
         function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         function renderAll() {
@@ -2335,6 +2366,7 @@
         }
         function listenLive() {
             if (pUnsub) pUnsub();
+            window.showSkeleton && window.showSkeleton('placesByCity', 4, true);
             pUnsub = PLACES_DOC().onSnapshot(snap => {
                 suppressWrite = true;
                 places = (snap.exists && snap.data().places) ? snap.data().places : [];
@@ -2454,7 +2486,7 @@
                 <div class="place-item-meta">
                     ${p.hours ? `<div>🕒 ${escapeHtml(p.hours)}</div>` : ''}
                     ${p.remarks ? `<div>📝 ${escapeHtml(p.remarks)}</div>` : ''}
-                    ${isArchived && p.visitedAt ? `<div>✅ Visited ${new Date(p.visitedAt).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})}</div>` : ''}
+                    ${isArchived && p.visitedAt ? `<div>✅ Visited ${window.fmtDate ? window.fmtDate(p.visitedAt) : ''}</div>` : ''}
                 </div>
                 <div class="place-item-actions"></div>
             `;
@@ -2725,6 +2757,7 @@
         }
         function listenLive() {
             if (vUnsub) vUnsub();
+            window.showSkeleton && window.showSkeleton('voucherList', 3, true);
             vUnsub = VOUCHER_DOC().onSnapshot(snap => {
                 suppressWrite = true;
                 vouchers = (snap.exists && snap.data().vouchers) ? snap.data().vouchers : [];
@@ -2963,6 +2996,7 @@
         }
         function listenLive() {
             if (todoUnsub) todoUnsub();
+            window.showSkeleton && window.showSkeleton('todoList', 3, false);
             todoUnsub = TODO_DOC().onSnapshot(snap => {
                 suppressWrite = true;
                 tasks = (snap.exists && snap.data().tasks) ? snap.data().tasks : [];
@@ -4388,7 +4422,7 @@
         
             // Build the message string
             let message = `*📊 ${title}* \n\n`;
-            message += `💰 *Total Spent:* SGD ${data.totalExpenses.toFixed(2)}\n`;
+            message += `💰 *Total Spent:* ${fmtMoney(data.totalExpenses)}\n`;
             message += `📝 *Entries:* ${data.entryCount}\n\n`;
             
             message += `*Settlement:* \n`;
@@ -4397,8 +4431,8 @@
                 message += `✅ All settled up!\n`;
             } else {
                 message += net > 0 
-                    ? `🔸 Sayuri owes Kenny: *SGD ${net.toFixed(2)}*\n` 
-                    : `🔸 Kenny owes Sayuri: *SGD ${Math.abs(net).toFixed(2)}*\n`;
+                    ? `🔸 Sayuri owes Kenny: *${fmtMoney(net)}*\n` 
+                    : `🔸 Kenny owes Sayuri: *${fmtMoney(Math.abs(net))}*\n`;
             }
         
             message += `\n*Top Categories:* \n`;
@@ -4408,7 +4442,7 @@
                 .slice(0, 3); // Top 3
         
             sortedCats.forEach(([cat, amt]) => {
-                message += `• ${cat}: $${amt.toFixed(2)}\n`;
+                message += `• ${cat}: ${fmtDollar(amt)}\n`;
             });
         
             message += `\n_Generated via notbeergoggles Expense Tracker_`;
@@ -4481,7 +4515,7 @@
                 wrapper.innerHTML = `
                     <div class="category-bar-info">
                         <span>${cat}</span>
-                        <span>SGD ${amount.toFixed(2)} (${percentage.toFixed(1)}%)</span>
+                        <span>${fmtMoney(amount)} (${percentage.toFixed(1)}%)</span>
                     </div>
                     <div class="category-bar-container">
                         <div class="category-bar-fill" style="width: ${percentage}%; background-color: ${color}"></div>
@@ -4509,7 +4543,7 @@
                 wrapper.innerHTML = `
                     <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-border); padding-bottom:5px; margin-bottom:10px;">
                         <span style="font-weight:700; color:var(--color-primary); font-size:15px;">${person}</span>
-                        <span style="font-weight:700;">SGD ${total.toFixed(2)}</span>
+                        <span style="font-weight:700;">${fmtMoney(total)}</span>
                     </div>
                 `;
         
@@ -4528,7 +4562,7 @@
                             <div class="category-bar-wrapper">
                                 <div class="category-bar-info">
                                     <span>${cat}</span>
-                                    <span>$${amount.toFixed(2)}</span>
+                                    <span>${fmtDollar(amount)}</span>
                                 </div>
                                 <div class="category-bar-container">
                                     <div class="category-bar-fill" style="width: ${percentage}%; background-color: ${color}"></div>
@@ -4948,7 +4982,7 @@ async function deleteExpenseFromFirebase(id) {
                 const successMsg = document.createElement('div');
                 successMsg.className = 'success-message';
                 successMsg.textContent = currentEntryType === 'payment' 
-                    ? `✅ Payment Recorded: SGD ${amount.toFixed(2)}` 
+                    ? `✅ Payment Recorded: ${fmtMoney(amount)}` 
                     : `✅ Added: ${description}`;
                
                 const form = document.getElementById('expenseForm');
@@ -5073,17 +5107,17 @@ async function deleteExpenseFromFirebase(id) {
         function updateDashboard() {
             const t = calculateTotals();
 
-            document.getElementById('yourTotal').textContent = 'SGD ' + t.kennyTotalPaid.toFixed(2);
-            document.getElementById('herTotal').textContent = 'SGD ' + t.sayuriTotalPaid.toFixed(2);
+            document.getElementById('yourTotal').textContent = fmtMoney(t.kennyTotalPaid);
+            document.getElementById('herTotal').textContent = fmtMoney(t.sayuriTotalPaid);
 
-            document.getElementById('yourShare').textContent = 'SGD ' + t.kennyTotalShare.toFixed(2);
-            document.getElementById('herShare').textContent = 'SGD ' + t.sayuriTotalShare.toFixed(2);
+            document.getElementById('yourShare').textContent = fmtMoney(t.kennyTotalShare);
+            document.getElementById('herShare').textContent = fmtMoney(t.sayuriTotalShare);
 
-            document.getElementById('totalExpenses').textContent = 'SGD ' + t.totalExpenses.toFixed(2);
+            document.getElementById('totalExpenses').textContent = fmtMoney(t.totalExpenses);
             document.getElementById('entryCount').textContent = t.entryCount;
-            document.getElementById('dailyBurnRate').textContent = `SGD ${t.dailyBurn.toFixed(2)}`;
+            document.getElementById('dailyBurnRate').textContent = fmtMoney(t.dailyBurn);
 
-            document.getElementById('settlement').textContent = 'SGD ' + Math.abs(t.net).toFixed(2);
+            document.getElementById('settlement').textContent = fmtMoney(Math.abs(t.net));
             document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
 
             renderCategoryBars(t.categoryTotals, t.totalExpenses);
@@ -5157,7 +5191,7 @@ async function deleteExpenseFromFirebase(id) {
     container.innerHTML = `
         <div class="pie-center">
             <div class="pie-center-label">Total</div>
-            <div class="pie-center-value">$${total.toFixed(2)}</div>
+            <div class="pie-center-value">${fmtDollar(total)}</div>
         </div>
     `;
     
@@ -5208,7 +5242,7 @@ async function deleteExpenseFromFirebase(id) {
         path.addEventListener('mouseenter', () => {
             path.style.filter = "brightness(1.1)";
             const percent = (val / total * 100).toFixed(1);
-            tooltip.textContent = `${cat}: SGD ${val.toFixed(2)} (${percent}%)`;
+            tooltip.textContent = `${cat}: ${fmtMoney(val)} (${percent}%)`;
             tooltip.style.opacity = '1';
         });
 
@@ -5318,9 +5352,9 @@ async function deleteExpenseFromFirebase(id) {
         
                 const splitHtml = `
                     <div class="split-details">
-                        <span><span class="split-label">K:</span> $${Number(e.yourShare).toFixed(2)}</span>
+                        <span><span class="split-label">K:</span> ${fmtDollar(Number(e.yourShare))}</span>
                         <span>|</span>
-                        <span><span class="split-label">S:</span> $${Number(e.herShare).toFixed(2)}</span>
+                        <span><span class="split-label">S:</span> ${fmtDollar(Number(e.herShare))}</span>
                     </div>
                 `;
         
@@ -5340,7 +5374,7 @@ async function deleteExpenseFromFirebase(id) {
                                 </div>
                                 <div style="text-align: right; display: flex; align-items: center; gap: 12px;">
                                     <div>
-                                        <div class="expense-amount-red">SGD ${Number(e.amount).toFixed(2)}</div>
+                                        <div class="expense-amount-red">${fmtMoney(Number(e.amount))}</div>
                                         <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">Paid by ${e.paidBy}</div>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -5788,6 +5822,26 @@ async function handleDeleteExpense(id) {
         @media (prefers-reduced-motion: reduce) {
             .stagger-in { animation: none; }
         }
+
+        /* Skeleton loaders */
+        .skeleton-list { display: flex; flex-direction: column; gap: var(--space-8); }
+        .skeleton-row {
+            height: 56px; border-radius: var(--radius-base);
+            background: linear-gradient(100deg, var(--color-border) 25%, rgba(255,255,255,0.12) 50%, var(--color-border) 75%);
+            background-size: 200% 100%;
+            animation: skeletonShimmer 1.3s ease-in-out infinite;
+            opacity: 0.5;
+        }
+        .skeleton-row.tall { height: 80px; }
+        @keyframes skeletonShimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .skeleton-row { animation: none; }
+        }
+        .fade-in-data { animation: dataFade 0.4s ease both; }
+        @keyframes dataFade { from { opacity: 0; } to { opacity: 1; } }
 
         /* 4. Progress bar shimmer */
         .category-bar-fill { position: relative; overflow: hidden; }
