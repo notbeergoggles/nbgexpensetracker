@@ -4933,7 +4933,8 @@ async function deleteExpenseFromFirebase(id) {
 
         // Sum of non-payment expenses for a specific year + month (0-indexed month)
         function sumForMonth(year, month) {
-            return activeExpenses.reduce((sum, e) => {
+            return (expenses || []).reduce((sum, e) => {
+                if (e.isRecurring === true) return sum; // skip recurring templates
                 if (e.isPayment) return sum;
                 const d = new Date(e.date);
                 if (d.getFullYear() === year && d.getMonth() === month) return sum + (Number(e.amount) || 0);
