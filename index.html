@@ -1699,6 +1699,10 @@
                         <label class="form-label">Remarks</label>
                         <input type="text" id="placeRemarks" class="form-input" placeholder="e.g. Cash only, reserve ahead, closed Tue">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Google Maps link <span style="font-weight:400; color:var(--color-text-secondary);">(optional — pin the exact branch)</span></label>
+                        <input type="text" id="placeMapUrl" class="form-input" placeholder="Paste a Google Maps link or full address">
+                    </div>
                     <div style="display:flex; gap:8px; justify-content:flex-end;">
                         <button type="button" class="btn btn--secondary" id="placeFormCancel">Cancel</button>
                         <button type="button" class="btn btn--primary" id="placeFormSave">Save</button>
@@ -1873,8 +1877,16 @@
             const maps = document.createElement('button');
             maps.className = 'btn btn--secondary'; maps.textContent = '📍 Maps';
             maps.onclick = () => {
-                const q = encodeURIComponent(`${p.name || ''} ${p.city || ''}`.trim());
-                window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
+                if (p.mapUrl) {
+                    // If it's a full URL, open directly; if it's an address, search it
+                    const url = /^https?:\/\//i.test(p.mapUrl)
+                        ? p.mapUrl
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.mapUrl)}`;
+                    window.open(url, '_blank');
+                } else {
+                    const q = encodeURIComponent(`${p.name || ''} ${p.city || ''}`.trim());
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
+                }
             };
             const edit = document.createElement('button');
             edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
@@ -1894,7 +1906,7 @@
         let editingId = null;
         function openForm() { editingId = null; clearForm(); form.style.display = 'block'; }
         function clearForm() {
-            ['placeCity','placeName','placeDesc','placeHours','placeRemarks'].forEach(id => document.getElementById(id).value = '');
+            ['placeCity','placeName','placeDesc','placeHours','placeRemarks','placeMapUrl'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('placeCategory').value = 'Food & Drink';
         }
         function openEdit(id) {
@@ -1907,6 +1919,7 @@
             document.getElementById('placeDesc').value = p.desc || '';
             document.getElementById('placeHours').value = p.hours || '';
             document.getElementById('placeRemarks').value = p.remarks || '';
+            document.getElementById('placeMapUrl').value = p.mapUrl || '';
             form.style.display = 'block';
             form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
@@ -1922,6 +1935,7 @@
                 desc: document.getElementById('placeDesc').value.trim(),
                 hours: document.getElementById('placeHours').value.trim(),
                 remarks: document.getElementById('placeRemarks').value.trim(),
+                mapUrl: document.getElementById('placeMapUrl').value.trim(),
             };
             if (editingId) {
                 const p = places.find(x => x.id === editingId);
