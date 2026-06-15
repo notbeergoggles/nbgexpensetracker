@@ -2182,6 +2182,15 @@
 
             <!-- Places grouped by city -->
             <div id="placesByCity"></div>
+
+            <!-- Archived / visited places -->
+            <div class="card" style="margin-top:var(--space-16);">
+                <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" id="placesArchiveToggle">
+                    <h3 style="margin:0;">✅ Visited <span class="todo-count" id="placesArchiveCount" style="margin-left:6px;">0</span></h3>
+                    <span id="placesArchiveChevron" style="color:var(--color-text-secondary);">▼</span>
+                </div>
+                <div id="placesArchiveList" style="margin-top:var(--space-12); display:none;"></div>
+            </div>
         </div>
     </div>
 
@@ -2220,6 +2229,8 @@
         .place-item-meta div { margin-top: 2px; }
         .place-item-actions { display: flex; gap: 6px; margin-top: var(--space-8); }
         .place-item-actions button { padding: 4px 10px; font-size: 11px; }
+        .place-item.place-visited { opacity: 0.8; }
+        #placesArchiveList:empty::after { content: 'No visited places yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
         #placesByCity:empty::after {
             content: 'No places saved yet. Add your first one above.';
             display: block; text-align: center; padding: var(--space-24); color: var(--color-text-secondary); font-size: var(--font-size-sm);
@@ -2310,7 +2321,7 @@
         function renderCities() {
             const container = document.getElementById('placesByCity');
             container.innerHTML = '';
-            let filtered = activeFilter === 'All' ? places : places.filter(p => p.category === activeFilter);
+            let filtered = (activeFilter === 'All' ? places : places.filter(p => p.category === activeFilter)).filter(p => !p.visited);
             if (activeCity !== 'All') filtered = filtered.filter(p => p.city === activeCity);
             const cities = [...new Set(filtered.map(p => p.city).filter(Boolean))].sort();
 
@@ -2325,23 +2336,46 @@
 
                 const list = document.createElement('div');
                 list.className = 'place-list';
-                cityPlaces.forEach(p => list.appendChild(renderPlaceItem(p)));
+                cityPlaces.forEach(p => list.appendChild(renderPlaceItem(p, false)));
                 group.appendChild(list);
                 container.appendChild(group);
             });
+            renderArchive();
+        }
+        function renderArchive() {
+            const list = document.getElementById('placesArchiveList');
+            if (!list) return;
+            const visited = places.filter(p => p.visited);
+            list.innerHTML = '';
+            // group archived by city too
+            const cities = [...new Set(visited.map(p => p.city).filter(Boolean))].sort();
+            cities.forEach(city => {
+                const cityPlaces = visited.filter(p => p.city === city);
+                const header = document.createElement('div');
+                header.className = 'place-city-header';
+                header.style.marginTop = 'var(--space-12)';
+                header.innerHTML = `<span>✅ ${escapeHtml(city)}</span><span class="place-city-count">${cityPlaces.length} visited</span>`;
+                list.appendChild(header);
+                const sub = document.createElement('div');
+                sub.className = 'place-list';
+                cityPlaces.forEach(p => sub.appendChild(renderPlaceItem(p, true)));
+                list.appendChild(sub);
+            });
+            document.getElementById('placesArchiveCount').textContent = visited.length;
         }
         function renderCitySelect() {
             const sel = document.getElementById('placeCitySelect');
             if (!sel) return;
-            const cities = [...new Set(places.map(p => p.city).filter(Boolean))].sort();
+            const active = places.filter(p => !p.visited);
+            const cities = [...new Set(active.map(p => p.city).filter(Boolean))].sort();
             // keep current selection valid
             if (activeCity !== 'All' && !cities.includes(activeCity)) activeCity = 'All';
             sel.innerHTML = '';
             const allOpt = document.createElement('option');
-            allOpt.value = 'All'; allOpt.textContent = `All cities (${places.length})`;
+            allOpt.value = 'All'; allOpt.textContent = `All cities (${active.length})`;
             sel.appendChild(allOpt);
             cities.forEach(c => {
-                const count = places.filter(p => p.city === c).length;
+                const count = active.filter(p => p.city === c).length;
                 const o = document.createElement('option');
                 o.value = c; o.textContent = `${c} (${count})`;
                 sel.appendChild(o);
@@ -2349,9 +2383,9 @@
             sel.value = activeCity;
             sel.onchange = () => { activeCity = sel.value; renderCities(); };
         }
-        function renderPlaceItem(p) {
+        function renderPlaceItem(p, isArchived) {
             const item = document.createElement('div');
-            item.className = 'place-item';
+            item.className = 'place-item' + (isArchived ? ' place-visited' : '');
             item.innerHTML = `
                 <div class="place-item-top">
                     <div class="place-item-name">${escapeHtml(p.name || 'Untitled')}</div>
@@ -2361,6 +2395,7 @@
                 <div class="place-item-meta">
                     ${p.hours ? `<div>🕒 ${escapeHtml(p.hours)}</div>` : ''}
                     ${p.remarks ? `<div>📝 ${escapeHtml(p.remarks)}</div>` : ''}
+                    ${isArchived && p.visitedAt ? `<div>✅ Visited ${new Date(p.visitedAt).toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})}</div>` : ''}
                 </div>
                 <div class="place-item-actions"></div>
             `;
@@ -2369,7 +2404,6 @@
             maps.className = 'btn btn--secondary'; maps.textContent = '📍 Maps';
             maps.onclick = () => {
                 if (p.mapUrl) {
-                    // If it's a full URL, open directly; if it's an address, search it
                     const url = /^https?:\/\//i.test(p.mapUrl)
                         ? p.mapUrl
                         : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.mapUrl)}`;
@@ -2379,13 +2413,28 @@
                     window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
                 }
             };
-            const edit = document.createElement('button');
-            edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
-            edit.onclick = () => openEdit(p.id);
-            const del = document.createElement('button');
-            del.className = 'btn btn--secondary'; del.textContent = '🗑️';
-            del.onclick = () => { if (confirm('Delete this place?')) { places = places.filter(x => x.id !== p.id); save(); renderAll(); } };
-            actions.append(maps, edit, del);
+            actions.append(maps);
+
+            if (!isArchived) {
+                const visited = document.createElement('button');
+                visited.className = 'btn btn--primary'; visited.textContent = '✓ Visited';
+                visited.onclick = () => { p.visited = true; p.visitedAt = Date.now(); save(); renderAll(); };
+                const edit = document.createElement('button');
+                edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
+                edit.onclick = () => openEdit(p.id);
+                const del = document.createElement('button');
+                del.className = 'btn btn--secondary'; del.textContent = '🗑️';
+                del.onclick = () => { if (confirm('Delete this place?')) { places = places.filter(x => x.id !== p.id); save(); renderAll(); } };
+                actions.append(visited, edit, del);
+            } else {
+                const restore = document.createElement('button');
+                restore.className = 'btn btn--secondary'; restore.textContent = '↩ Restore';
+                restore.onclick = () => { p.visited = false; delete p.visitedAt; save(); renderAll(); };
+                const del = document.createElement('button');
+                del.className = 'btn btn--secondary'; del.textContent = '🗑️';
+                del.onclick = () => { if (confirm('Delete permanently?')) { places = places.filter(x => x.id !== p.id); save(); renderAll(); } };
+                actions.append(restore, del);
+            }
             return item;
         }
         function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -2436,6 +2485,14 @@
             }
             save(); renderAll();
             form.style.display = 'none';
+        };
+
+        // Archive collapse toggle
+        let placesArchiveOpen = false;
+        document.getElementById('placesArchiveToggle').onclick = () => {
+            placesArchiveOpen = !placesArchiveOpen;
+            document.getElementById('placesArchiveList').style.display = placesArchiveOpen ? 'block' : 'none';
+            document.getElementById('placesArchiveChevron').textContent = placesArchiveOpen ? '▲' : '▼';
         };
 
         populateCategorySelect();
