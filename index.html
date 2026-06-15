@@ -1274,11 +1274,30 @@
                 <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--space-4);">Logged in as:</div>
                 <div class="user-email" id="userEmail">user@email.com</div>
             </div>
-            <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn btn--sm date-night-btn" id="dateNightBtn"><span class="dnb-heart">💕</span><span>Date</span></button>
-                <button type="button" class="btn btn--sm coin-flip-btn" id="coinFlipBtn"><span>🪙</span><span>Flip</span></button>
-                <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
-            </div>
+        </div>
+        <div class="action-bar">
+            <button type="button" class="btn btn--sm date-night-btn" id="dateNightBtn"><span class="dnb-heart">💕</span><span>Date</span></button>
+            <button type="button" class="btn btn--sm coin-flip-btn" id="coinFlipBtn"><span>🪙</span><span>Flip</span></button>
+            <button type="button" class="btn btn--sm gst-btn" id="gstBtn"><span>🧮</span><span>GST</span></button>
+            <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
+        </div>
+        <style>
+            .action-bar {
+                display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+                margin-bottom: var(--space-16);
+            }
+            .action-bar > button { width: 100%; justify-content: center; }
+            .gst-btn {
+                display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+                padding: 7px 12px !important; border: none; border-radius: 50px;
+                color: #1a4d4d; font-weight: 600; font-size: 13px; line-height: 1;
+                background: linear-gradient(135deg, #7fd4c8, #34b8c6);
+                box-shadow: 0 2px 8px rgba(52,184,198,0.4);
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+            .gst-btn:hover { transform: translateY(-1px) scale(1.03); box-shadow: 0 4px 14px rgba(52,184,198,0.55); }
+            .gst-btn:active { transform: scale(0.96); }
+        </style>
             <style>
                 .date-night-btn {
                     position: relative; overflow: hidden;
@@ -2138,6 +2157,25 @@
     <!-- ============ PLACES TAB ============ -->
     <div id="places" class="tab-content">
         <div class="places-wrap">
+            <!-- SGD <-> JPY converter -->
+            <div class="card fx-card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">💱 SGD ⇄ JPY</h3>
+                    <span id="fxRate" style="font-size:11px; color:var(--color-text-secondary);">Loading rate…</span>
+                </div>
+                <div class="fx-row">
+                    <div class="fx-field">
+                        <span class="fx-cur">🇸🇬 SGD</span>
+                        <input type="number" id="fxSgd" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                    </div>
+                    <button type="button" id="fxSwap" class="fx-swap" title="Refresh rate">⇅</button>
+                    <div class="fx-field">
+                        <span class="fx-cur">🇯🇵 JPY</span>
+                        <input type="number" id="fxJpy" class="form-input" placeholder="0" min="0" step="1" inputmode="decimal">
+                    </div>
+                </div>
+            </div>
+
             <!-- Add place -->
             <div class="card">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
@@ -2208,6 +2246,18 @@
 
     <style>
         .places-wrap { max-width: 760px; margin: 0 auto; }
+        .fx-card { background: linear-gradient(135deg, rgba(33,128,141,0.07), rgba(33,128,141,0.02)); }
+        .fx-row { display: flex; align-items: flex-end; gap: var(--space-8); }
+        .fx-field { flex: 1; }
+        .fx-cur { display: block; font-size: 11px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 4px; }
+        .fx-swap {
+            flex-shrink: 0; width: 38px; height: 42px; border-radius: 50px;
+            border: 1px solid var(--color-border); background: var(--color-surface);
+            cursor: pointer; font-size: 16px; color: var(--color-primary); transition: all 0.15s;
+        }
+        .fx-swap:hover { border-color: var(--color-primary); transform: rotate(180deg); }
+        .fx-swap.spinning { animation: fxSpin 0.6s linear; }
+        @keyframes fxSpin { to { transform: rotate(360deg); } }
         .place-cat-filters { display: flex; gap: 6px; flex-wrap: wrap; }
         .place-cat-chip {
             padding: 5px 12px; border-radius: 50px; border: 1px solid var(--color-border);
@@ -2508,6 +2558,56 @@
         };
 
         populateCategorySelect();
+
+        // ===== SGD <-> JPY live converter =====
+        (function fxConverter() {
+            let rate = null; // JPY per 1 SGD
+            const rateEl = document.getElementById('fxRate');
+            const sgdEl = document.getElementById('fxSgd');
+            const jpyEl = document.getElementById('fxJpy');
+            const swap = document.getElementById('fxSwap');
+            if (!rateEl || !sgdEl || !jpyEl) return;
+
+            async function fetchRate() {
+                rateEl.textContent = 'Loading rate…';
+                // Try a couple of free, browser-friendly endpoints in order
+                const sources = [
+                    { url: 'https://api.frankfurter.app/latest?from=SGD&to=JPY', pick: d => d && d.rates && d.rates.JPY },
+                    { url: 'https://open.er-api.com/v6/latest/SGD', pick: d => d && d.rates && d.rates.JPY },
+                ];
+                for (const s of sources) {
+                    try {
+                        const res = await fetch(s.url);
+                        const data = await res.json();
+                        const r = s.pick(data);
+                        if (r && isFinite(r)) {
+                            rate = r;
+                            rateEl.textContent = `1 SGD ≈ ${r.toFixed(2)} JPY`;
+                            recompute('sgd');
+                            return;
+                        }
+                    } catch (e) { /* try next */ }
+                }
+                rateEl.textContent = '⚠️ Rate unavailable — tap ⇅ to retry';
+            }
+            function recompute(from) {
+                if (!rate) return;
+                if (from === 'sgd') {
+                    const v = parseFloat(sgdEl.value);
+                    jpyEl.value = isFinite(v) ? Math.round(v * rate) : '';
+                } else {
+                    const v = parseFloat(jpyEl.value);
+                    sgdEl.value = isFinite(v) ? (v / rate).toFixed(2) : '';
+                }
+            }
+            sgdEl.addEventListener('input', () => recompute('sgd'));
+            jpyEl.addEventListener('input', () => recompute('jpy'));
+            swap.addEventListener('click', () => {
+                swap.classList.remove('spinning'); void swap.offsetWidth; swap.classList.add('spinning');
+                fetchRate();
+            });
+            fetchRate();
+        })();
         if (isLive()) listenLive(); else loadLocal();
         window.placesInitLive = function() { listenLive(); };
         window.placesInitLocal = function() { if (pUnsub) pUnsub(); loadLocal(); };
@@ -6190,6 +6290,67 @@ async function handleDeleteExpense(id) {
             }, 1600);
         }
         document.getElementById('coinFlipRoll').onclick = flip;
+    })();
+    </script>
+    <!-- ============ GST / SERVICE CHARGE CALCULATOR ============ -->
+    <div id="gstModal" style="display:none; position:fixed; inset:0; z-index:400; align-items:center; justify-content:center;">
+        <div id="gstOverlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.55);"></div>
+        <div style="position:relative; z-index:1; background:var(--color-surface); width:90%; max-width:400px; border-radius:20px; padding:var(--space-24); box-shadow:0 12px 50px rgba(0,0,0,0.3);">
+            <button type="button" id="gstClose" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:var(--color-text-secondary);">×</button>
+            <h2 style="margin:0 0 var(--space-16); text-align:center;">🧮 Bill Calculator</h2>
+            <div class="form-group">
+                <label class="form-label">Base amount (SGD)</label>
+                <input type="number" id="gstBase" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+            </div>
+            <label class="gst-toggle">
+                <input type="checkbox" id="gstSvcChk" checked>
+                <span>Service charge (10%)</span>
+            </label>
+            <label class="gst-toggle">
+                <input type="checkbox" id="gstGstChk" checked>
+                <span>GST (9%)</span>
+            </label>
+            <div class="gst-breakdown" id="gstBreakdown"></div>
+        </div>
+    </div>
+
+    <style>
+        .gst-toggle { display:flex; align-items:center; gap:10px; padding:8px 0; cursor:pointer; font-size:var(--font-size-base); }
+        .gst-toggle input { width:18px; height:18px; accent-color: var(--color-primary); cursor:pointer; }
+        .gst-breakdown { margin-top:var(--space-16); padding-top:var(--space-16); border-top:1px solid var(--color-border); }
+        .gst-line { display:flex; justify-content:space-between; padding:5px 0; font-size:var(--font-size-sm); color:var(--color-text-secondary); }
+        .gst-line.total { font-size:var(--font-size-xl); font-weight:700; color:var(--color-primary); border-top:1px solid var(--color-border); margin-top:6px; padding-top:12px; }
+    </style>
+
+    <script>
+    (function gstCalc() {
+        const modal = document.getElementById('gstModal');
+        const base = document.getElementById('gstBase');
+        const svc = document.getElementById('gstSvcChk');
+        const gst = document.getElementById('gstGstChk');
+        const out = document.getElementById('gstBreakdown');
+        const open = () => { modal.style.display = 'flex'; setTimeout(() => base.focus(), 100); };
+        const close = () => { modal.style.display = 'none'; };
+        document.getElementById('gstBtn').onclick = open;
+        document.getElementById('gstClose').onclick = close;
+        document.getElementById('gstOverlay').onclick = close;
+
+        const money = n => 'SGD ' + n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        function recompute() {
+            const b = parseFloat(base.value) || 0;
+            // SG convention: service charge applied first, then GST on (base + service)
+            const svcAmt = svc.checked ? b * 0.10 : 0;
+            const subtotal = b + svcAmt;
+            const gstAmt = gst.checked ? subtotal * 0.09 : 0;
+            const total = subtotal + gstAmt;
+            let html = `<div class="gst-line"><span>Base</span><span>${money(b)}</span></div>`;
+            if (svc.checked) html += `<div class="gst-line"><span>+ Service charge (10%)</span><span>${money(svcAmt)}</span></div>`;
+            if (gst.checked) html += `<div class="gst-line"><span>+ GST (9%)</span><span>${money(gstAmt)}</span></div>`;
+            html += `<div class="gst-line total"><span>Total</span><span>${money(total)}</span></div>`;
+            out.innerHTML = html;
+        }
+        [base, svc, gst].forEach(el => el.addEventListener('input', recompute));
+        recompute();
     })();
     </script>
 </body>
