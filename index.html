@@ -2168,7 +2168,7 @@
                         <span class="fx-cur">🇸🇬 SGD</span>
                         <input type="number" id="fxSgd" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
                     </div>
-                    <button type="button" id="fxSwap" class="fx-swap" title="Refresh rate">⇅</button>
+                    <div class="fx-arrow">⇄</div>
                     <div class="fx-field">
                         <span class="fx-cur">🇯🇵 JPY</span>
                         <input type="number" id="fxJpy" class="form-input" placeholder="0" min="0" step="1" inputmode="decimal">
@@ -2250,14 +2250,11 @@
         .fx-row { display: flex; align-items: flex-end; gap: var(--space-8); }
         .fx-field { flex: 1; }
         .fx-cur { display: block; font-size: 11px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 4px; }
-        .fx-swap {
-            flex-shrink: 0; width: 38px; height: 42px; border-radius: 50px;
-            border: 1px solid var(--color-border); background: var(--color-surface);
-            cursor: pointer; font-size: 16px; color: var(--color-primary); transition: all 0.15s;
+        .fx-arrow {
+            flex-shrink: 0; width: 38px; height: 42px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; color: var(--color-primary); font-weight: 700;
         }
-        .fx-swap:hover { border-color: var(--color-primary); transform: rotate(180deg); }
-        .fx-swap.spinning { animation: fxSpin 0.6s linear; }
-        @keyframes fxSpin { to { transform: rotate(360deg); } }
         .place-cat-filters { display: flex; gap: 6px; flex-wrap: wrap; }
         .place-cat-chip {
             padding: 5px 12px; border-radius: 50px; border: 1px solid var(--color-border);
@@ -2565,7 +2562,6 @@
             const rateEl = document.getElementById('fxRate');
             const sgdEl = document.getElementById('fxSgd');
             const jpyEl = document.getElementById('fxJpy');
-            const swap = document.getElementById('fxSwap');
             if (!rateEl || !sgdEl || !jpyEl) return;
 
             async function fetchRate() {
@@ -2588,7 +2584,7 @@
                         }
                     } catch (e) { /* try next */ }
                 }
-                rateEl.textContent = '⚠️ Rate unavailable — tap ⇅ to retry';
+                rateEl.textContent = '⚠️ Rate unavailable — reload to retry';
             }
             function recompute(from) {
                 if (!rate) return;
@@ -2602,10 +2598,6 @@
             }
             sgdEl.addEventListener('input', () => recompute('sgd'));
             jpyEl.addEventListener('input', () => recompute('jpy'));
-            swap.addEventListener('click', () => {
-                swap.classList.remove('spinning'); void swap.offsetWidth; swap.classList.add('spinning');
-                fetchRate();
-            });
             fetchRate();
         })();
         if (isLive()) listenLive(); else loadLocal();
