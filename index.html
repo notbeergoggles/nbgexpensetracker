@@ -1275,9 +1275,53 @@
                 <div class="user-email" id="userEmail">user@email.com</div>
             </div>
             <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn btn--sm" id="dateNightBtn" style="background:linear-gradient(135deg,#ff6b9d,#c44569); color:#fff;">💕 Date</button>
+                <button type="button" class="btn btn--sm date-night-btn" id="dateNightBtn"><span class="dnb-heart">💕</span><span>Date</span></button>
                 <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
             </div>
+            <style>
+                .date-night-btn {
+                    position: relative; overflow: hidden;
+                    display: inline-flex; align-items: center; gap: 6px;
+                    border: none; color: #fff; font-weight: 700;
+                    background: linear-gradient(120deg, #ff8fb1, #ff6b9d, #c44569, #ff6b9d, #ff8fb1);
+                    background-size: 300% 100%;
+                    animation: dnbShift 6s ease infinite;
+                    box-shadow: 0 4px 14px rgba(196,69,105,0.4);
+                    transition: transform 0.15s ease, box-shadow 0.15s ease;
+                }
+                .date-night-btn:hover {
+                    transform: translateY(-1px) scale(1.03);
+                    box-shadow: 0 6px 20px rgba(196,69,105,0.55);
+                }
+                .date-night-btn:active { transform: scale(0.96); }
+                @keyframes dnbShift {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                .dnb-heart { display: inline-block; animation: dnbBeat 1.4s ease-in-out infinite; }
+                @keyframes dnbBeat {
+                    0%, 100% { transform: scale(1); }
+                    15% { transform: scale(1.25); }
+                    30% { transform: scale(1); }
+                    45% { transform: scale(1.2); }
+                }
+                /* Shimmer sweep */
+                .date-night-btn::after {
+                    content: ''; position: absolute; top: 0; left: -60%;
+                    width: 40%; height: 100%;
+                    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent);
+                    transform: skewX(-20deg);
+                    animation: dnbSweep 4s ease-in-out infinite;
+                }
+                @keyframes dnbSweep {
+                    0%, 100% { left: -60%; }
+                    50% { left: 120%; }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .date-night-btn, .dnb-heart, .date-night-btn::after { animation: none; }
+                }
+            </style>
         </div>
 
         <h1>💰 NotBeerGoggles Shared Expenses Tracker</h1>
