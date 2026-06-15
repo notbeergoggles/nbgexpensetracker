@@ -5931,19 +5931,8 @@ async function handleDeleteExpense(id) {
             };
         }
 
-        // ----- 5. Parallax bubbles -----
-        const bubbleBg = document.getElementById('bubble-container');
-        if (bubbleBg) {
-            let ticking = false;
-            window.addEventListener('scroll', () => {
-                if (ticking) return;
-                ticking = true;
-                requestAnimationFrame(() => {
-                    bubbleBg.style.transform = `translateY(${window.scrollY * -0.06}px)`;
-                    ticking = false;
-                });
-            }, { passive: true });
-        }
+        // ----- 5. Parallax bubbles: REMOVED for performance -----
+        // (scroll-driven transform on the bubble layer forced recompositing every frame)
 
         // ----- 6. Currency fade: wrap "SGD" prefixes in a subtle span -----
         let curBusy = false;
