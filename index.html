@@ -1255,6 +1255,7 @@
             <button type="button" class="tab-button" data-tab="wedding">💍 Wedding</button>
             <button type="button" class="tab-button" data-tab="todo">✅ To-Do</button>
             <button type="button" class="tab-button" data-tab="vouchers">🎟️ Vouchers</button>
+            <button type="button" class="tab-button" data-tab="places">🗾 Japan List</button>
         </div>
 
         <!-- ===== Mobile bottom nav + drawer ===== -->
@@ -1660,6 +1661,278 @@
             </form>
         </div>
     </div>
+
+    <!-- ============ PLACES TAB ============ -->
+    <div id="places" class="tab-content">
+        <div class="places-wrap">
+            <!-- Add place -->
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">🗾 Japan List</h3>
+                    <button type="button" class="btn btn--primary" id="placeAddBtn" style="padding:4px 10px; font-size:12px;">+ New</button>
+                </div>
+                <div id="placeForm" style="display:none;">
+                    <div style="display:flex; gap:8px;">
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">City</label>
+                            <input type="text" id="placeCity" class="form-input" list="placeCityList" placeholder="e.g. Tokyo">
+                            <datalist id="placeCityList"></datalist>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">Category</label>
+                            <select id="placeCategory" class="form-input"></select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <input type="text" id="placeName" class="form-input" placeholder="e.g. Ichiran Shibuya">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input type="text" id="placeDesc" class="form-input" placeholder="What is it / why save it">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Operating hours</label>
+                        <input type="text" id="placeHours" class="form-input" placeholder="e.g. 10am–10pm daily">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Remarks</label>
+                        <input type="text" id="placeRemarks" class="form-input" placeholder="e.g. Cash only, reserve ahead, closed Tue">
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn--secondary" id="placeFormCancel">Cancel</button>
+                        <button type="button" class="btn btn--primary" id="placeFormSave">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category filter -->
+            <div class="card" style="padding:var(--space-12) var(--space-16);">
+                <div class="place-cat-filters" id="placeCatFilters"></div>
+            </div>
+
+            <!-- Places grouped by city -->
+            <div id="placesByCity"></div>
+        </div>
+    </div>
+
+    <style>
+        .places-wrap { max-width: 760px; margin: 0 auto; }
+        .place-cat-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+        .place-cat-chip {
+            padding: 5px 12px; border-radius: 50px; border: 1px solid var(--color-border);
+            background: none; cursor: pointer; font-size: var(--font-size-sm);
+            color: var(--color-text-secondary); white-space: nowrap; transition: all 0.15s;
+        }
+        .place-cat-chip.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+        .place-city-group { margin-bottom: var(--space-20); }
+        .place-city-header {
+            font-size: var(--font-size-lg); font-weight: 700; margin-bottom: var(--space-12);
+            padding-bottom: var(--space-8); border-bottom: 2px solid var(--color-border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .place-city-count { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); }
+        .place-list { display: flex; flex-direction: column; gap: var(--space-8); }
+        .place-item {
+            padding: var(--space-12); border-radius: var(--radius-base);
+            background: var(--color-background); border: 1px solid var(--color-border);
+            animation: cardEnter 0.3s ease both;
+        }
+        .place-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .place-item-name { font-weight: 600; }
+        .place-item-cat { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 50px; background: rgba(33,128,141,0.12); color: var(--color-primary); white-space: nowrap; }
+        .place-item-desc { font-size: var(--font-size-sm); color: var(--color-text); margin-top: 4px; }
+        .place-item-meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 6px; }
+        .place-item-meta div { margin-top: 2px; }
+        .place-item-actions { display: flex; gap: 6px; margin-top: var(--space-8); }
+        .place-item-actions button { padding: 4px 10px; font-size: 11px; }
+        #placesByCity:empty::after {
+            content: 'No places saved yet. Add your first one above.';
+            display: block; text-align: center; padding: var(--space-24); color: var(--color-text-secondary); font-size: var(--font-size-sm);
+        }
+    </style>
+
+    <script>
+    (function initPlaces() {
+        const CATEGORIES = [
+            { id: 'Food & Drink', emo: '🍜' },
+            { id: 'Hotel / Stay', emo: '🏨' },
+            { id: 'Shopping', emo: '🛍️' },
+            { id: 'Sightseeing', emo: '⛩️' },
+            { id: 'Experience', emo: '🎌' },
+            { id: 'Nature', emo: '🌳' },
+            { id: 'Anime / Hobby', emo: '🎁' },
+            { id: 'Other', emo: '📍' },
+        ];
+        const catEmo = id => (CATEGORIES.find(c => c.id === id) || {}).emo || '📍';
+
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const PLACES_DOC = () => db.collection('places').doc('shared');
+
+        let places = []; // {id, city, category, name, desc, hours, remarks}
+        let pUnsub = null;
+        let suppressWrite = false;
+        let activeFilter = 'All';
+
+        // ----- Persistence -----
+        async function save() {
+            if (suppressWrite) return;
+            if (isLive()) {
+                try { await PLACES_DOC().set({ places }); } catch (e) { window.showSaveError && window.showSaveError('places', e); }
+            } else {
+                localStorage.setItem('placesState', JSON.stringify(places));
+            }
+        }
+        function loadLocal() {
+            const raw = localStorage.getItem('placesState');
+            places = raw ? (JSON.parse(raw) || []) : [];
+            renderAll();
+        }
+        function listenLive() {
+            if (pUnsub) pUnsub();
+            pUnsub = PLACES_DOC().onSnapshot(snap => {
+                suppressWrite = true;
+                places = (snap.exists && snap.data().places) ? snap.data().places : [];
+                suppressWrite = false;
+                renderAll();
+            }, err => console.error('places listen', err));
+        }
+
+        // ----- Populate form selects -----
+        function populateCategorySelect() {
+            const sel = document.getElementById('placeCategory');
+            sel.innerHTML = '';
+            CATEGORIES.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c.id; o.textContent = `${c.emo} ${c.id}`;
+                sel.appendChild(o);
+            });
+        }
+        function populateCityDatalist() {
+            const dl = document.getElementById('placeCityList');
+            dl.innerHTML = '';
+            [...new Set(places.map(p => p.city).filter(Boolean))].sort().forEach(city => {
+                const o = document.createElement('option'); o.value = city; dl.appendChild(o);
+            });
+        }
+
+        // ----- Filter chips -----
+        function renderFilters() {
+            const wrap = document.getElementById('placeCatFilters');
+            wrap.innerHTML = '';
+            const used = new Set(places.map(p => p.category));
+            const chips = ['All', ...CATEGORIES.map(c => c.id).filter(id => used.has(id))];
+            chips.forEach(cat => {
+                const b = document.createElement('button');
+                b.className = 'place-cat-chip' + (activeFilter === cat ? ' active' : '');
+                b.textContent = cat === 'All' ? 'All' : `${catEmo(cat)} ${cat}`;
+                b.onclick = () => { activeFilter = cat; renderFilters(); renderCities(); };
+                wrap.appendChild(b);
+            });
+        }
+
+        // ----- Render places grouped by city -----
+        function renderCities() {
+            const container = document.getElementById('placesByCity');
+            container.innerHTML = '';
+            const filtered = activeFilter === 'All' ? places : places.filter(p => p.category === activeFilter);
+            const cities = [...new Set(filtered.map(p => p.city).filter(Boolean))].sort();
+
+            cities.forEach(city => {
+                const cityPlaces = filtered.filter(p => p.city === city);
+                const group = document.createElement('div');
+                group.className = 'place-city-group';
+                const header = document.createElement('div');
+                header.className = 'place-city-header';
+                header.innerHTML = `<span>📍 ${escapeHtml(city)}</span><span class="place-city-count">${cityPlaces.length} place${cityPlaces.length>1?'s':''}</span>`;
+                group.appendChild(header);
+
+                const list = document.createElement('div');
+                list.className = 'place-list';
+                cityPlaces.forEach(p => list.appendChild(renderPlaceItem(p)));
+                group.appendChild(list);
+                container.appendChild(group);
+            });
+        }
+        function renderPlaceItem(p) {
+            const item = document.createElement('div');
+            item.className = 'place-item';
+            item.innerHTML = `
+                <div class="place-item-top">
+                    <div class="place-item-name">${escapeHtml(p.name || 'Untitled')}</div>
+                    <span class="place-item-cat">${catEmo(p.category)} ${escapeHtml(p.category || 'Other')}</span>
+                </div>
+                ${p.desc ? `<div class="place-item-desc">${escapeHtml(p.desc)}</div>` : ''}
+                <div class="place-item-meta">
+                    ${p.hours ? `<div>🕒 ${escapeHtml(p.hours)}</div>` : ''}
+                    ${p.remarks ? `<div>📝 ${escapeHtml(p.remarks)}</div>` : ''}
+                </div>
+                <div class="place-item-actions"></div>
+            `;
+            const actions = item.querySelector('.place-item-actions');
+            const edit = document.createElement('button');
+            edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
+            edit.onclick = () => openEdit(p.id);
+            const del = document.createElement('button');
+            del.className = 'btn btn--secondary'; del.textContent = '🗑️';
+            del.onclick = () => { if (confirm('Delete this place?')) { places = places.filter(x => x.id !== p.id); save(); renderAll(); } };
+            actions.append(edit, del);
+            return item;
+        }
+        function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+        function renderAll() { populateCityDatalist(); renderFilters(); renderCities(); }
+
+        // ----- Form -----
+        const form = document.getElementById('placeForm');
+        let editingId = null;
+        function openForm() { editingId = null; clearForm(); form.style.display = 'block'; }
+        function clearForm() {
+            ['placeCity','placeName','placeDesc','placeHours','placeRemarks'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('placeCategory').value = 'Food & Drink';
+        }
+        function openEdit(id) {
+            const p = places.find(x => x.id === id);
+            if (!p) return;
+            editingId = id;
+            document.getElementById('placeCity').value = p.city || '';
+            document.getElementById('placeCategory').value = p.category || 'Other';
+            document.getElementById('placeName').value = p.name || '';
+            document.getElementById('placeDesc').value = p.desc || '';
+            document.getElementById('placeHours').value = p.hours || '';
+            document.getElementById('placeRemarks').value = p.remarks || '';
+            form.style.display = 'block';
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        document.getElementById('placeAddBtn').onclick = () => { form.style.display === 'block' ? (form.style.display = 'none') : openForm(); };
+        document.getElementById('placeFormCancel').onclick = () => { form.style.display = 'none'; };
+        document.getElementById('placeFormSave').onclick = () => {
+            const city = document.getElementById('placeCity').value.trim();
+            const name = document.getElementById('placeName').value.trim();
+            if (!city || !name) { alert('City and Name are required'); return; }
+            const data = {
+                city, name,
+                category: document.getElementById('placeCategory').value,
+                desc: document.getElementById('placeDesc').value.trim(),
+                hours: document.getElementById('placeHours').value.trim(),
+                remarks: document.getElementById('placeRemarks').value.trim(),
+            };
+            if (editingId) {
+                const p = places.find(x => x.id === editingId);
+                if (p) Object.assign(p, data);
+            } else {
+                places.push({ id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), ...data });
+            }
+            save(); renderAll();
+            form.style.display = 'none';
+        };
+
+        populateCategorySelect();
+        if (isLive()) listenLive(); else loadLocal();
+        window.placesInitLive = function() { listenLive(); };
+        window.placesInitLocal = function() { if (pUnsub) pUnsub(); loadLocal(); };
+    })();
+    </script>
 
     <!-- ============ VOUCHERS TAB ============ -->
     <div id="vouchers" class="tab-content">
@@ -3563,6 +3836,7 @@
                     if (window.weddingInitLive) window.weddingInitLive();
                     if (window.todoInitLive) window.todoInitLive();
                     if (window.vouchersInitLive) window.vouchersInitLive();
+                    if (window.placesInitLive) window.placesInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -3571,6 +3845,7 @@
                     if (window.weddingInitLocal) window.weddingInitLocal();
                     if (window.todoInitLocal) window.todoInitLocal();
                     if (window.vouchersInitLocal) window.vouchersInitLocal();
+                    if (window.placesInitLocal) window.placesInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -3697,6 +3972,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'wedding',   label: 'Wedding',   ico: 'fa-solid fa-ring' },
             { tab: 'todo',      label: 'To-Do',     ico: 'fa-solid fa-square-check' },
             { tab: 'vouchers',  label: 'Vouchers',  ico: 'fa-solid fa-ticket' },
+            { tab: 'places',    label: 'Japan List', ico: 'fa-solid fa-map-location-dot' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
