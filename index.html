@@ -1710,8 +1710,12 @@
                 </div>
             </div>
 
-            <!-- Category filter -->
+            <!-- City selector + category filter -->
             <div class="card" style="padding:var(--space-12) var(--space-16);">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:var(--space-12);">
+                    <label class="form-label" style="margin:0; white-space:nowrap;">City</label>
+                    <select id="placeCitySelect" class="form-input" style="flex:1;"></select>
+                </div>
                 <div class="place-cat-filters" id="placeCatFilters"></div>
             </div>
 
@@ -1731,8 +1735,10 @@
         .place-cat-chip.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
         .place-city-group { margin-bottom: var(--space-20); }
         .place-city-header {
-            font-size: var(--font-size-lg); font-weight: 700; margin-bottom: var(--space-12);
-            padding-bottom: var(--space-8); border-bottom: 2px solid var(--color-border);
+            font-size: var(--font-size-base); font-weight: 700; margin-bottom: var(--space-12);
+            padding: 8px 14px; border-radius: var(--radius-base);
+            background: linear-gradient(135deg, rgba(33,128,141,0.12), rgba(33,128,141,0.04));
+            border-left: 4px solid var(--color-primary);
             display: flex; align-items: center; justify-content: space-between;
         }
         .place-city-count { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); }
@@ -1777,6 +1783,7 @@
         let pUnsub = null;
         let suppressWrite = false;
         let activeFilter = 'All';
+        let activeCity = 'All';
 
         // ----- Persistence -----
         async function save() {
@@ -1839,7 +1846,8 @@
         function renderCities() {
             const container = document.getElementById('placesByCity');
             container.innerHTML = '';
-            const filtered = activeFilter === 'All' ? places : places.filter(p => p.category === activeFilter);
+            let filtered = activeFilter === 'All' ? places : places.filter(p => p.category === activeFilter);
+            if (activeCity !== 'All') filtered = filtered.filter(p => p.city === activeCity);
             const cities = [...new Set(filtered.map(p => p.city).filter(Boolean))].sort();
 
             cities.forEach(city => {
@@ -1857,6 +1865,25 @@
                 group.appendChild(list);
                 container.appendChild(group);
             });
+        }
+        function renderCitySelect() {
+            const sel = document.getElementById('placeCitySelect');
+            if (!sel) return;
+            const cities = [...new Set(places.map(p => p.city).filter(Boolean))].sort();
+            // keep current selection valid
+            if (activeCity !== 'All' && !cities.includes(activeCity)) activeCity = 'All';
+            sel.innerHTML = '';
+            const allOpt = document.createElement('option');
+            allOpt.value = 'All'; allOpt.textContent = `All cities (${places.length})`;
+            sel.appendChild(allOpt);
+            cities.forEach(c => {
+                const count = places.filter(p => p.city === c).length;
+                const o = document.createElement('option');
+                o.value = c; o.textContent = `${c} (${count})`;
+                sel.appendChild(o);
+            });
+            sel.value = activeCity;
+            sel.onchange = () => { activeCity = sel.value; renderCities(); };
         }
         function renderPlaceItem(p) {
             const item = document.createElement('div');
@@ -1899,7 +1926,7 @@
         }
         function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-        function renderAll() { populateCityDatalist(); renderFilters(); renderCities(); }
+        function renderAll() { populateCityDatalist(); renderCitySelect(); renderFilters(); renderCities(); }
 
         // ----- Form -----
         const form = document.getElementById('placeForm');
