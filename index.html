@@ -1347,6 +1347,7 @@
             <button type="button" class="tab-button" data-tab="todo">✅ To-Do</button>
             <button type="button" class="tab-button" data-tab="vouchers">🎟️ Vouchers</button>
             <button type="button" class="tab-button" data-tab="places">🗾 Japan List</button>
+            <button type="button" class="tab-button" data-tab="mood">😊 Mood</button>
         </div>
 
         <!-- ===== Mobile bottom nav + drawer ===== -->
@@ -1752,6 +1753,206 @@
             </form>
         </div>
     </div>
+
+    <!-- ============ MOOD TAB ============ -->
+    <div id="mood" class="tab-content">
+        <div class="mood-wrap">
+            <!-- Current moods side by side -->
+            <div class="card">
+                <h3 style="margin:0 0 var(--space-16); text-align:center;">How we're feeling</h3>
+                <div class="mood-now-row">
+                    <div class="mood-now" id="moodNowKenny">
+                        <div class="mood-now-name">Kenny</div>
+                        <div class="mood-now-emoji" id="moodEmojiKenny">—</div>
+                        <div class="mood-now-time" id="moodTimeKenny">No mood set</div>
+                    </div>
+                    <div class="mood-now" id="moodNowSayuri">
+                        <div class="mood-now-name">Sayuri</div>
+                        <div class="mood-now-emoji" id="moodEmojiSayuri">—</div>
+                        <div class="mood-now-time" id="moodTimeSayuri">No mood set</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Set your mood -->
+            <div class="card">
+                <h3 style="margin:0 0 var(--space-8);">Set your mood <span id="moodWhoLabel" style="font-size:12px; font-weight:500; color:var(--color-text-secondary);"></span></h3>
+                <p class="terra-hint" style="margin-bottom:var(--space-12);">Tap an emoji to update how you're feeling right now.</p>
+                <div class="mood-picker" id="moodPicker"></div>
+            </div>
+
+            <!-- 7-day history -->
+            <div class="card">
+                <h3 style="margin:0 0 var(--space-16);">Last 7 days</h3>
+                <div class="mood-history" id="moodHistoryKenny" style="margin-bottom:var(--space-16);"></div>
+                <div class="mood-history" id="moodHistorySayuri"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .mood-wrap { max-width: 760px; margin: 0 auto; }
+        .mood-now-row { display: flex; gap: var(--space-12); }
+        .mood-now {
+            flex: 1; text-align: center; padding: var(--space-20) var(--space-12);
+            border-radius: var(--radius-lg); border: 1px solid var(--color-border);
+            background: linear-gradient(135deg, rgba(33,128,141,0.06), rgba(33,128,141,0.02));
+        }
+        .mood-now-name { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-secondary); margin-bottom: var(--space-8); }
+        .mood-now-emoji { font-size: 56px; line-height: 1; margin-bottom: var(--space-8); transition: transform 0.3s; }
+        .mood-now-emoji.bump { animation: moodBump 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes moodBump { 0% { transform: scale(0.6); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        .mood-now-time { font-size: 11px; color: var(--color-text-secondary); }
+        .mood-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: var(--space-8); }
+        .mood-opt {
+            font-size: 30px; padding: 8px 0; border-radius: var(--radius-base);
+            border: 1px solid var(--color-border); background: var(--color-background);
+            cursor: pointer; transition: all 0.15s; line-height: 1;
+        }
+        .mood-opt:hover { transform: translateY(-2px) scale(1.05); border-color: var(--color-primary); }
+        .mood-opt.selected { border-color: var(--color-primary); background: rgba(33,128,141,0.1); transform: scale(1.05); }
+        .mood-history-name { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 6px; }
+        .mood-history-strip { display: flex; gap: 4px; justify-content: space-between; }
+        .mood-day { flex: 1; text-align: center; }
+        .mood-day-emoji {
+            font-size: 22px; line-height: 1; padding: 8px 0; border-radius: var(--radius-base);
+            background: var(--color-background); border: 1px solid var(--color-border);
+        }
+        .mood-day-emoji.empty { color: var(--color-border); }
+        .mood-day-label { font-size: 9px; color: var(--color-text-secondary); margin-top: 3px; }
+        .mood-day.today .mood-day-emoji { border-color: var(--color-primary); border-width: 2px; }
+    </style>
+
+    <script>
+    (function initMood() {
+        const MOODS = ['😊','😄','🥰','😌','😐','😴','😔','😢','😣','😡','🤒','🥳','😎','🤔','😰'];
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const MOOD_DOC = () => db.collection('moods').doc('shared');
+
+        // who am I?
+        function whoAmI() {
+            const email = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '';
+            return email.toLowerCase().startsWith('kkennyytan') ? 'Kenny' : 'Sayuri';
+        }
+
+        // state: { Kenny: { current, at, history: { 'YYYY-MM-DD': emoji } }, Sayuri: {...} }
+        let state = { Kenny: { current: null, at: null, history: {} }, Sayuri: { current: null, at: null, history: {} } };
+        let mUnsub = null, suppressWrite = false;
+
+        function sgtDateStr(offsetDays) {
+            const d = new Date(Date.now() + 8 * 3600 * 1000 + (offsetDays || 0) * 86400000);
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        }
+        function sgtDayLabel(offsetDays) {
+            const d = new Date(Date.now() + 8 * 3600 * 1000 + (offsetDays || 0) * 86400000);
+            return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()];
+        }
+
+        async function save() {
+            if (suppressWrite) return;
+            if (isLive()) {
+                try { await MOOD_DOC().set(state); } catch (e) { window.showSaveError && window.showSaveError('mood', e); }
+            } else { localStorage.setItem('moodState', JSON.stringify(state)); }
+        }
+        function normalize(s) {
+            const base = { Kenny: { current: null, at: null, history: {} }, Sayuri: { current: null, at: null, history: {} } };
+            const merged = Object.assign(base, s || {});
+            ['Kenny','Sayuri'].forEach(p => { if (!merged[p]) merged[p] = { current:null, at:null, history:{} }; if (!merged[p].history) merged[p].history = {}; });
+            return merged;
+        }
+        function loadLocal() {
+            const raw = localStorage.getItem('moodState');
+            state = normalize(raw ? JSON.parse(raw) : null);
+            renderAll();
+        }
+        function listenLive() {
+            if (mUnsub) mUnsub();
+            mUnsub = MOOD_DOC().onSnapshot(snap => {
+                suppressWrite = true;
+                state = normalize(snap.exists ? snap.data() : null);
+                suppressWrite = false;
+                renderAll();
+            }, err => console.error('mood listen', err));
+        }
+
+        function setMood(emoji) {
+            const me = whoAmI();
+            const today = sgtDateStr(0);
+            state[me].current = emoji;
+            state[me].at = Date.now();
+            state[me].history[today] = emoji;
+            renderAll(me); // bump animation for me
+            save();
+            if (navigator.vibrate) try { navigator.vibrate(20); } catch(e){}
+        }
+
+        function renderNow(person, bumpPerson) {
+            const data = state[person] || {};
+            const emojiEl = document.getElementById('moodEmoji' + person);
+            const timeEl = document.getElementById('moodTime' + person);
+            if (emojiEl) {
+                emojiEl.textContent = data.current || '—';
+                if (bumpPerson === person) { emojiEl.classList.remove('bump'); void emojiEl.offsetWidth; emojiEl.classList.add('bump'); }
+            }
+            if (timeEl) {
+                if (data.at) {
+                    const mins = Math.floor((Date.now() - data.at) / 60000);
+                    let txt;
+                    if (mins < 1) txt = 'just now';
+                    else if (mins < 60) txt = `${mins}m ago`;
+                    else if (mins < 1440) txt = `${Math.floor(mins/60)}h ago`;
+                    else txt = `${Math.floor(mins/1440)}d ago`;
+                    timeEl.textContent = txt;
+                } else { timeEl.textContent = 'No mood set'; }
+            }
+        }
+        function renderPicker() {
+            const wrap = document.getElementById('moodPicker');
+            if (!wrap) return;
+            const me = whoAmI();
+            document.getElementById('moodWhoLabel').textContent = '(' + me + ')';
+            const myCurrent = state[me] && state[me].current;
+            wrap.innerHTML = '';
+            MOODS.forEach(em => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'mood-opt' + (em === myCurrent ? ' selected' : '');
+                b.textContent = em;
+                b.onclick = () => setMood(em);
+                wrap.appendChild(b);
+            });
+        }
+        function renderHistory(person) {
+            const wrap = document.getElementById('moodHistory' + person);
+            if (!wrap) return;
+            const hist = (state[person] && state[person].history) || {};
+            let html = `<div class="mood-history-name">${person}</div><div class="mood-history-strip">`;
+            for (let i = 6; i >= 0; i--) {
+                const ds = sgtDateStr(-i);
+                const em = hist[ds];
+                html += `<div class="mood-day${i===0?' today':''}">
+                    <div class="mood-day-emoji${em?'':' empty'}">${em || '·'}</div>
+                    <div class="mood-day-label">${sgtDayLabel(-i)}</div>
+                </div>`;
+            }
+            html += '</div>';
+            wrap.innerHTML = html;
+        }
+        function renderAll(bumpPerson) {
+            renderNow('Kenny', bumpPerson);
+            renderNow('Sayuri', bumpPerson);
+            renderPicker();
+            renderHistory('Kenny');
+            renderHistory('Sayuri');
+        }
+        // refresh "Xm ago" every minute
+        setInterval(() => { renderNow('Kenny'); renderNow('Sayuri'); }, 60000);
+
+        if (isLive()) listenLive(); else loadLocal();
+        window.moodInitLive = function() { listenLive(); };
+        window.moodInitLocal = function() { if (mUnsub) mUnsub(); loadLocal(); };
+    })();
+    </script>
 
     <!-- ============ PLACES TAB ============ -->
     <div id="places" class="tab-content">
@@ -4061,6 +4262,7 @@
                     if (window.todoInitLive) window.todoInitLive();
                     if (window.vouchersInitLive) window.vouchersInitLive();
                     if (window.placesInitLive) window.placesInitLive();
+                    if (window.moodInitLive) window.moodInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -4070,6 +4272,7 @@
                     if (window.todoInitLocal) window.todoInitLocal();
                     if (window.vouchersInitLocal) window.vouchersInitLocal();
                     if (window.placesInitLocal) window.placesInitLocal();
+                    if (window.moodInitLocal) window.moodInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -4197,6 +4400,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'todo',      label: 'To-Do',     ico: 'fa-solid fa-square-check' },
             { tab: 'vouchers',  label: 'Vouchers',  ico: 'fa-solid fa-ticket' },
             { tab: 'places',    label: 'Japan List', ico: 'fa-solid fa-map-location-dot' },
+            { tab: 'mood',      label: 'Mood',      ico: 'fa-solid fa-face-smile' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
