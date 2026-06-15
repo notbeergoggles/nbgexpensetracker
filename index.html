@@ -1032,7 +1032,6 @@
             top: 0; left: 0;
             width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(12px); 
             z-index: 2000;
             justify-content: center;
             align-items: center;
@@ -1042,8 +1041,7 @@
         }
         
         .edit-modal-content {
-            background: rgba(30, 30, 30, 0.85);
-            backdrop-filter: blur(15px);
+            background: rgba(30, 30, 30, 0.97);
             border: 1px solid rgba(255, 255, 255, 0.1);
             padding: var(--space-24);
             border-radius: 28px;
@@ -1564,7 +1562,7 @@
             </div>
             
 
-            <div class="card card--glass">
+            <div class="card">
                 <h2>Quick Stats</h2>
                 <div class="grid grid-3" style="margin-top: var(--space-16); text-align: center;">
                     <div class="summary-item">
@@ -3110,7 +3108,7 @@
     <div id="wedding" class="tab-content">
         <div class="wedding-wrap">
             <!-- Budget card -->
-            <div class="card card--glass wedding-budget-card">
+            <div class="card wedding-budget-card">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-12);">
                     <h2 style="margin: 0; font-size: var(--font-size-lg);">💍 Wedding Budget</h2>
                     <button type="button" class="btn btn--secondary" id="weddingEditBudget" style="padding: 4px 10px; font-size: 12px;">✏️ Edit</button>
@@ -5783,22 +5781,11 @@ async function handleDeleteExpense(id) {
     </script>
     <!-- ============ BEAUTY PACK ============ -->
     <style>
-        /* 1. Cards: semi-transparent tint so bubbles/aurora glow through.
-           Heavy backdrop-blur was removed from the universal rule for performance
-           (it forced a separate GPU layer per card). Real glass is opt-in via .card--glass. */
+        /* 1. Cards: solid surface. */
         .card {
-            background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+            background: var(--color-surface);
             position: relative;
             overflow: hidden;
-        }
-        @supports not (background: color-mix(in srgb, red 50%, blue)) {
-            .card { background: var(--color-surface); } /* fallback */
-        }
-        /* Opt-in frosted glass — use sparingly on hero cards only */
-        .card--glass {
-            -webkit-backdrop-filter: blur(14px) saturate(1.25);
-            backdrop-filter: blur(14px) saturate(1.25);
-            background: color-mix(in srgb, var(--color-surface) 74%, transparent);
         }
 
         /* 2. Card glow following the pointer */
