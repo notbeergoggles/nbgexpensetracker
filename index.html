@@ -1281,17 +1281,20 @@
             <style>
                 .date-night-btn {
                     position: relative; overflow: hidden;
-                    display: inline-flex; align-items: center; gap: 6px;
-                    border: none; color: #fff; font-weight: 700;
+                    display: inline-flex; align-items: center; gap: 5px;
+                    padding: 7px 16px !important;
+                    border: none; border-radius: 50px;
+                    color: #fff; font-weight: 600; font-size: 13px; line-height: 1;
+                    letter-spacing: 0.02em;
                     background: linear-gradient(120deg, #ff8fb1, #ff6b9d, #c44569, #ff6b9d, #ff8fb1);
                     background-size: 300% 100%;
                     animation: dnbShift 6s ease infinite;
-                    box-shadow: 0 4px 14px rgba(196,69,105,0.4);
+                    box-shadow: 0 2px 8px rgba(196,69,105,0.35);
                     transition: transform 0.15s ease, box-shadow 0.15s ease;
                 }
                 .date-night-btn:hover {
                     transform: translateY(-1px) scale(1.03);
-                    box-shadow: 0 6px 20px rgba(196,69,105,0.55);
+                    box-shadow: 0 4px 14px rgba(196,69,105,0.5);
                 }
                 .date-night-btn:active { transform: scale(0.96); }
                 @keyframes dnbShift {
@@ -1299,7 +1302,7 @@
                     50% { background-position: 100% 50%; }
                     100% { background-position: 0% 50%; }
                 }
-                .dnb-heart { display: inline-block; animation: dnbBeat 1.4s ease-in-out infinite; }
+                .dnb-heart { display: inline-block; font-size: 12px; animation: dnbBeat 1.4s ease-in-out infinite; }
                 @keyframes dnbBeat {
                     0%, 100% { transform: scale(1); }
                     15% { transform: scale(1.25); }
