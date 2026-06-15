@@ -1276,6 +1276,7 @@
             </div>
             <div style="display: flex; gap: 8px;">
                 <button type="button" class="btn btn--sm date-night-btn" id="dateNightBtn"><span class="dnb-heart">💕</span><span>Date</span></button>
+                <button type="button" class="btn btn--sm coin-flip-btn" id="coinFlipBtn"><span>🪙</span><span>Flip</span></button>
                 <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
             </div>
             <style>
@@ -1324,6 +1325,17 @@
                 @media (prefers-reduced-motion: reduce) {
                     .date-night-btn, .dnb-heart, .date-night-btn::after { animation: none; }
                 }
+                .coin-flip-btn {
+                    display: inline-flex; align-items: center; gap: 5px;
+                    padding: 7px 16px !important;
+                    border: none; border-radius: 50px;
+                    color: #5a3e00; font-weight: 600; font-size: 13px; line-height: 1;
+                    background: linear-gradient(135deg, #ffd86e, #f7b733);
+                    box-shadow: 0 2px 8px rgba(247,183,51,0.4);
+                    transition: transform 0.15s ease, box-shadow 0.15s ease;
+                }
+                .coin-flip-btn:hover { transform: translateY(-1px) scale(1.03); box-shadow: 0 4px 14px rgba(247,183,51,0.55); }
+                .coin-flip-btn:active { transform: scale(0.96); }
             </style>
         </div>
 
@@ -6103,6 +6115,81 @@ async function handleDeleteExpense(id) {
             }, 75);
         }
         document.getElementById('dateNightRoll').onclick = roll;
+    })();
+    </script>
+    <!-- ============ COIN FLIP ============ -->
+    <div id="coinFlipModal" style="display:none; position:fixed; inset:0; z-index:400; align-items:center; justify-content:center;">
+        <div id="coinFlipOverlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.55);"></div>
+        <div style="position:relative; z-index:1; background:var(--color-surface); width:90%; max-width:380px; border-radius:20px; padding:var(--space-24); text-align:center; box-shadow:0 12px 50px rgba(0,0,0,0.3);">
+            <button type="button" id="coinFlipClose" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:var(--color-text-secondary);">×</button>
+            <h2 style="margin:0 0 var(--space-20);">🪙 Coin Flip</h2>
+            <div class="coin-stage">
+                <div class="coin" id="coin">
+                    <div class="coin-face coin-heads">H</div>
+                    <div class="coin-face coin-tails">T</div>
+                </div>
+            </div>
+            <div id="coinResult" style="font-weight:700; font-size:var(--font-size-xl); min-height:28px; margin:var(--space-16) 0;">Tap to flip</div>
+            <button type="button" class="btn btn--primary" id="coinFlipRoll" style="width:100%; background:linear-gradient(135deg,#ffd86e,#f7b733); color:#5a3e00;">Flip the coin</button>
+        </div>
+    </div>
+
+    <style>
+        .coin-stage { perspective: 800px; height: 130px; display:flex; align-items:center; justify-content:center; }
+        .coin {
+            position: relative; width: 110px; height: 110px;
+            transform-style: preserve-3d; transition: transform 0.1s;
+        }
+        .coin.flipping { animation: coinSpin 1.6s cubic-bezier(0.3,0.1,0.2,1) forwards; }
+        .coin-face {
+            position: absolute; inset: 0; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 44px; font-weight: 800; color: #5a3e00;
+            backface-visibility: hidden; -webkit-backface-visibility: hidden;
+            background: radial-gradient(circle at 35% 30%, #ffe9a0, #f7b733);
+            border: 5px solid #e0a020;
+            box-shadow: inset 0 0 12px rgba(180,120,0,0.3);
+        }
+        .coin-tails { transform: rotateY(180deg); }
+        @keyframes coinSpin {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(var(--spin-end)); }
+        }
+    </style>
+
+    <script>
+    (function coinFlip() {
+        const modal = document.getElementById('coinFlipModal');
+        const coin = document.getElementById('coin');
+        const result = document.getElementById('coinResult');
+        const open = () => { modal.style.display = 'flex'; result.textContent = 'Tap to flip'; coin.style.transform = 'rotateY(0deg)'; };
+        const close = () => { modal.style.display = 'none'; };
+        document.getElementById('coinFlipBtn').onclick = open;
+        document.getElementById('coinFlipClose').onclick = close;
+        document.getElementById('coinFlipOverlay').onclick = close;
+
+        let flipping = false;
+        function flip() {
+            if (flipping) return;
+            flipping = true;
+            const btn = document.getElementById('coinFlipRoll');
+            btn.disabled = true;
+            result.textContent = '';
+            const heads = Math.random() < 0.5;
+            // 5-8 full spins + landing face. Heads shows front (0deg), Tails shows back (180deg).
+            const spins = 5 + Math.floor(Math.random() * 4);
+            const endDeg = spins * 360 + (heads ? 0 : 180);
+            coin.style.setProperty('--spin-end', endDeg + 'deg');
+            coin.classList.remove('flipping'); void coin.offsetWidth; coin.classList.add('flipping');
+            if (navigator.vibrate) try { navigator.vibrate(15); } catch(e){}
+            setTimeout(() => {
+                coin.style.transform = `rotateY(${heads ? 0 : 180}deg)`;
+                result.textContent = heads ? '👑 Heads!' : '🪙 Tails!';
+                if (navigator.vibrate) try { navigator.vibrate([30,50,30]); } catch(e){}
+                flipping = false; btn.disabled = false;
+            }, 1600);
+        }
+        document.getElementById('coinFlipRoll').onclick = flip;
     })();
     </script>
 </body>
