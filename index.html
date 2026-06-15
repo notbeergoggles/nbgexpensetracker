@@ -1422,6 +1422,7 @@
                     <div class="summary-item">
                         <div class="summary-label">Total Expenses</div>
                         <div class="summary-value" id="totalExpenses">SGD 0.00</div>
+                        <div class="summary-compare" id="spendingCompare" style="font-size:11px; font-weight:600; margin-top:4px; min-height:14px;"></div>
                     </div>
                     <div class="summary-item">
                         <div class="summary-label">Number of Entries</div>
@@ -4051,6 +4052,63 @@ async function deleteExpenseFromFirebase(id) {
             renderCategoryBars(t.categoryTotals, t.totalExpenses);
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
             renderIndividualSpending(t.individualTotals);
+            renderSpendingCompare();
+        }
+
+        // Sum of non-payment expenses for a specific year + month (0-indexed month)
+        function sumForMonth(year, month) {
+            return activeExpenses.reduce((sum, e) => {
+                if (e.isPayment) return sum;
+                const d = new Date(e.date);
+                if (d.getFullYear() === year && d.getMonth() === month) return sum + (Number(e.amount) || 0);
+                return sum;
+            }, 0);
+        }
+
+        function renderSpendingCompare() {
+            const el = document.getElementById('spendingCompare');
+            if (!el) return;
+            const filter = document.getElementById('monthFilter')?.value || 'current';
+
+            // Determine which month is "selected"
+            let selYear, selMonth;
+            if (filter === 'all') { el.textContent = ''; return; } // no comparison for All
+            if (filter === 'current') {
+                const now = new Date();
+                selYear = now.getFullYear(); selMonth = now.getMonth();
+            } else {
+                const [y, m] = filter.split('-');
+                selYear = parseInt(y); selMonth = parseInt(m) - 1;
+            }
+
+            // Previous month
+            let prevYear = selYear, prevMonth = selMonth - 1;
+            if (prevMonth < 0) { prevMonth = 11; prevYear -= 1; }
+
+            const thisTotal = sumForMonth(selYear, selMonth);
+            const prevTotal = sumForMonth(prevYear, prevMonth);
+
+            if (prevTotal === 0) {
+                el.textContent = thisTotal > 0 ? 'No data for last month' : '';
+                el.style.color = 'var(--color-text-secondary)';
+                return;
+            }
+
+            const diff = thisTotal - prevTotal;
+            const pct = Math.abs(diff / prevTotal * 100);
+            const isCurrentPartial = (filter === 'current'); // current month isn't over yet
+
+            if (Math.abs(diff) < 0.005) {
+                el.textContent = '→ Same as last month';
+                el.style.color = 'var(--color-text-secondary)';
+            } else if (diff > 0) {
+                el.textContent = `▲ ${pct.toFixed(0)}% more than last month`;
+                el.style.color = '#d4453e';
+            } else {
+                el.textContent = `▼ ${pct.toFixed(0)}% less than last month`;
+                el.style.color = '#21a05a';
+            }
+            if (isCurrentPartial && Math.abs(diff) >= 0.005) el.textContent += ' (so far)';
         }
 
         function renderCategoryPie(categoryTotals, total) {
