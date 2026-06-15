@@ -316,6 +316,39 @@
             font-size: var(--font-size-sm);
         }
 
+        /* Unified press feedback for all buttons */
+        .btn:active { transform: scale(0.96); }
+
+        /* ===== Accent buttons (playful utilities) — one shared base, hue via modifier ===== */
+        .btn--accent {
+            position: relative; overflow: hidden;
+            border: none; color: #fff; font-weight: 600;
+            letter-spacing: 0.02em;
+            box-shadow: 0 2px 8px var(--accent-shadow, rgba(0,0,0,0.25));
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn--accent:hover { transform: translateY(-1px) scale(1.03); box-shadow: 0 4px 14px var(--accent-shadow-strong, rgba(0,0,0,0.35)); }
+        .btn--accent:active { transform: scale(0.96); }
+        /* Pill shape when small */
+        .btn--accent.btn--sm { border-radius: 50px; padding: 7px 16px; font-size: 13px; line-height: 1; }
+        /* Full-size accent buttons (in modals) keep the base radius */
+        .btn--accent:not(.btn--sm) { border-radius: var(--radius-base); }
+
+        /* Hue variants */
+        .btn--accent.accent-pink {
+            background: linear-gradient(120deg, #ff8fb1, #ff6b9d, #c44569, #ff6b9d, #ff8fb1);
+            background-size: 300% 100%; animation: dnbShift 6s ease infinite;
+            --accent-shadow: rgba(196,69,105,0.35); --accent-shadow-strong: rgba(196,69,105,0.5);
+        }
+        .btn--accent.accent-gold {
+            background: linear-gradient(135deg, #ffd86e, #f7b733); color: #5a3e00;
+            --accent-shadow: rgba(247,183,51,0.4); --accent-shadow-strong: rgba(247,183,51,0.55);
+        }
+        .btn--accent.accent-teal {
+            background: linear-gradient(135deg, #7fd4c8, #34b8c6); color: #1a4d4d;
+            --accent-shadow: rgba(52,184,198,0.4); --accent-shadow-strong: rgba(52,184,198,0.55);
+        }
+
         .btn--full-width {
             width: 100%;
             /* Added a slight shadow to make the thick button "pop" */
@@ -1307,9 +1340,9 @@
             </div>
         </div>
         <div class="action-bar">
-            <button type="button" class="btn btn--sm date-night-btn" id="dateNightBtn"><span class="dnb-heart">💕</span><span>Date</span></button>
-            <button type="button" class="btn btn--sm coin-flip-btn" id="coinFlipBtn"><span>🪙</span><span>Flip</span></button>
-            <button type="button" class="btn btn--sm gst-btn" id="gstBtn"><span>🧮</span><span>GST</span></button>
+            <button type="button" class="btn btn--sm btn--accent accent-pink" id="dateNightBtn"><span class="dnb-heart">💕</span><span>Date</span></button>
+            <button type="button" class="btn btn--sm btn--accent accent-gold" id="coinFlipBtn"><span>🪙</span><span>Flip</span></button>
+            <button type="button" class="btn btn--sm btn--accent accent-teal" id="gstBtn"><span>🧮</span><span>GST</span></button>
             <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
         </div>
         <style>
@@ -1318,75 +1351,34 @@
                 margin-bottom: var(--space-16);
             }
             .action-bar > button { width: 100%; justify-content: center; }
-            .gst-btn {
-                display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-                padding: 7px 12px !important; border: none; border-radius: 50px;
-                color: #1a4d4d; font-weight: 600; font-size: 13px; line-height: 1;
-                background: linear-gradient(135deg, #7fd4c8, #34b8c6);
-                box-shadow: 0 2px 8px rgba(52,184,198,0.4);
-                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            /* Heartbeat + shimmer used by the pink accent (Date) button */
+            @keyframes dnbShift {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
             }
-            .gst-btn:hover { transform: translateY(-1px) scale(1.03); box-shadow: 0 4px 14px rgba(52,184,198,0.55); }
-            .gst-btn:active { transform: scale(0.96); }
+            .dnb-heart { display: inline-block; font-size: 12px; animation: dnbBeat 1.4s ease-in-out infinite; }
+            @keyframes dnbBeat {
+                0%, 100% { transform: scale(1); }
+                15% { transform: scale(1.25); }
+                30% { transform: scale(1); }
+                45% { transform: scale(1.2); }
+            }
+            .accent-pink::after {
+                content: ''; position: absolute; top: 0; left: -60%;
+                width: 40%; height: 100%;
+                background: linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent);
+                transform: skewX(-20deg);
+                animation: dnbSweep 4s ease-in-out infinite;
+            }
+            @keyframes dnbSweep {
+                0%, 100% { left: -60%; }
+                50% { left: 120%; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .accent-pink, .dnb-heart, .accent-pink::after { animation: none; }
+            }
         </style>
-            <style>
-                .date-night-btn {
-                    position: relative; overflow: hidden;
-                    display: inline-flex; align-items: center; gap: 5px;
-                    padding: 7px 16px !important;
-                    border: none; border-radius: 50px;
-                    color: #fff; font-weight: 600; font-size: 13px; line-height: 1;
-                    letter-spacing: 0.02em;
-                    background: linear-gradient(120deg, #ff8fb1, #ff6b9d, #c44569, #ff6b9d, #ff8fb1);
-                    background-size: 300% 100%;
-                    animation: dnbShift 6s ease infinite;
-                    box-shadow: 0 2px 8px rgba(196,69,105,0.35);
-                    transition: transform 0.15s ease, box-shadow 0.15s ease;
-                }
-                .date-night-btn:hover {
-                    transform: translateY(-1px) scale(1.03);
-                    box-shadow: 0 4px 14px rgba(196,69,105,0.5);
-                }
-                .date-night-btn:active { transform: scale(0.96); }
-                @keyframes dnbShift {
-                    0% { background-position: 0% 50%; }
-                    50% { background-position: 100% 50%; }
-                    100% { background-position: 0% 50%; }
-                }
-                .dnb-heart { display: inline-block; font-size: 12px; animation: dnbBeat 1.4s ease-in-out infinite; }
-                @keyframes dnbBeat {
-                    0%, 100% { transform: scale(1); }
-                    15% { transform: scale(1.25); }
-                    30% { transform: scale(1); }
-                    45% { transform: scale(1.2); }
-                }
-                /* Shimmer sweep */
-                .date-night-btn::after {
-                    content: ''; position: absolute; top: 0; left: -60%;
-                    width: 40%; height: 100%;
-                    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent);
-                    transform: skewX(-20deg);
-                    animation: dnbSweep 4s ease-in-out infinite;
-                }
-                @keyframes dnbSweep {
-                    0%, 100% { left: -60%; }
-                    50% { left: 120%; }
-                }
-                @media (prefers-reduced-motion: reduce) {
-                    .date-night-btn, .dnb-heart, .date-night-btn::after { animation: none; }
-                }
-                .coin-flip-btn {
-                    display: inline-flex; align-items: center; gap: 5px;
-                    padding: 7px 16px !important;
-                    border: none; border-radius: 50px;
-                    color: #5a3e00; font-weight: 600; font-size: 13px; line-height: 1;
-                    background: linear-gradient(135deg, #ffd86e, #f7b733);
-                    box-shadow: 0 2px 8px rgba(247,183,51,0.4);
-                    transition: transform 0.15s ease, box-shadow 0.15s ease;
-                }
-                .coin-flip-btn:hover { transform: translateY(-1px) scale(1.03); box-shadow: 0 4px 14px rgba(247,183,51,0.55); }
-                .coin-flip-btn:active { transform: scale(0.96); }
-            </style>
         </div>
 
         <h1>💰 NotBeerGoggles Shared Expenses Tracker</h1>
@@ -1572,7 +1564,7 @@
             </div>
             
 
-            <div class="card">
+            <div class="card card--glass">
                 <h2>Quick Stats</h2>
                 <div class="grid grid-3" style="margin-top: var(--space-16); text-align: center;">
                     <div class="summary-item">
@@ -1847,7 +1839,7 @@
             <div id="notePopupFrom" style="font-size:12px; color:var(--color-text-secondary); margin-bottom:var(--space-12);"></div>
             <div id="notePopupSticker" style="font-size:44px; line-height:1; margin-bottom:var(--space-8);"></div>
             <div id="notePopupText" style="font-size:var(--font-size-lg); line-height:1.5; margin-bottom:var(--space-20);"></div>
-            <button type="button" class="btn btn--primary" id="notePopupClose" style="width:100%; background:linear-gradient(135deg,#ff6b9d,#c44569);">Aww, thanks 💕</button>
+            <button type="button" class="btn btn--accent accent-pink" id="notePopupClose" style="width:100%;">Aww, thanks 💕</button>
         </div>
     </div>
 
@@ -3118,7 +3110,7 @@
     <div id="wedding" class="tab-content">
         <div class="wedding-wrap">
             <!-- Budget card -->
-            <div class="card wedding-budget-card">
+            <div class="card card--glass wedding-budget-card">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-12);">
                     <h2 style="margin: 0; font-size: var(--font-size-lg);">💍 Wedding Budget</h2>
                     <button type="button" class="btn btn--secondary" id="weddingEditBudget" style="padding: 4px 10px; font-size: 12px;">✏️ Edit</button>
@@ -5791,16 +5783,22 @@ async function handleDeleteExpense(id) {
     </script>
     <!-- ============ BEAUTY PACK ============ -->
     <style>
-        /* 1. Glassmorphism cards: frosted glass so bubbles/aurora glow through */
+        /* 1. Cards: semi-transparent tint so bubbles/aurora glow through.
+           Heavy backdrop-blur was removed from the universal rule for performance
+           (it forced a separate GPU layer per card). Real glass is opt-in via .card--glass. */
         .card {
-            background: color-mix(in srgb, var(--color-surface) 74%, transparent);
-            -webkit-backdrop-filter: blur(14px) saturate(1.25);
-            backdrop-filter: blur(14px) saturate(1.25);
+            background: color-mix(in srgb, var(--color-surface) 88%, transparent);
             position: relative;
             overflow: hidden;
         }
         @supports not (background: color-mix(in srgb, red 50%, blue)) {
             .card { background: var(--color-surface); } /* fallback */
+        }
+        /* Opt-in frosted glass — use sparingly on hero cards only */
+        .card--glass {
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
+            backdrop-filter: blur(14px) saturate(1.25);
+            background: color-mix(in srgb, var(--color-surface) 74%, transparent);
         }
 
         /* 2. Card glow following the pointer */
@@ -6185,7 +6183,7 @@ async function handleDeleteExpense(id) {
                 <div id="dateNightText" style="font-weight:600; font-size:var(--font-size-lg);">Tap the button below</div>
                 <div id="dateNightCat" style="font-size:12px; color:var(--color-text-secondary);"></div>
             </div>
-            <button type="button" class="btn btn--primary" id="dateNightRoll" style="width:100%; background:linear-gradient(135deg,#ff6b9d,#c44569);">🎲 Roll the dice</button>
+            <button type="button" class="btn btn--accent accent-pink" id="dateNightRoll" style="width:100%;">🎲 Roll the dice</button>
         </div>
     </div>
 
@@ -6276,7 +6274,7 @@ async function handleDeleteExpense(id) {
                 </div>
             </div>
             <div id="coinResult" style="font-weight:700; font-size:var(--font-size-xl); min-height:28px; margin:var(--space-16) 0;">Tap to flip</div>
-            <button type="button" class="btn btn--primary" id="coinFlipRoll" style="width:100%; background:linear-gradient(135deg,#ffd86e,#f7b733); color:#5a3e00;">Flip the coin</button>
+            <button type="button" class="btn btn--accent accent-gold" id="coinFlipRoll" style="width:100%;">Flip the coin</button>
         </div>
     </div>
 
