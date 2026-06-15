@@ -1870,13 +1870,19 @@
                 <div class="place-item-actions"></div>
             `;
             const actions = item.querySelector('.place-item-actions');
+            const maps = document.createElement('button');
+            maps.className = 'btn btn--secondary'; maps.textContent = '📍 Maps';
+            maps.onclick = () => {
+                const q = encodeURIComponent(`${p.name || ''} ${p.city || ''}`.trim());
+                window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank');
+            };
             const edit = document.createElement('button');
             edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
             edit.onclick = () => openEdit(p.id);
             const del = document.createElement('button');
             del.className = 'btn btn--secondary'; del.textContent = '🗑️';
             del.onclick = () => { if (confirm('Delete this place?')) { places = places.filter(x => x.id !== p.id); save(); renderAll(); } };
-            actions.append(edit, del);
+            actions.append(maps, edit, del);
             return item;
         }
         function escapeHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
