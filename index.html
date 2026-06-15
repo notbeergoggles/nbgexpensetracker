@@ -5665,18 +5665,7 @@ async function handleDeleteExpense(id) {
     <!-- ============ POINTLESS DELIGHTS ============ -->
     <style>
         /* Aurora gradient: a huge soft blob that drifts hue very slowly behind everything */
-        .aurora {
-            position: fixed; inset: -30%; z-index: 0; pointer-events: none;
-            background: radial-gradient(ellipse at 30% 20%, rgba(33,128,141,0.10), transparent 55%),
-                        radial-gradient(ellipse at 75% 70%, rgba(168,75,255,0.07), transparent 55%);
-            animation: auroraShift 90s linear infinite;
-            filter: blur(20px);
-        }
-        @keyframes auroraShift {
-            0%   { filter: blur(20px) hue-rotate(0deg);   transform: rotate(0deg) scale(1); }
-            50%  { filter: blur(20px) hue-rotate(60deg);  transform: rotate(3deg) scale(1.06); }
-            100% { filter: blur(20px) hue-rotate(0deg);   transform: rotate(0deg) scale(1); }
-        }
+        /* Aurora gradient: REMOVED for performance (fixed full-viewport animated blur). */
         /* Seasonal particles */
         .season-particle {
             position: fixed; top: -5vh; z-index: 1; pointer-events: none;
@@ -5706,10 +5695,7 @@ async function handleDeleteExpense(id) {
     </style>
     <script>
     (function pointlessDelights() {
-        // ----- 1. Aurora gradient -----
-        const aurora = document.createElement('div');
-        aurora.className = 'aurora';
-        document.body.prepend(aurora);
+        // ----- 1. Aurora gradient: REMOVED for performance -----
 
         // ----- 2. Seasonal particles -----
         function seasonEmoji() {
