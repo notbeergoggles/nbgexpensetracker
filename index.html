@@ -1275,6 +1275,7 @@
                 <div class="user-email" id="userEmail">user@email.com</div>
             </div>
             <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn--sm" id="dateNightBtn" style="background:linear-gradient(135deg,#ff6b9d,#c44569); color:#fff;">💕 Date</button>
                 <button type="button" class="btn btn--logout btn--sm" id="logoutBtn">Logout</button>
             </div>
         </div>
@@ -2993,8 +2994,30 @@
                 <div class="terra-cat-tabs" id="terraCatTabs"></div>
                 <div class="terra-shop-grid" id="terraShopGrid"></div>
             </div>
+
+            <div class="card terra-shop">
+                <h3 style="margin-bottom:var(--space-8);">🏆 Achievements <span id="terraBadgeCount" style="font-size:12px; font-weight:500; color:var(--color-text-secondary);"></span></h3>
+                <div class="terra-badge-grid" id="terraBadgeGrid"></div>
+            </div>
         </div>
     </div>
+
+    <style>
+        .terra-badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--space-8); }
+        .terra-badge {
+            display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+            padding: 12px 6px; border-radius: var(--radius-base);
+            border: 1px solid var(--color-border); background: var(--color-background);
+            transition: transform 0.15s;
+        }
+        .terra-badge.locked { opacity: 0.4; filter: grayscale(1); }
+        .terra-badge.unlocked { border-color: var(--color-primary); background: linear-gradient(135deg, rgba(33,128,141,0.1), rgba(33,128,141,0.03)); }
+        .terra-badge.just-unlocked { animation: badgePop 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes badgePop { 0% { transform: scale(0.5) rotate(-12deg); } 60% { transform: scale(1.18) rotate(6deg); } 100% { transform: scale(1); } }
+        .terra-badge .b-emo { font-size: 28px; line-height: 1; }
+        .terra-badge .b-name { font-size: 11px; font-weight: 600; }
+        .terra-badge .b-desc { font-size: 9px; color: var(--color-text-secondary); line-height: 1.2; }
+    </style>
 
     <script>
     (function initTerrarium() {
@@ -3042,7 +3065,7 @@
         const LOG_REWARD = 5; // coins per expense logged (handled in addExpense hook below)
 
         // ----- State -----
-        let state = { coins: 0, items: [], lastClaim: null, night: false };
+        let state = { coins: 0, items: [], lastClaim: null, night: false, stats: { logs: 0, claims: 0, placed: 0 }, badges: [] };
         let selectedShopId = null;
         let activeCat = 'Plants';
         let terraUnsub = null;
@@ -3071,7 +3094,9 @@
             terraUnsub = TERRA_DOC().onSnapshot(snap => {
                 if (snap.exists) {
                     suppressWrite = true;
-                    state = Object.assign({ coins:0, items:[], lastClaim:null, night:false }, snap.data());
+                    state = Object.assign({ coins:0, items:[], lastClaim:null, night:false, stats:{logs:0,claims:0,placed:0}, badges:[] }, snap.data());
+                    if (!state.stats) state.stats = { logs:0, claims:0, placed:0 };
+                    if (!state.badges) state.badges = [];
                     suppressWrite = false;
                 } else {
                     TERRA_DOC().set(state);
@@ -3166,7 +3191,7 @@
             const b = document.getElementById('terraDayNight');
             if (b) b.textContent = state.night ? '☀️ Day' : '🌙 Night';
         }
-        function renderAll() { renderCoins(); renderCatTabs(); renderShop(); renderJar(); renderDayNight(); renderCountdown(); }
+        function renderAll() { renderCoins(); renderCatTabs(); renderShop(); renderJar(); renderDayNight(); renderCountdown(); checkAchievements(false); }
 
         // ----- Actions -----
         function coinFx(jar, x, y, txt) {
@@ -3195,6 +3220,9 @@
             });
             renderCoins(); renderJar();
             coinFx(jar, x, y, '-' + item.cost);
+            state.stats = state.stats || { logs:0, claims:0, placed:0 };
+            state.stats.placed++;
+            checkAchievements(true);
             saveState();
         }
         function removeItem(idx) {
@@ -3273,14 +3301,67 @@
             saveState();
         }
 
+        // ===== Achievements =====
+        const ACHIEVEMENTS = [
+            { id: 'first_item',  emo: '🌱', name: 'First Sprout',   desc: 'Place your first item',        check: s => s.stats.placed >= 1 },
+            { id: 'green_thumb', emo: '🪴', name: 'Green Thumb',    desc: 'Place 10 items',               check: s => s.stats.placed >= 10 },
+            { id: 'gardener',    emo: '🌳', name: 'Master Gardener', desc: 'Place 30 items',              check: s => s.stats.placed >= 30 },
+            { id: 'first_claim', emo: '📅', name: 'Day One',        desc: 'Claim your first daily bonus', check: s => s.stats.claims >= 1 },
+            { id: 'regular',     emo: '⭐', name: 'Regular',        desc: 'Claim 7 daily bonuses',        check: s => s.stats.claims >= 7 },
+            { id: 'devoted',     emo: '🌟', name: 'Devoted',        desc: 'Claim 30 daily bonuses',       check: s => s.stats.claims >= 30 },
+            { id: 'saver',       emo: '🪙', name: 'Coin Collector', desc: 'Earn 100 coins from logging',  check: s => s.stats.logs >= 20 },
+            { id: 'tycoon',      emo: '💰', name: 'Coin Tycoon',    desc: 'Hold 200 coins at once',       check: s => s.coins >= 200 },
+            { id: 'wild_friend', emo: '🦔', name: 'Wild Friend',    desc: 'Receive a rare visitor',       check: s => (s.items||[]).some(i => i.by === '✨wild') },
+            { id: 'full_jar',    emo: '🫙', name: 'Full House',     desc: 'Have 15 items in the jar',     check: s => (s.items||[]).length >= 15 },
+        ];
+        function checkAchievements(announce) {
+            if (!state.badges) state.badges = [];
+            let newly = [];
+            ACHIEVEMENTS.forEach(a => {
+                if (!state.badges.includes(a.id) && a.check(state)) {
+                    state.badges.push(a.id);
+                    newly.push(a);
+                }
+            });
+            if (newly.length) {
+                renderBadges(newly.map(a => a.id));
+                if (announce) {
+                    const jar = document.getElementById('terraJar');
+                    newly.forEach((a, i) => setTimeout(() => { if (jar) coinFx(jar, 50, 35, `🏆 ${a.name}!`); }, i * 1300));
+                    if (navigator.vibrate) try { navigator.vibrate([40,60,40]); } catch(e){}
+                }
+                saveState();
+            } else {
+                renderBadges([]);
+            }
+        }
+        function renderBadges(justUnlocked) {
+            const grid = document.getElementById('terraBadgeGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const owned = state.badges || [];
+            ACHIEVEMENTS.forEach(a => {
+                const has = owned.includes(a.id);
+                const d = document.createElement('div');
+                d.className = 'terra-badge ' + (has ? 'unlocked' : 'locked') + (justUnlocked && justUnlocked.includes(a.id) ? ' just-unlocked' : '');
+                d.innerHTML = `<span class="b-emo">${a.emo}</span><span class="b-name">${a.name}</span><span class="b-desc">${has ? a.desc : '🔒 ' + a.desc}</span>`;
+                grid.appendChild(d);
+            });
+            const countEl = document.getElementById('terraBadgeCount');
+            if (countEl) countEl.textContent = `(${owned.length}/${ACHIEVEMENTS.length})`;
+        }
+
         function claimDaily() {
             const jar = document.getElementById('terraJar');
             if (state.lastClaim === todayStr()) { coinFx(jar, 50, 30, 'Come back tomorrow!'); return; }
             state.coins += DAILY_BONUS;
             state.lastClaim = todayStr();
+            state.stats = state.stats || { logs:0, claims:0, placed:0 };
+            state.stats.claims++;
             renderCoins();
             renderCountdown();
             coinFx(jar, 50, 40, '+' + DAILY_BONUS);
+            checkAchievements(true);
             saveState();
         }
 
@@ -3305,7 +3386,10 @@
         // Called when an expense is logged, to reward coins.
         window.terraRewardLog = function() {
             state.coins += LOG_REWARD;
+            state.stats = state.stats || { logs:0, claims:0, placed:0 };
+            state.stats.logs++;
             renderCoins();
+            checkAchievements(true);
             saveState();
         };
         // Called by auth handler when a real user signs in.
@@ -5448,6 +5532,96 @@ async function handleDeleteExpense(id) {
                 ind.style.transform = 'translate(-50%, -60px)';
             }
         }, { passive: true });
+    })();
+    </script>
+    <!-- ============ DATE NIGHT RANDOMIZER ============ -->
+    <div id="dateNightModal" style="display:none; position:fixed; inset:0; z-index:400; align-items:center; justify-content:center;">
+        <div id="dateNightOverlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.55);"></div>
+        <div style="position:relative; z-index:1; background:var(--color-surface); width:90%; max-width:420px; border-radius:20px; padding:var(--space-24); text-align:center; box-shadow:0 12px 50px rgba(0,0,0,0.3);">
+            <button type="button" id="dateNightClose" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:22px; cursor:pointer; color:var(--color-text-secondary);">×</button>
+            <h2 style="margin:0 0 var(--space-8);">💕 Date Night</h2>
+            <p class="terra-hint" style="margin-bottom:var(--space-20);">Can't decide what to do? Let fate pick.</p>
+            <div id="dateNightResult" style="min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:var(--space-16); border-radius:16px; background:linear-gradient(135deg, rgba(255,107,157,0.1), rgba(196,69,105,0.05)); border:1px solid rgba(255,107,157,0.3); margin-bottom:var(--space-20);">
+                <div id="dateNightEmoji" style="font-size:48px;">🎲</div>
+                <div id="dateNightText" style="font-weight:600; font-size:var(--font-size-lg);">Tap the button below</div>
+                <div id="dateNightCat" style="font-size:12px; color:var(--color-text-secondary);"></div>
+            </div>
+            <button type="button" class="btn btn--primary" id="dateNightRoll" style="width:100%; background:linear-gradient(135deg,#ff6b9d,#c44569);">🎲 Roll the dice</button>
+        </div>
+    </div>
+
+    <script>
+    (function dateNight() {
+        const IDEAS = [
+            // {text, emo, cat}
+            { t: 'Cook a new recipe together', e: '👨‍🍳', c: 'At Home' },
+            { t: 'Movie marathon with snacks', e: '🍿', c: 'At Home' },
+            { t: 'Build a blanket fort and chill', e: '🏕️', c: 'At Home' },
+            { t: 'Bake something sweet', e: '🧁', c: 'At Home' },
+            { t: 'Do a puzzle or board game night', e: '🧩', c: 'At Home' },
+            { t: 'Play a riichi mahjong round', e: '🀄', c: 'At Home' },
+            { t: 'Spa night — face masks & massages', e: '💆', c: 'At Home' },
+            { t: 'Wine (or tea) and paint night', e: '🎨', c: 'At Home' },
+            { t: 'Try a new restaurant neither has been to', e: '🍽️', c: 'Out' },
+            { t: 'Go for sashimi / omakase', e: '🍣', c: 'Out' },
+            { t: 'Dessert café hopping', e: '🍰', c: 'Out' },
+            { t: 'Sunset walk somewhere scenic', e: '🌅', c: 'Out' },
+            { t: 'Visit a night market or hawker crawl', e: '🏮', c: 'Out' },
+            { t: 'Arcade & claw machines', e: '🕹️', c: 'Out' },
+            { t: 'Karaoke session', e: '🎤', c: 'Out' },
+            { t: 'Bubble tea & bookstore browse', e: '🧋', c: 'Out' },
+            { t: 'Picnic in a park', e: '🧺', c: 'Out' },
+            { t: 'Catch a movie at the cinema', e: '🎬', c: 'Out' },
+            { t: 'Plan your next Japan trip together', e: '🗾', c: 'Cozy' },
+            { t: 'Stargazing somewhere dark', e: '🌟', c: 'Out' },
+            { t: 'Take a couples class (pottery, cooking)', e: '🏺', c: 'Out' },
+            { t: 'Visit an aquarium or museum', e: '🐠', c: 'Out' },
+            { t: 'Recreate your first date', e: '💑', c: 'Cozy' },
+            { t: 'Write each other a little love note', e: '💌', c: 'Cozy' },
+            { t: 'Go for a long drive with a playlist', e: '🚗', c: 'Out' },
+        ];
+        const modal = document.getElementById('dateNightModal');
+        const open = () => { modal.style.display = 'flex'; };
+        const close = () => { modal.style.display = 'none'; };
+        document.getElementById('dateNightBtn').onclick = open;
+        document.getElementById('dateNightClose').onclick = close;
+        document.getElementById('dateNightOverlay').onclick = close;
+
+        let rolling = false;
+        function roll() {
+            if (rolling) return;
+            rolling = true;
+            const emojiEl = document.getElementById('dateNightEmoji');
+            const textEl = document.getElementById('dateNightText');
+            const catEl = document.getElementById('dateNightCat');
+            const btn = document.getElementById('dateNightRoll');
+            btn.disabled = true;
+            if (navigator.vibrate) try { navigator.vibrate(20); } catch(e){}
+
+            // Shuffle animation
+            let ticks = 0;
+            const totalTicks = 14;
+            const iv = setInterval(() => {
+                const pick = IDEAS[Math.floor(Math.random() * IDEAS.length)];
+                emojiEl.textContent = pick.e;
+                textEl.textContent = pick.t;
+                catEl.textContent = '';
+                emojiEl.style.transform = `scale(${1 + Math.random() * 0.3})`;
+                ticks++;
+                if (ticks >= totalTicks) {
+                    clearInterval(iv);
+                    const final = IDEAS[Math.floor(Math.random() * IDEAS.length)];
+                    emojiEl.textContent = final.e;
+                    emojiEl.style.transform = 'scale(1)';
+                    textEl.textContent = final.t;
+                    catEl.textContent = '📍 ' + final.c;
+                    if (navigator.vibrate) try { navigator.vibrate([30,50,30]); } catch(e){}
+                    rolling = false;
+                    btn.disabled = false;
+                }
+            }, 75);
+        }
+        document.getElementById('dateNightRoll').onclick = roll;
     })();
     </script>
 </body>
