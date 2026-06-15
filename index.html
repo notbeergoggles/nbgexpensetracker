@@ -1703,6 +1703,11 @@
                     <button type="button" class="btn btn--secondary btn--sm" id="exportBtn">Export to CSV</button>
                 </div>
 
+                <div id="archiveBar" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:var(--space-12);">
+                    <button type="button" class="btn btn--secondary btn--sm" id="loadArchiveBtn">📂 Load archived months</button>
+                    <span id="archiveStatus" style="font-size:12px; color:var(--color-text-secondary);"></span>
+                </div>
+
                 <div class="card" style="margin-bottom: var(--space-16); padding: var(--space-12); border: none; box-shadow: none; background: transparent;">
                     <div style="position: relative;">
                         <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-gray-300);"></i>
@@ -4444,6 +4449,8 @@
         
         // Attach the listener
         document.getElementById('whatsappShare').addEventListener('click', generateWhatsAppSummary);
+        const loadArchiveBtnEl = document.getElementById('loadArchiveBtn');
+        if (loadArchiveBtnEl) loadArchiveBtnEl.addEventListener('click', loadArchive);
         
         function populateMonthFilter() {
             const filterSelect = document.getElementById('monthFilter');
@@ -4452,9 +4459,9 @@
             // Save the current selection so it doesn't reset when we redraw
             const currentSelection = filterSelect.value || 'current';
         
-            // Get unique months from expenses
+            // Get unique months from expenses (incl. archived if loaded)
             const months = new Set();
-            expenses.forEach(e => {
+            workingExpenses().forEach(e => {
                 const d = new Date(e.date);
                 // Format as "YYYY-MM" for easy sorting/comparison
                 const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -4711,8 +4718,112 @@
         processRecurringExpenses();
         updateDashboard();
         renderExpenseList();
+        maybePromptArchive();
     });
 }
+
+        // The set used for display: live expenses, plus archived ones if loaded
+        function workingExpenses() {
+            return archiveLoaded ? expenses.concat(archivedExpenses) : expenses;
+        }
+
+        // ===== Archive system =====
+        const ARCHIVE_MONTHS = 7;          // entries older than this get archived
+        const ARCHIVE_DOC = () => db.collection('shared_expenses_archive').doc('all');
+        let archivedExpenses = [];          // loaded on demand
+        let archiveLoaded = false;
+        let archivePromptShownThisSession = false;
+
+        // Cutoff = first day of the month, ARCHIVE_MONTHS months ago (SGT-ish, date-only)
+        function archiveCutoff() {
+            const now = new Date();
+            const c = new Date(now.getFullYear(), now.getMonth() - ARCHIVE_MONTHS, 1);
+            return c;
+        }
+        function isArchivable(e) {
+            if (e.isRecurring === true) return false; // never archive recurring templates
+            const d = new Date(e.date);
+            return d < archiveCutoff();
+        }
+
+        async function maybePromptArchive() {
+            if (archivePromptShownThisSession) return;
+            if (!currentUser || isGuestMode) return;
+            const old = expenses.filter(isArchivable);
+            if (old.length < 1) return;
+            archivePromptShownThisSession = true;
+            const cutoffStr = archiveCutoff().toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
+            const ok = confirm(
+                `🗂️ Archive old expenses?\n\n` +
+                `${old.length} expense${old.length>1?'s':''} dated before ${cutoffStr} can be moved to the archive ` +
+                `to keep the app fast.\n\n` +
+                `They will NOT be deleted — you can view them anytime via "Load archived months" in History.\n\n` +
+                `Proceed?`
+            );
+            if (!ok) return;
+            await runArchive(old);
+        }
+
+        async function runArchive(oldEntries) {
+            try {
+                // 1. Load existing archive doc
+                let existing = [];
+                const snap = await ARCHIVE_DOC().get();
+                if (snap.exists && snap.data().expenses) existing = snap.data().expenses;
+
+                // 2. Append the old entries (strip the live doc id, keep a copy of data)
+                const toArchive = oldEntries.map(e => { const c = { ...e }; return c; });
+                const merged = existing.concat(toArchive);
+
+                // 3. Write archive doc first (safety: archive before delete)
+                await ARCHIVE_DOC().set({ expenses: merged });
+
+                // 4. Delete originals from the live collection
+                for (const e of oldEntries) {
+                    if (e.id) await db.collection('shared_expenses').doc(e.id).delete();
+                }
+
+                // refresh local cache if archive was already loaded
+                if (archiveLoaded) { archivedExpenses = merged; }
+                alert(`✅ Archived ${oldEntries.length} expense${oldEntries.length>1?'s':''}. View them anytime via "Load archived months".`);
+            } catch (err) {
+                console.error('Archive failed:', err);
+                window.showSaveError && window.showSaveError('archive', err);
+            }
+        }
+
+        // Load archived entries on demand and merge into the view
+        async function loadArchive() {
+            const status = document.getElementById('archiveStatus');
+            const btn = document.getElementById('loadArchiveBtn');
+            if (archiveLoaded) {
+                // toggle off: unload to keep things lean
+                archivedExpenses = [];
+                archiveLoaded = false;
+                btn.textContent = '📂 Load archived months';
+                status.textContent = '';
+                populateMonthFilter();
+                updateDashboard();
+                renderExpenseList();
+                return;
+            }
+            try {
+                btn.disabled = true; status.textContent = 'Loading…';
+                const snap = await ARCHIVE_DOC().get();
+                archivedExpenses = (snap.exists && snap.data().expenses) ? snap.data().expenses : [];
+                archiveLoaded = true;
+                btn.textContent = '📂 Hide archived months';
+                status.textContent = archivedExpenses.length ? `${archivedExpenses.length} archived entries loaded` : 'No archived entries yet';
+                populateMonthFilter();
+                updateDashboard();
+                renderExpenseList();
+            } catch (err) {
+                console.error('Load archive failed:', err);
+                status.textContent = '⚠️ Couldn\u2019t load archive';
+            } finally {
+                btn.disabled = false;
+            }
+        }
 
         async function saveExpenseToFirebase(expense) {
     try {
@@ -4991,7 +5102,7 @@ async function deleteExpenseFromFirebase(id) {
         });
 
         function calculateTotals() {
-            const activeExpenses = expenses.filter(e => e.isRecurring !== true);
+            const activeExpenses = workingExpenses().filter(e => e.isRecurring !== true);
             
             const now = new Date();
             const currentYear = now.getFullYear();
@@ -5118,7 +5229,7 @@ async function deleteExpenseFromFirebase(id) {
 
         // Sum of non-payment expenses for a specific year + month (0-indexed month)
         function sumForMonth(year, month) {
-            return (expenses || []).reduce((sum, e) => {
+            return (workingExpenses() || []).reduce((sum, e) => {
                 if (e.isRecurring === true) return sum; // skip recurring templates
                 if (e.isPayment) return sum;
                 const d = new Date(e.date);
@@ -5297,7 +5408,7 @@ async function deleteExpenseFromFirebase(id) {
             const filter = document.getElementById('monthFilter')?.value || 'current';
         
             // FIX: Filter out the "Master Templates" so they don't appear in your history
-            const displayExpenses = expenses.filter(e => e.isRecurring !== true);
+            const displayExpenses = workingExpenses().filter(e => e.isRecurring !== true);
         
             // Filter by Month AND Search Term using displayExpenses
             const filteredExpenses = displayExpenses.filter(e => {
