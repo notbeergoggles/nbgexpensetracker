@@ -1348,6 +1348,7 @@
             <button type="button" class="tab-button" data-tab="vouchers">🎟️ Vouchers</button>
             <button type="button" class="tab-button" data-tab="places">🗾 Japan List</button>
             <button type="button" class="tab-button" data-tab="mood">😊 Mood</button>
+            <button type="button" class="tab-button" data-tab="notes">💌 Notes</button>
         </div>
 
         <!-- ===== Mobile bottom nav + drawer ===== -->
@@ -1753,6 +1754,174 @@
             </form>
         </div>
     </div>
+
+    <!-- ============ LOVE NOTES TAB ============ -->
+    <div id="notes" class="tab-content">
+        <div class="notes-wrap">
+            <!-- Compose -->
+            <div class="card">
+                <h3 style="margin:0 0 var(--space-12);">💌 Leave a note <span id="notesToLabel" style="font-size:12px; font-weight:500; color:var(--color-text-secondary);"></span></h3>
+                <textarea id="noteText" class="form-input" rows="3" placeholder="Write something sweet..." style="resize:vertical; margin-bottom:var(--space-8);"></textarea>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:var(--space-12);">
+                    <span style="font-size:12px; color:var(--color-text-secondary);">Sticker:</span>
+                    <div class="note-sticker-row" id="noteStickerRow"></div>
+                </div>
+                <button type="button" class="btn btn--primary" id="noteSendBtn" style="width:100%;">Send 💕</button>
+            </div>
+
+            <!-- History -->
+            <div class="card">
+                <h3 style="margin:0 0 var(--space-12);">Our notes</h3>
+                <div id="notesLog" class="notes-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global love-note popup -->
+    <div id="notePopup" style="display:none; position:fixed; inset:0; z-index:500; align-items:center; justify-content:center;">
+        <div id="notePopupOverlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.55);"></div>
+        <div style="position:relative; z-index:1; background:var(--color-surface); width:90%; max-width:400px; border-radius:20px; padding:var(--space-24); text-align:center; box-shadow:0 12px 50px rgba(0,0,0,0.3); animation:notePopIn 0.5s cubic-bezier(0.34,1.56,0.64,1);">
+            <div style="font-size:40px; margin-bottom:var(--space-8);">💌</div>
+            <div id="notePopupFrom" style="font-size:12px; color:var(--color-text-secondary); margin-bottom:var(--space-12);"></div>
+            <div id="notePopupSticker" style="font-size:44px; line-height:1; margin-bottom:var(--space-8);"></div>
+            <div id="notePopupText" style="font-size:var(--font-size-lg); line-height:1.5; margin-bottom:var(--space-20);"></div>
+            <button type="button" class="btn btn--primary" id="notePopupClose" style="width:100%; background:linear-gradient(135deg,#ff6b9d,#c44569);">Aww, thanks 💕</button>
+        </div>
+    </div>
+
+    <style>
+        .notes-wrap { max-width: 760px; margin: 0 auto; }
+        @keyframes notePopIn { from { transform: scale(0.7); opacity: 0; } }
+        .note-sticker-row { display: flex; gap: 4px; flex-wrap: wrap; }
+        .note-sticker {
+            font-size: 20px; padding: 4px 6px; border-radius: 8px; cursor: pointer;
+            border: 1px solid transparent; background: var(--color-background); line-height: 1; transition: all 0.12s;
+        }
+        .note-sticker:hover { transform: scale(1.15); }
+        .note-sticker.selected { border-color: var(--color-primary); background: rgba(33,128,141,0.12); }
+        .notes-log { display: flex; flex-direction: column; gap: var(--space-12); max-height: 460px; overflow-y: auto; }
+        .notes-log:empty::after { content: 'No notes yet. Be the first 💕'; display:block; text-align:center; padding:var(--space-16); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+        .note-bubble {
+            padding: var(--space-12) var(--space-16); border-radius: 16px; max-width: 85%;
+            border: 1px solid var(--color-border); animation: cardEnter 0.3s ease both;
+        }
+        .note-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, rgba(33,128,141,0.12), rgba(33,128,141,0.04)); border-bottom-right-radius: 4px; }
+        .note-bubble.theirs { align-self: flex-start; background: linear-gradient(135deg, rgba(255,107,157,0.12), rgba(196,69,105,0.04)); border-bottom-left-radius: 4px; }
+        .note-bubble-head { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
+        .note-bubble-sticker { font-size: 24px; line-height: 1; }
+        .note-bubble-text { font-size: var(--font-size-base); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+        .note-unread-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#ff6b9d; margin-left:4px; }
+    </style>
+
+    <script>
+    (function initNotes() {
+        const STICKERS = ['💕','😘','🥰','🤗','😊','🌸','✨','🍀','☀️','🌙','🐹','🍜','🧋','💪','🫶'];
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const NOTES_DOC = () => db.collection('loveNotes').doc('shared');
+
+        function whoAmI() {
+            const email = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '';
+            return email.toLowerCase().startsWith('kkennyytan') ? 'Kenny' : 'Sayuri';
+        }
+        const partnerOf = me => me === 'Kenny' ? 'Sayuri' : 'Kenny';
+
+        let notes = []; // {id, from, to, text, sticker, at, read}
+        let nUnsub = null, suppressWrite = false, selectedSticker = '💕', poppedThisSession = false;
+
+        async function save() {
+            if (suppressWrite) return;
+            if (isLive()) { try { await NOTES_DOC().set({ notes }); } catch (e) { window.showSaveError && window.showSaveError('notes', e); } }
+            else { localStorage.setItem('notesState', JSON.stringify(notes)); }
+        }
+        function loadLocal() { const raw = localStorage.getItem('notesState'); notes = raw ? (JSON.parse(raw)||[]) : []; renderAll(); checkPopup(); }
+        function listenLive() {
+            if (nUnsub) nUnsub();
+            nUnsub = NOTES_DOC().onSnapshot(snap => {
+                suppressWrite = true;
+                notes = (snap.exists && snap.data().notes) ? snap.data().notes : [];
+                suppressWrite = false;
+                renderAll(); checkPopup();
+            }, err => console.error('notes listen', err));
+        }
+
+        // ----- Popup for unread notes addressed to me -----
+        function checkPopup() {
+            if (poppedThisSession) return;
+            const me = whoAmI();
+            const unread = notes.filter(n => n.to === me && !n.read).sort((a,b) => a.at - b.at);
+            if (!unread.length) return;
+            poppedThisSession = true;
+            const note = unread[unread.length - 1]; // show the most recent unread
+            document.getElementById('notePopupFrom').textContent = `${note.from} left you a note`;
+            document.getElementById('notePopupSticker').textContent = note.sticker || '';
+            document.getElementById('notePopupText').textContent = note.text || '';
+            document.getElementById('notePopup').style.display = 'flex';
+            if (navigator.vibrate) try { navigator.vibrate([30,60,30]); } catch(e){}
+            // mark ALL my unread as read
+            unread.forEach(n => n.read = true);
+            save();
+        }
+        function closePopup() { document.getElementById('notePopup').style.display = 'none'; }
+        document.getElementById('notePopupClose').onclick = closePopup;
+        document.getElementById('notePopupOverlay').onclick = closePopup;
+
+        // ----- Sticker picker -----
+        function renderStickers() {
+            const row = document.getElementById('noteStickerRow');
+            row.innerHTML = '';
+            STICKERS.forEach(s => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'note-sticker' + (s === selectedSticker ? ' selected' : '');
+                b.textContent = s;
+                b.onclick = () => { selectedSticker = s; renderStickers(); };
+                row.appendChild(b);
+            });
+        }
+
+        // ----- Send -----
+        document.getElementById('noteSendBtn').onclick = () => {
+            const text = document.getElementById('noteText').value.trim();
+            if (!text) { alert('Write something first 💕'); return; }
+            const me = whoAmI();
+            notes.push({ id: 'n_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), from: me, to: partnerOf(me), text, sticker: selectedSticker, at: Date.now(), read: false });
+            document.getElementById('noteText').value = '';
+            save(); renderAll();
+            if (navigator.vibrate) try { navigator.vibrate(20); } catch(e){}
+        };
+
+        // ----- Render log -----
+        function fmtTime(ts) {
+            const d = new Date(ts);
+            return d.toLocaleDateString('en-SG', { day:'numeric', month:'short' }) + ' ' + d.toLocaleTimeString('en-SG', { hour:'numeric', minute:'2-digit', hour12:true });
+        }
+        function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function renderAll() {
+            const me = whoAmI();
+            document.getElementById('notesToLabel').textContent = '(to ' + partnerOf(me) + ')';
+            const log = document.getElementById('notesLog');
+            log.innerHTML = '';
+            [...notes].sort((a,b) => a.at - b.at).forEach(n => {
+                const mine = n.from === me;
+                const div = document.createElement('div');
+                div.className = 'note-bubble ' + (mine ? 'mine' : 'theirs');
+                const unreadDot = (!mine && !n.read) ? '<span class="note-unread-dot"></span>' : '';
+                div.innerHTML = `
+                    <div class="note-bubble-head">${escapeHtml(n.from)} → ${escapeHtml(n.to)} · ${fmtTime(n.at)}${unreadDot}</div>
+                    ${n.sticker ? `<span class="note-bubble-sticker">${n.sticker}</span>` : ''}
+                    <div class="note-bubble-text">${escapeHtml(n.text)}</div>
+                `;
+                log.appendChild(div);
+            });
+            log.scrollTop = log.scrollHeight;
+            renderStickers();
+        }
+
+        if (isLive()) listenLive(); else loadLocal();
+        window.notesInitLive = function() { listenLive(); };
+        window.notesInitLocal = function() { if (nUnsub) nUnsub(); poppedThisSession = false; loadLocal(); };
+    })();
+    </script>
 
     <!-- ============ MOOD TAB ============ -->
     <div id="mood" class="tab-content">
@@ -4263,6 +4432,7 @@
                     if (window.vouchersInitLive) window.vouchersInitLive();
                     if (window.placesInitLive) window.placesInitLive();
                     if (window.moodInitLive) window.moodInitLive();
+                    if (window.notesInitLive) window.notesInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -4273,6 +4443,7 @@
                     if (window.vouchersInitLocal) window.vouchersInitLocal();
                     if (window.placesInitLocal) window.placesInitLocal();
                     if (window.moodInitLocal) window.moodInitLocal();
+                    if (window.notesInitLocal) window.notesInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -4401,6 +4572,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'vouchers',  label: 'Vouchers',  ico: 'fa-solid fa-ticket' },
             { tab: 'places',    label: 'Japan List', ico: 'fa-solid fa-map-location-dot' },
             { tab: 'mood',      label: 'Mood',      ico: 'fa-solid fa-face-smile' },
+            { tab: 'notes',     label: 'Notes',     ico: 'fa-solid fa-envelope-open-text' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
