@@ -1743,6 +1743,12 @@
                 </div>
                 <div class="mp-grid" id="mpGrid"></div>
                 <div id="mpNextPrep" style="margin-top:var(--space-12); font-size:var(--font-size-sm); color:var(--color-text-secondary); text-align:center;"></div>
+                <div id="mpRunningLow" style="margin-top:var(--space-8); text-align:center;"></div>
+                <div style="display:flex; gap:8px; align-items:center; justify-content:center; margin-top:var(--space-12); flex-wrap:wrap;">
+                    <label style="font-size:12px; color:var(--color-text-secondary);">Portions/day:</label>
+                    <input type="number" id="mpPerDay" class="form-input" style="width:70px; padding:6px 8px;" step="0.5" min="0.5" inputmode="decimal">
+                    <button type="button" class="btn btn--secondary btn--sm" id="mpDietBtn">📋 Diet plan</button>
+                </div>
             </div>
 
             <!-- Weight Tracking -->
@@ -1792,6 +1798,21 @@
             #mikaWeightChartWrap svg { display: block; }
         </style>
 
+
+    <!-- Mika diet plan modal -->
+    <div id="mikaDietModal" style="display:none; position:fixed; inset:0; z-index:400; align-items:center; justify-content:center;">
+        <div id="mikaDietOverlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.75);"></div>
+        <div style="position:relative; z-index:1; max-width:92%; max-height:88vh; background:var(--color-surface); border-radius:16px; padding:12px; box-shadow:0 12px 50px rgba(0,0,0,0.4); display:flex; flex-direction:column;">
+            <button type="button" id="mikaDietClose" style="position:absolute; top:-14px; right:-14px; width:34px; height:34px; border-radius:50%; background:var(--color-surface); border:1px solid var(--color-border); font-size:18px; cursor:pointer; color:var(--color-text); z-index:2;">×</button>
+            <img id="mikaDietImg" src="mika-diet.jpg" alt="Mika's diet plan"
+                 style="max-width:100%; max-height:82vh; object-fit:contain; border-radius:10px;"
+                 onerror="this.style.display='none'; var f=document.getElementById('mikaDietFallback'); if(f) f.style.display='block';">
+            <div id="mikaDietFallback" style="display:none; padding:30px 20px; text-align:center; color:var(--color-text-secondary);">
+                📋 No diet plan image found.<br><br>
+                Commit an image named <strong>mika-diet.jpg</strong> to your repo root, then it'll show here.
+            </div>
+        </div>
+    </div>
 
     <div id="editHistoryModal" class="edit-modal">
         <div class="edit-modal-content">
@@ -4143,24 +4164,31 @@
 
         // ===== Mika Meal-Prep Calendar (shared) =====
         const MP_DOC = () => db.collection('mika_mealprep').doc('shared');
-        let mpDays = {};   // { 'YYYY-MM-DD': true }
+        let mpDays = {};   // { 'YYYY-MM-DD': { portions: N } }  (true also accepted for legacy)
+        let mpPerDay = 2;  // portions consumed per day
         let mpView = new Date(); // currently viewed month
         let mpUnsub = null, mpSuppress = false;
         function mpKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
         async function mpSave() {
             if (mpSuppress) return;
-            try { await MP_DOC().set({ days: mpDays }); } catch (e) { window.showSaveError && window.showSaveError('meal-prep', e); }
+            try { await MP_DOC().set({ days: mpDays, perDay: mpPerDay }); } catch (e) { window.showSaveError && window.showSaveError('meal-prep', e); }
         }
         function initMikaMealPrep() {
             if (mpUnsub) mpUnsub();
             renderMealPrep(); // immediate paint so the grid shows on load
             mpUnsub = MP_DOC().onSnapshot(snap => {
                 mpSuppress = true;
-                mpDays = (snap.exists && snap.data().days) ? snap.data().days : {};
+                if (snap.exists) {
+                    mpDays = snap.data().days || {};
+                    if (typeof snap.data().perDay === 'number') mpPerDay = snap.data().perDay;
+                } else { mpDays = {}; }
                 mpSuppress = false;
+                const pdInput = document.getElementById('mpPerDay');
+                if (pdInput) pdInput.value = mpPerDay;
                 renderMealPrep();
             }, err => console.error('mealprep listen', err));
         }
+        function mpPortionsOf(v) { return (v && typeof v === 'object' && typeof v.portions === 'number') ? v.portions : null; }
         function renderMealPrep() {
             const grid = document.getElementById('mpGrid');
             const label = document.getElementById('mpMonthLabel');
@@ -4183,7 +4211,14 @@
             grid.querySelectorAll('.mp-day:not(.blank)').forEach(cell => {
                 cell.onclick = () => {
                     const k = cell.getAttribute('data-key');
-                    if (mpDays[k]) delete mpDays[k]; else mpDays[k] = true;
+                    if (mpDays[k]) {
+                        delete mpDays[k];
+                    } else {
+                        const ans = prompt('How many portions did this batch make?', '');
+                        if (ans === null) return; // cancelled
+                        const p = parseFloat(ans);
+                        mpDays[k] = (p && p > 0) ? { portions: p } : { portions: null };
+                    }
                     renderMealPrep(); mpSave();
                 };
             });
@@ -4197,6 +4232,30 @@
                     hint.textContent = days === 0 ? '🍲 Meal prep is today!' : `🍲 Next meal prep: ${nd.toLocaleDateString('en-SG',{weekday:'short',day:'numeric',month:'short'})} (${days} day${days>1?'s':''} away)`;
                 } else { hint.textContent = ''; }
             }
+            // running low: from the most recent past/today prep day that has portions
+            const low = document.getElementById('mpRunningLow');
+            if (low) {
+                const pastPreps = Object.keys(mpDays)
+                    .filter(k => k <= todayKey && mpPortionsOf(mpDays[k]) != null)
+                    .sort();
+                if (pastPreps.length && mpPerDay > 0) {
+                    const lastKey = pastPreps[pastPreps.length - 1];
+                    const made = mpPortionsOf(mpDays[lastKey]);
+                    const daysElapsed = Math.round((new Date(todayKey + 'T12:00:00') - new Date(lastKey + 'T12:00:00')) / 86400000);
+                    const used = daysElapsed * mpPerDay;
+                    const left = made - used;
+                    if (left <= 0) {
+                        low.innerHTML = `<span style="display:inline-block; padding:6px 14px; border-radius:50px; background:rgba(212,69,62,0.15); color:#d4453e; font-weight:600; font-size:13px;">⚠️ Out of food — time to prep!</span>`;
+                    } else {
+                        const daysLeft = left / mpPerDay;
+                        const outDate = new Date(new Date(todayKey + 'T12:00:00').getTime() + daysLeft * 86400000);
+                        const urgent = daysLeft <= 2;
+                        low.innerHTML = `<span style="display:inline-block; padding:6px 14px; border-radius:50px; background:${urgent?'rgba(230,160,30,0.18)':'rgba(33,128,141,0.12)'}; color:${urgent?'#b5790f':'var(--color-primary)'}; font-weight:600; font-size:13px;">${left % 1 === 0 ? left : left.toFixed(1)} portions left · runs out ${outDate.toLocaleDateString('en-SG',{weekday:'short',day:'numeric',month:'short'})}</span>`;
+                    }
+                } else {
+                    low.innerHTML = '';
+                }
+            }
         }
         // wire controls
         document.addEventListener('DOMContentLoaded', () => {});
@@ -4208,6 +4267,22 @@
             const prev = document.getElementById('mpPrev'), next = document.getElementById('mpNext');
             if (prev) prev.onclick = () => { mpView = new Date(mpView.getFullYear(), mpView.getMonth() - 1, 1); renderMealPrep(); };
             if (next) next.onclick = () => { mpView = new Date(mpView.getFullYear(), mpView.getMonth() + 1, 1); renderMealPrep(); };
+            const perDay = document.getElementById('mpPerDay');
+            if (perDay) {
+                perDay.value = mpPerDay;
+                perDay.addEventListener('change', () => {
+                    const v = parseFloat(perDay.value);
+                    if (v && v > 0) { mpPerDay = v; renderMealPrep(); mpSave(); }
+                });
+            }
+            // Diet plan modal
+            const dietBtn = document.getElementById('mpDietBtn');
+            const dietModal = document.getElementById('mikaDietModal');
+            if (dietBtn && dietModal) {
+                dietBtn.onclick = () => { dietModal.style.display = 'flex'; };
+                document.getElementById('mikaDietClose').onclick = () => { dietModal.style.display = 'none'; };
+                document.getElementById('mikaDietOverlay').onclick = () => { dietModal.style.display = 'none'; };
+            }
         })();
 
         let activeMikaTab = 'General';
