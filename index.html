@@ -1549,6 +1549,43 @@
                 style="margin-top: var(--space-12); margin-bottom: var(--space-12); width: 100%; background-color: #25D366; color: white; border: none;">
                 <i class="fab fa-whatsapp"></i> Share Monthly Summary
             </button>
+
+            <!-- Settle-up history (reads existing Payment entries) -->
+            <div class="card" id="settleHistoryCard" style="margin-top: var(--space-12);">
+                <h2 style="margin:0 0 var(--space-12);">Settle-Up History</h2>
+                <div id="settleList" class="settle-list"></div>
+            </div>
+
+            <!-- Biggest expense callout -->
+            <div class="card" id="biggestCard" style="margin-top: 20px; display:none;">
+                <h2 style="margin-bottom: var(--space-12);">💸 Biggest Expense</h2>
+                <div id="biggestExpense"></div>
+            </div>
+
+            <!-- Year in review -->
+            <div class="card" id="yearReviewCard" style="margin-top: 20px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-16);">
+                    <h2 style="margin:0;">✨ Year in Review</h2>
+                    <span id="yearReviewPeriod" style="font-size:11px; color:var(--color-text-secondary);"></span>
+                </div>
+                <div class="yr-grid">
+                    <div class="yr-stat">
+                        <div class="yr-emoji">💰</div>
+                        <div class="yr-value" id="yrSpent">—</div>
+                        <div class="yr-label">Total spent</div>
+                    </div>
+                    <div class="yr-stat">
+                        <div class="yr-emoji">😊</div>
+                        <div class="yr-value" id="yrMoods">—</div>
+                        <div class="yr-label">Moods logged</div>
+                    </div>
+                    <div class="yr-stat">
+                        <div class="yr-emoji">💌</div>
+                        <div class="yr-value" id="yrNotes">—</div>
+                        <div class="yr-label">Notes exchanged</div>
+                    </div>
+                </div>
+            </div>
         
 
             <div class="card">
@@ -2281,6 +2318,12 @@
         function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         function renderAll() {
             const me = whoAmI();
+            // Year-in-review: count notes exchanged this calendar year
+            const yrStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+            window.__yrNoteCount = notes.filter(n => (n.at || 0) >= yrStart).length;
+            if (typeof updateDashboard === 'function' && document.getElementById('yrNotes')) {
+                const el = document.getElementById('yrNotes'); if (el) el.textContent = window.__yrNoteCount;
+            }
             document.getElementById('notesToLabel').textContent = '(to ' + partnerOf(me) + ')';
             const log = document.getElementById('notesLog');
             log.innerHTML = '';
@@ -2505,6 +2548,15 @@
             renderPicker();
             renderHistory('Kenny');
             renderHistory('Sayuri');
+            // Year-in-review: count mood entries logged this year (both people)
+            const yr = String(new Date().getFullYear());
+            let count = 0;
+            ['Kenny','Sayuri'].forEach(p => {
+                const h = (state[p] && state[p].history) || {};
+                count += Object.keys(h).filter(d => d.startsWith(yr) && h[d]).length;
+            });
+            window.__yrMoodCount = count;
+            const el = document.getElementById('yrMoods'); if (el) el.textContent = count;
         }
         // refresh "Xm ago" every minute
         setInterval(() => { renderNow('Kenny'); renderNow('Sayuri'); }, 60000);
@@ -2626,6 +2678,24 @@
         .place-cat-chip.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
         #placesByCity { margin-top: var(--space-16); }
         .place-city-group { margin-bottom: var(--space-20); }
+        /* Year in review */
+        .yr-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-12); }
+        .yr-stat { text-align:center; padding:var(--space-12) var(--space-8); border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); }
+        .yr-emoji { font-size:26px; line-height:1; margin-bottom:6px; }
+        .yr-value { font-size:var(--font-size-lg); font-weight:700; color:var(--color-primary); }
+        .yr-label { font-size:11px; color:var(--color-text-secondary); margin-top:3px; }
+        /* Biggest expense */
+        .biggest-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .biggest-info .be-name { font-weight:700; font-size:var(--font-size-base); }
+        .biggest-info .be-meta { font-size:12px; color:var(--color-text-secondary); margin-top:3px; }
+        .biggest-amt { font-size:var(--font-size-xl); font-weight:700; color:#d4453e; white-space:nowrap; }
+        /* Settle-up history */
+        .settle-list { display:flex; flex-direction:column; gap:var(--space-8); }
+        .settle-list:empty::after { content:'No paybacks recorded yet. Log a Payment in the Add tab to settle up.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+        .settle-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); border-left:4px solid #21a05a; }
+        .settle-item .si-main { font-size:var(--font-size-sm); font-weight:600; }
+        .settle-item .si-date { font-size:11px; color:var(--color-text-secondary); margin-top:2px; }
+        .settle-item .si-del { background:none; border:none; color:var(--color-text-secondary); cursor:pointer; font-size:12px; }
         /* City dropdown: pill variant of the styled select */
         #placeCitySelect { border-radius: 50px; }
         /* City hero header */
@@ -5937,6 +6007,48 @@ async function deleteExpenseFromFirebase(id) {
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
             renderIndividualSpending(t.individualTotals);
             renderSpendingCompare();
+            renderBiggestExpense();
+            renderYearReview();
+            if (typeof renderSettleHistory === 'function') renderSettleHistory();
+        }
+
+        function renderBiggestExpense() {
+            const card = document.getElementById('biggestCard');
+            const el = document.getElementById('biggestExpense');
+            if (!card || !el) return;
+            const list = workingExpenses().filter(e => e.isRecurring !== true && !e.isPayment);
+            const mm = selectedAndPrevMonth();
+            let scoped = list;
+            if (mm) scoped = list.filter(e => { const d = new Date(e.date); return d.getFullYear() === mm.selYear && d.getMonth() === mm.selMonth; });
+            if (!scoped.length) { card.style.display = 'none'; return; }
+            const top = scoped.reduce((mx, e) => Number(e.amount) > Number(mx.amount) ? e : mx, scoped[0]);
+            card.style.display = '';
+            const d = new Date(top.date);
+            const safe = s => (s||'').replace(/[<>&]/g, '');
+            el.innerHTML = `
+                <div class="biggest-row">
+                    <div class="biggest-info">
+                        <div class="be-name">${safe(top.description || top.category || 'Expense')}</div>
+                        <div class="be-meta">${safe(top.category||'')} · ${d.toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})} · paid by ${safe(top.paidBy||'—')}</div>
+                    </div>
+                    <div class="biggest-amt">${fmtMoney(Number(top.amount))}</div>
+                </div>`;
+        }
+
+        function renderYearReview() {
+            const yrEl = document.getElementById('yrSpent');
+            if (!yrEl) return;
+            const yr = new Date().getFullYear();
+            const start = new Date(yr, 0, 1);
+            document.getElementById('yearReviewPeriod').textContent = `Jan – ${new Date().toLocaleDateString('en-SG',{month:'short'})} ${yr}`;
+            const spent = workingExpenses().reduce((sum, e) => {
+                if (e.isRecurring === true || e.isPayment) return sum;
+                const d = new Date(e.date);
+                return (d >= start) ? sum + (Number(e.amount) || 0) : sum;
+            }, 0);
+            yrEl.textContent = fmtMoney(spent);
+            document.getElementById('yrMoods').textContent = (window.__yrMoodCount != null) ? window.__yrMoodCount : '0';
+            document.getElementById('yrNotes').textContent = (window.__yrNoteCount != null) ? window.__yrNoteCount : '0';
         }
 
         // Sum of non-payment expenses for a specific year + month (0-indexed month)
@@ -7260,6 +7372,33 @@ async function handleDeleteExpense(id) {
             const active = document.querySelector('.tab-content.active');
             syncFab(active ? active.id : null);
         })();
+    </script>
+    <script>
+    // Settle-Up History reads existing Payment entries (isPayment === true) — no separate data.
+    function renderSettleHistory() {
+        const list = document.getElementById('settleList');
+        if (!list) return;
+        const payments = (typeof workingExpenses === 'function' ? workingExpenses() : [])
+            .filter(e => e.isPayment === true)
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+        list.innerHTML = '';
+        payments.forEach(p => {
+            const amt = Number(p.amount) || 0;
+            // payer is p.paidBy; recipient is the other person
+            const from = (p.paidBy === 'You') ? 'Kenny' : p.paidBy;
+            const to = (from === 'Kenny') ? 'Sayuri' : 'Kenny';
+            const d = new Date(p.date);
+            const dateStr = d.toLocaleDateString('en-SG', { day:'numeric', month:'short', year:'numeric' });
+            const row = document.createElement('div');
+            row.className = 'settle-item';
+            row.innerHTML = `
+                <div>
+                    <div class="si-main">${from} → ${to} · ${window.fmtMoney ? window.fmtMoney(amt) : 'SGD '+amt.toFixed(2)}</div>
+                    <div class="si-date">${dateStr}${p.description ? ' · ' + String(p.description).replace(/[<>&]/g,'') : ''}</div>
+                </div>`;
+            list.appendChild(row);
+        });
+    }
     </script>
 </body>
 </html>
