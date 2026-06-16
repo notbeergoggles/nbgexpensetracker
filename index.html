@@ -1727,45 +1727,55 @@
 
         <!-- Mika Tab -->
         <div id="mika" class="tab-content">
+            <!-- Meal Prep Calendar -->
             <div class="card">
-                <h2 style="margin-bottom: 20px;">Mika's Checklist</h2>
-                <div id="lastResetDate" style="font-size: 12px; color: var(--color-gray-300); margin-top: -15px; margin-bottom: 15px;"></div>
-                
-                <div class="mika-tabs" id="mikaTabContainer">
-                    <button class="mika-tab-btn active" id="btnMikaGeneral" onclick="switchMikaTab('General')">General</button>
-                    <button class="mika-tab-btn" id="btnMikaFood" onclick="switchMikaTab('Food')">Food</button>
-                    <button class="mika-tab-btn" id="btnMikaDuties" onclick="switchMikaTab('Duties')">Duties</button>
-                </div>
-        
-                <form onsubmit="event.preventDefault(); addChecklistItem();" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <input type="text" id="newTaskInput" placeholder="Add new task..." style="flex: 1; padding: 12px; border: 1px solid var(--color-gray-200); border-radius: 8px;">
-                    <button type="submit" class="btn btn--primary" style="width: auto; padding: 0 20px;">Add</button>
-                </form>
-                
-                <div class="mika-viewport">
-                    <div id="mikaSlider" class="mika-slider">
-                        <div id="checklistGeneral" class="mika-pane"></div>
-                        <div id="checklistFood" class="mika-pane"></div>
-                        <div id="checklistDuties" class="mika-pane"></div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h2 style="margin:0;">🍲 Mika Meal Prep</h2>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button type="button" class="btn btn--secondary btn--sm" id="mpPrev">‹</button>
+                        <span id="mpMonthLabel" style="font-weight:600; min-width:120px; text-align:center;"></span>
+                        <button type="button" class="btn btn--secondary btn--sm" id="mpNext">›</button>
                     </div>
                 </div>
+                <p class="terra-hint" style="margin-bottom:var(--space-12);">Tap a day to mark it as a meal-prep day. Tap again to clear.</p>
+                <div class="mp-grid-head">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="mp-grid" id="mpGrid"></div>
+                <div id="mpNextPrep" style="margin-top:var(--space-12); font-size:var(--font-size-sm); color:var(--color-text-secondary); text-align:center;"></div>
             </div>
 
-                <div class="card" style="margin-top: 20px;">
-                                <h3 style="margin-bottom: 15px;"><i class="fas fa-heartbeat"></i> Mika Health & Milestones</h3>
-                                
-                                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                                    <div style="display: flex; gap: 8px;">
-                                        <input type="text" id="healthNote" placeholder="Note (e.g. Weight 5.2kg, Heartworm pill)" class="form-control" style="flex: 1;">
-                                        <button onclick="addHealthLog()" class="btn btn--primary" style="width: 60px;"><i class="fas fa-plus"></i></button>
-                                    </div>
-                                </div>
-                            
-                                <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 15px; position: relative; padding-left: 20px; border-left: 2px solid var(--color-gray-200);">
-                                    </div>
-                            </div>
-            
+            <!-- Weight Tracking -->
+            <div class="card" style="margin-top: 20px;">
+                <h3 style="margin-bottom: 15px;"><i class="fas fa-weight-scale"></i> Mika Weight Tracker</h3>
+                <div style="display:flex; gap:8px; margin-bottom:var(--space-16);">
+                    <input type="number" id="mikaWeightInput" class="form-input" placeholder="Weight in kg (e.g. 5.2)" step="0.01" min="0" inputmode="decimal" style="flex:1;">
+                    <input type="date" id="mikaWeightDate" class="form-input" style="flex:0 0 auto;">
+                    <button type="button" class="btn btn--primary" id="mikaWeightAdd" style="flex-shrink:0;">Add</button>
+                </div>
+                <div id="mikaWeightChartWrap" style="margin-bottom:var(--space-16);"></div>
+                <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
         </div>
+
+        <style>
+            .mp-grid-head { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
+            .mp-grid-head span { text-align:center; font-size:11px; font-weight:600; color:var(--color-text-secondary); }
+            .mp-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+            .mp-day {
+                aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+                border:1px solid var(--color-border); border-radius:10px; cursor:pointer;
+                font-size:13px; transition:all 0.12s; background:var(--color-background); position:relative;
+            }
+            .mp-day.blank { border:none; background:none; cursor:default; }
+            .mp-day:not(.blank):hover { border-color:var(--color-primary); }
+            .mp-day.today { border-color:var(--color-primary); border-width:2px; font-weight:700; }
+            .mp-day.prep { background:linear-gradient(135deg, rgba(33,128,141,0.85), rgba(33,128,141,0.65)); color:#fff; border-color:transparent; }
+            .mp-day.prep::after { content:'🍲'; position:absolute; bottom:2px; font-size:10px; }
+            .mika-weight-entry { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:8px; background:var(--color-background); border:1px solid var(--color-border); font-size:var(--font-size-sm); }
+            .mika-weight-entry .w-val { font-weight:700; color:var(--color-primary); }
+            #healthLogContainer:empty::after { content:'No weight records yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+        </style>
 
 
     <div id="editHistoryModal" class="edit-modal">
@@ -4020,51 +4030,167 @@
 
     <script>
         // 1. Initialize Health Listener
+        // ===== Mika Weight Tracking (uses existing mika_health collection) =====
+        let mikaWeightLogs = [];
         function initMikaHealth() {
-            db.collection('mika_health').orderBy('timestamp', 'desc').limit(10).onSnapshot(snapshot => {
-                const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderHealthLog(logs);
+            db.collection('mika_health').orderBy('timestamp', 'desc').limit(60).onSnapshot(snapshot => {
+                mikaWeightLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderWeight();
             });
         }
-        
-        // 2. Add Entry
-        async function addHealthLog() {
-            const noteInput = document.getElementById('healthNote');
-            const note = noteInput.value.trim();
-            if (!note) return;
-        
-            await db.collection('mika_health').add({
-                text: note,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                dateStr: new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short' })
-            });
-            
-            noteInput.value = '';
+        // Parse a kg value from either the new structured field or old free-text notes
+        function weightOf(log) {
+            if (typeof log.weight === 'number') return log.weight;
+            const m = (log.text || '').match(/(\d+(?:\.\d+)?)\s*kg/i);
+            return m ? parseFloat(m[1]) : null;
         }
-        
-        // 3. Render
-        function renderHealthLog(logs) {
-            const container = document.getElementById('healthLogContainer');
-            if (!container) return;
-        
-            container.innerHTML = logs.map(log => `
-                <div class="health-entry">
-                    <div class="health-date">${log.dateStr || 'Recent'}</div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div class="health-text">${log.text}</div>
-                        <button onclick="deleteHealthLog('${log.id}')" style="background:none; border:none; color:var(--color-gray-300); font-size:12px;">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+        async function addMikaWeight() {
+            const input = document.getElementById('mikaWeightInput');
+            const dateEl = document.getElementById('mikaWeightDate');
+            const w = parseFloat(input.value);
+            if (!w || w <= 0) { alert('Enter a valid weight in kg'); return; }
+            const dateVal = dateEl.value ? new Date(dateEl.value + 'T12:00:00') : new Date();
+            try {
+                await db.collection('mika_health').add({
+                    weight: w,
+                    text: `Weight ${w}kg`,
+                    timestamp: firebase.firestore.Timestamp.fromDate(dateVal),
+                    dateStr: dateVal.toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' })
+                });
+                input.value = ''; dateEl.value = '';
+            } catch (e) { window.showSaveError && window.showSaveError('weight', e); }
         }
-        
         async function deleteHealthLog(id) {
-            if(confirm('Delete this health record?')) {
+            if (confirm('Delete this weight record?')) {
                 await db.collection('mika_health').doc(id).delete();
             }
         }
+        function renderWeight() {
+            // Build chronological series of entries that have a weight
+            const series = mikaWeightLogs
+                .map(l => ({ id: l.id, w: weightOf(l), t: l.timestamp && l.timestamp.toMillis ? l.timestamp.toMillis() : 0, dateStr: l.dateStr }))
+                .filter(x => x.w != null)
+                .sort((a, b) => a.t - b.t);
+
+            // Chart
+            const wrap = document.getElementById('mikaWeightChartWrap');
+            if (wrap) {
+                if (series.length < 2) {
+                    wrap.innerHTML = `<div style="text-align:center; padding:16px; color:var(--color-text-secondary); font-size:13px;">${series.length === 0 ? 'Add weights to see a trend line.' : 'Add one more weight to see a trend.'}</div>`;
+                } else {
+                    wrap.innerHTML = '<svg id="mikaWeightSvg" width="100%" height="160" style="overflow:visible;"></svg>';
+                    drawWeightChart(series);
+                }
+            }
+            // List (most recent first)
+            const container = document.getElementById('healthLogContainer');
+            if (container) {
+                container.innerHTML = [...series].reverse().map(x => `
+                    <div class="mika-weight-entry">
+                        <span>${x.dateStr || ''}</span>
+                        <span style="display:flex; align-items:center; gap:12px;">
+                            <span class="w-val">${x.w.toFixed(2)} kg</span>
+                            <button onclick="deleteHealthLog('${x.id}')" style="background:none; border:none; color:var(--color-text-secondary); cursor:pointer;"><i class="fas fa-trash"></i></button>
+                        </span>
+                    </div>
+                `).join('');
+            }
+        }
+        function drawWeightChart(series) {
+            const svg = document.getElementById('mikaWeightSvg');
+            if (!svg) return;
+            const W = svg.clientWidth || 320, H = 160, pad = { l: 36, r: 12, t: 12, b: 24 };
+            const xs = series.map(s => s.t), ws = series.map(s => s.w);
+            const minT = Math.min(...xs), maxT = Math.max(...xs);
+            const minW = Math.min(...ws), maxW = Math.max(...ws);
+            const padW = (maxW - minW) * 0.2 || 0.5;
+            const loW = minW - padW, hiW = maxW + padW;
+            const px = t => pad.l + (maxT === minT ? 0.5 : (t - minT) / (maxT - minT)) * (W - pad.l - pad.r);
+            const py = w => pad.t + (1 - (w - loW) / (hiW - loW)) * (H - pad.t - pad.b);
+            const accent = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#21808d';
+            let svgHtml = '';
+            // y gridlines (3)
+            for (let i = 0; i <= 2; i++) {
+                const wv = loW + (hiW - loW) * (i / 2);
+                const y = py(wv);
+                svgHtml += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="var(--color-border)" stroke-width="1"/>`;
+                svgHtml += `<text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="var(--color-text-secondary)">${wv.toFixed(1)}</text>`;
+            }
+            // line path
+            const d = series.map((s, i) => `${i === 0 ? 'M' : 'L'}${px(s.t).toFixed(1)},${py(s.w).toFixed(1)}`).join(' ');
+            svgHtml += `<path d="${d}" fill="none" stroke="${accent}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+            // points
+            series.forEach(s => { svgHtml += `<circle cx="${px(s.t).toFixed(1)}" cy="${py(s.w).toFixed(1)}" r="3.5" fill="${accent}"/>`; });
+            svg.innerHTML = svgHtml;
+        }
+
+        // ===== Mika Meal-Prep Calendar (shared) =====
+        const MP_DOC = () => db.collection('mika_mealprep').doc('shared');
+        let mpDays = {};   // { 'YYYY-MM-DD': true }
+        let mpView = new Date(); // currently viewed month
+        let mpUnsub = null, mpSuppress = false;
+        function mpKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+        async function mpSave() {
+            if (mpSuppress) return;
+            try { await MP_DOC().set({ days: mpDays }); } catch (e) { window.showSaveError && window.showSaveError('meal-prep', e); }
+        }
+        function initMikaMealPrep() {
+            if (mpUnsub) mpUnsub();
+            mpUnsub = MP_DOC().onSnapshot(snap => {
+                mpSuppress = true;
+                mpDays = (snap.exists && snap.data().days) ? snap.data().days : {};
+                mpSuppress = false;
+                renderMealPrep();
+            }, err => console.error('mealprep listen', err));
+        }
+        function renderMealPrep() {
+            const grid = document.getElementById('mpGrid');
+            const label = document.getElementById('mpMonthLabel');
+            if (!grid || !label) return;
+            const y = mpView.getFullYear(), m = mpView.getMonth();
+            label.textContent = mpView.toLocaleString('default', { month: 'long', year: 'numeric' });
+            const firstDay = new Date(y, m, 1).getDay();
+            const daysInMonth = new Date(y, m + 1, 0).getDate();
+            const todayKey = (() => { const t = new Date(); return mpKey(t.getFullYear(), t.getMonth(), t.getDate()); })();
+            let html = '';
+            for (let i = 0; i < firstDay; i++) html += '<div class="mp-day blank"></div>';
+            for (let d = 1; d <= daysInMonth; d++) {
+                const key = mpKey(y, m, d);
+                const cls = ['mp-day'];
+                if (mpDays[key]) cls.push('prep');
+                if (key === todayKey) cls.push('today');
+                html += `<div class="${cls.join(' ')}" data-key="${key}">${d}</div>`;
+            }
+            grid.innerHTML = html;
+            grid.querySelectorAll('.mp-day:not(.blank)').forEach(cell => {
+                cell.onclick = () => {
+                    const k = cell.getAttribute('data-key');
+                    if (mpDays[k]) delete mpDays[k]; else mpDays[k] = true;
+                    renderMealPrep(); mpSave();
+                };
+            });
+            // next prep day hint
+            const hint = document.getElementById('mpNextPrep');
+            if (hint) {
+                const upcoming = Object.keys(mpDays).filter(k => k >= todayKey).sort();
+                if (upcoming.length) {
+                    const nd = new Date(upcoming[0] + 'T12:00:00');
+                    const days = Math.round((nd - new Date(todayKey + 'T12:00:00')) / 86400000);
+                    hint.textContent = days === 0 ? '🍲 Meal prep is today!' : `🍲 Next meal prep: ${nd.toLocaleDateString('en-SG',{weekday:'short',day:'numeric',month:'short'})} (${days} day${days>1?'s':''} away)`;
+                } else { hint.textContent = ''; }
+            }
+        }
+        // wire controls
+        document.addEventListener('DOMContentLoaded', () => {});
+        (function wireMika() {
+            const add = document.getElementById('mikaWeightAdd');
+            if (add) add.addEventListener('click', addMikaWeight);
+            const wInput = document.getElementById('mikaWeightInput');
+            if (wInput) wInput.addEventListener('keydown', e => { if (e.key === 'Enter') addMikaWeight(); });
+            const prev = document.getElementById('mpPrev'), next = document.getElementById('mpNext');
+            if (prev) prev.onclick = () => { mpView = new Date(mpView.getFullYear(), mpView.getMonth() - 1, 1); renderMealPrep(); };
+            if (next) next.onclick = () => { mpView = new Date(mpView.getFullYear(), mpView.getMonth() + 1, 1); renderMealPrep(); };
+        })();
 
         let activeMikaTab = 'General';
         let mikaTasks = [];
@@ -4625,7 +4751,7 @@
                     document.getElementById('userEmail').textContent = user.email;
                     await loadExpensesFromFirebase();
                     listenToExpensesChanges();
-                    initMikaChecklist();
+                    initMikaMealPrep();
                     initMikaHealth();
                     if (window.terraInitLive) window.terraInitLive();
                     if (window.weddingInitLive) window.weddingInitLive();
