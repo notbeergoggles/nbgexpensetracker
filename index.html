@@ -1751,30 +1751,11 @@
                 </div>
             </div>
 
-            <!-- Weight Tracking -->
-            <div class="card" style="margin-top: 20px;">
-                <h3 style="margin-bottom: 15px;"><i class="fas fa-weight-scale"></i> Mika Weight Tracker</h3>
-                <div class="mika-weight-form">
-                    <div class="mwf-field">
-                        <label class="form-label">Weight (kg)</label>
-                        <input type="number" id="mikaWeightInput" class="form-input" placeholder="e.g. 7.80" step="0.01" min="0" inputmode="decimal">
-                    </div>
-                    <div class="mwf-field">
-                        <label class="form-label">Date <span style="font-weight:400; opacity:0.6;">(optional)</span></label>
-                        <input type="date" id="mikaWeightDate" class="form-input">
-                    </div>
-                    <button type="button" class="btn btn--primary" id="mikaWeightAdd">+ Add weight</button>
-                </div>
-                <div id="mikaWeightChartWrap" style="margin:var(--space-16) 0;"></div>
-                <div style="font-size:12px; font-weight:600; color:var(--color-text-secondary); margin-bottom:8px;">History</div>
-                <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
-            </div>
-
             <!-- Medication refill tracker -->
             <div class="card" style="margin-top: 20px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
                     <h3 style="margin:0;">💊 Medication Refills</h3>
-                    <button type="button" class="btn btn--primary btn--sm" id="medAddBtn">+ Add</button>
+                    <button type="button" class="btn btn--accent accent-teal" id="medAddBtn" style="padding:8px 16px;"><span style="font-size:15px; line-height:1;">＋</span> Add med</button>
                 </div>
                 <div id="medForm" style="display:none; margin-bottom:var(--space-12);">
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1797,6 +1778,25 @@
                     </div>
                 </div>
                 <div id="medList" class="med-list"></div>
+            </div>
+
+            <!-- Weight Tracking -->
+            <div class="card" style="margin-top: 20px;">
+                <h3 style="margin-bottom: 15px;"><i class="fas fa-weight-scale"></i> Mika Weight Tracker</h3>
+                <div class="mika-weight-form">
+                    <div class="mwf-field">
+                        <label class="form-label">Weight (kg)</label>
+                        <input type="number" id="mikaWeightInput" class="form-input" placeholder="e.g. 7.80" step="0.01" min="0" inputmode="decimal">
+                    </div>
+                    <div class="mwf-field">
+                        <label class="form-label">Date <span style="font-weight:400; opacity:0.6;">(optional)</span></label>
+                        <input type="date" id="mikaWeightDate" class="form-input">
+                    </div>
+                    <button type="button" class="btn btn--primary" id="mikaWeightAdd">+ Add weight</button>
+                </div>
+                <div id="mikaWeightChartWrap" style="margin:var(--space-16) 0;"></div>
+                <div style="font-size:12px; font-weight:600; color:var(--color-text-secondary); margin-bottom:8px;">History</div>
+                <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
             </div>
         </div>
 
@@ -2306,7 +2306,7 @@
             <div class="card" style="padding:var(--space-16);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-16);">
                     <h3 style="margin:0;">🗾 Japan List</h3>
-                    <button type="button" class="btn btn--primary" id="placeAddBtn" style="padding:4px 10px; font-size:12px;">+ New</button>
+                    <button type="button" id="placeAddBtn" style="display:none;"></button>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:var(--space-12);">
                     <label class="form-label" style="margin:0; white-space:nowrap;">City</label>
@@ -6929,15 +6929,15 @@ async function handleDeleteExpense(id) {
     <button type="button" id="placeFab" aria-label="Add place" style="display:none;">＋</button>
     <style>
         #placeFab {
-            position: fixed; right: 18px; bottom: 96px; z-index: 250;
-            width: 56px; height: 56px; border-radius: 50%;
+            position: fixed; right: 18px; bottom: 92px; z-index: 250;
+            width: 46px; height: 46px; border-radius: 50%;
             border: none; cursor: pointer;
             background: linear-gradient(135deg, #2dd4bf, var(--color-primary));
-            color: #fff; font-size: 30px; line-height: 56px; font-weight: 300;
-            box-shadow: 0 6px 18px rgba(33,128,141,0.5);
+            color: #fff; font-size: 24px; line-height: 46px; font-weight: 300;
+            box-shadow: 0 4px 14px rgba(33,128,141,0.45);
             transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
-        #placeFab:hover { transform: scale(1.08); box-shadow: 0 8px 24px rgba(33,128,141,0.6); }
+        #placeFab:hover { transform: scale(1.08); box-shadow: 0 6px 18px rgba(33,128,141,0.55); }
         #placeFab:active { transform: scale(0.94); }
     </style>
     <script>
