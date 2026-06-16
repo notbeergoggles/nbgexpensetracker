@@ -2114,22 +2114,30 @@
 
         function renderNow(person, bumpPerson) {
             const data = state[person] || {};
+            const today = sgtDateStr(0);
+            // Today's mood comes from the history keyed by today's SGT date.
+            // If there's no entry for today, it shows blank — auto-resets at SGT midnight.
+            const todayMood = (data.history && data.history[today]) || null;
+            const isToday = data.current && data.at && data.history && data.history[today] === data.current;
             const emojiEl = document.getElementById('moodEmoji' + person);
             const timeEl = document.getElementById('moodTime' + person);
             if (emojiEl) {
-                emojiEl.textContent = data.current || '—';
+                emojiEl.textContent = todayMood || '—';
                 if (bumpPerson === person) { emojiEl.classList.remove('bump'); void emojiEl.offsetWidth; emojiEl.classList.add('bump'); }
             }
             if (timeEl) {
-                if (data.at) {
+                if (todayMood && data.at && isToday) {
                     const mins = Math.floor((Date.now() - data.at) / 60000);
                     let txt;
                     if (mins < 1) txt = 'just now';
                     else if (mins < 60) txt = `${mins}m ago`;
-                    else if (mins < 1440) txt = `${Math.floor(mins/60)}h ago`;
-                    else txt = `${Math.floor(mins/1440)}d ago`;
+                    else txt = `${Math.floor(mins/60)}h ago`;
                     timeEl.textContent = txt;
-                } else { timeEl.textContent = 'No mood set'; }
+                } else if (todayMood) {
+                    timeEl.textContent = 'earlier today';
+                } else {
+                    timeEl.textContent = 'No mood set today';
+                }
             }
         }
         function renderPicker() {
@@ -2137,7 +2145,8 @@
             if (!wrap) return;
             const me = whoAmI();
             document.getElementById('moodWhoLabel').textContent = '(' + me + ')';
-            const myCurrent = state[me] && state[me].current;
+            const today = sgtDateStr(0);
+            const myCurrent = state[me] && state[me].history && state[me].history[today];
             wrap.innerHTML = '';
             MOODS.forEach(em => {
                 const b = document.createElement('button');
