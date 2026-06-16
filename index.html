@@ -5013,7 +5013,7 @@
                             <div class="category-bar-wrapper">
                                 <div class="category-bar-info">
                                     <span>${cat}</span>
-                                    <span>${fmtDollar(amount)}</span>
+                                    <span style="display:inline-flex; align-items:center; gap:6px;">${catCompareHtml(person, cat)}<span>${fmtDollar(amount)}</span></span>
                                 </div>
                                 <div class="category-bar-container">
                                     <div class="category-bar-fill" style="width: ${percentage}%; background-color: ${color}"></div>
@@ -5691,6 +5691,47 @@ async function deleteExpenseFromFirebase(id) {
                 if (d.getFullYear() === year && d.getMonth() === month) return sum + (Number(e.amount) || 0);
                 return sum;
             }, 0);
+        }
+        // Person's spending in a specific category for a specific month (by share consumed)
+        function catSumForMonth(person, category, year, month) {
+            const shareField = person === 'Kenny' ? 'yourShare' : 'herShare';
+            return (workingExpenses() || []).reduce((sum, e) => {
+                if (e.isRecurring === true || e.isPayment) return sum;
+                if (e.category !== category) return sum;
+                const d = new Date(e.date);
+                if (d.getFullYear() === year && d.getMonth() === month) return sum + (Number(e[shareField]) || 0);
+                return sum;
+            }, 0);
+        }
+        // Returns the {selYear, selMonth, prevYear, prevMonth} based on the current filter
+        function selectedAndPrevMonth() {
+            const filter = document.getElementById('monthFilter')?.value || 'current';
+            if (filter === 'all') return null;
+            let selYear, selMonth;
+            if (filter === 'current') {
+                const now = new Date(); selYear = now.getFullYear(); selMonth = now.getMonth();
+            } else {
+                const [y, m] = filter.split('-'); selYear = parseInt(y); selMonth = parseInt(m) - 1;
+            }
+            let prevYear = selYear, prevMonth = selMonth - 1;
+            if (prevMonth < 0) { prevMonth = 11; prevYear -= 1; }
+            return { selYear, selMonth, prevYear, prevMonth };
+        }
+        // Small inline indicator comparing this month vs last for a person+category
+        function catCompareHtml(person, category) {
+            const mm = selectedAndPrevMonth();
+            if (!mm) return ''; // "All" filter: no comparison
+            const thisM = catSumForMonth(person, category, mm.selYear, mm.selMonth);
+            const prevM = catSumForMonth(person, category, mm.prevYear, mm.prevMonth);
+            if (prevM <= 0) {
+                return thisM > 0 ? `<span style="font-size:10px; color:var(--color-text-secondary); opacity:0.7;">new</span>` : '';
+            }
+            const diff = thisM - prevM;
+            if (Math.abs(diff) < 0.005) return '';
+            const pct = Math.abs(diff / prevM * 100);
+            const up = diff > 0;
+            const color = up ? 'rgba(212,69,62,0.9)' : 'rgba(33,160,90,0.9)';
+            return `<span style="font-size:10px; font-weight:600; color:${color}; opacity:0.85;">${up?'▲':'▼'}${pct.toFixed(0)}%</span>`;
         }
 
         function renderSpendingCompare() {
