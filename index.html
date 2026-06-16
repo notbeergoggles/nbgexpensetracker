@@ -1748,13 +1748,20 @@
             <!-- Weight Tracking -->
             <div class="card" style="margin-top: 20px;">
                 <h3 style="margin-bottom: 15px;"><i class="fas fa-weight-scale"></i> Mika Weight Tracker</h3>
-                <div style="display:flex; gap:8px; margin-bottom:var(--space-16);">
-                    <input type="number" id="mikaWeightInput" class="form-input" placeholder="Weight in kg (e.g. 5.2)" step="0.01" min="0" inputmode="decimal" style="flex:1;">
-                    <input type="date" id="mikaWeightDate" class="form-input" style="flex:0 0 auto;">
-                    <button type="button" class="btn btn--primary" id="mikaWeightAdd" style="flex-shrink:0;">Add</button>
+                <div class="mika-weight-form">
+                    <div class="mwf-field">
+                        <label class="form-label">Weight (kg)</label>
+                        <input type="number" id="mikaWeightInput" class="form-input" placeholder="e.g. 7.80" step="0.01" min="0" inputmode="decimal">
+                    </div>
+                    <div class="mwf-field">
+                        <label class="form-label">Date <span style="font-weight:400; opacity:0.6;">(optional)</span></label>
+                        <input type="date" id="mikaWeightDate" class="form-input">
+                    </div>
+                    <button type="button" class="btn btn--primary" id="mikaWeightAdd">+ Add weight</button>
                 </div>
-                <div id="mikaWeightChartWrap" style="margin-bottom:var(--space-16);"></div>
-                <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                <div id="mikaWeightChartWrap" style="margin:var(--space-16) 0;"></div>
+                <div style="font-size:12px; font-weight:600; color:var(--color-text-secondary); margin-bottom:8px;">History</div>
+                <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
             </div>
         </div>
 
@@ -1775,6 +1782,14 @@
             .mika-weight-entry { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:8px; background:var(--color-background); border:1px solid var(--color-border); font-size:var(--font-size-sm); }
             .mika-weight-entry .w-val { font-weight:700; color:var(--color-primary); }
             #healthLogContainer:empty::after { content:'No weight records yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+            .mika-weight-form {
+                display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+                align-items: end;
+            }
+            .mika-weight-form .mwf-field { display: flex; flex-direction: column; }
+            .mika-weight-form .form-label { margin-bottom: 5px; }
+            .mika-weight-form > button { grid-column: 1 / -1; width: 100%; }
+            #mikaWeightChartWrap svg { display: block; }
         </style>
 
 
@@ -4099,7 +4114,9 @@
         function drawWeightChart(series) {
             const svg = document.getElementById('mikaWeightSvg');
             if (!svg) return;
-            const W = svg.clientWidth || 320, H = 160, pad = { l: 36, r: 12, t: 12, b: 24 };
+            let W = svg.clientWidth || svg.parentElement.clientWidth || 320;
+            if (W < 50) { requestAnimationFrame(() => drawWeightChart(series)); return; } // wait for layout
+            const H = 160, pad = { l: 36, r: 12, t: 12, b: 24 };
             const xs = series.map(s => s.t), ws = series.map(s => s.w);
             const minT = Math.min(...xs), maxT = Math.max(...xs);
             const minW = Math.min(...ws), maxW = Math.max(...ws);
@@ -4136,6 +4153,7 @@
         }
         function initMikaMealPrep() {
             if (mpUnsub) mpUnsub();
+            renderMealPrep(); // immediate paint so the grid shows on load
             mpUnsub = MP_DOC().onSnapshot(snap => {
                 mpSuppress = true;
                 mpDays = (snap.exists && snap.data().days) ? snap.data().days : {};
