@@ -6001,6 +6001,7 @@ async function deleteExpenseFromFirebase(id) {
             renderBiggestExpense();
             renderYearReview();
             if (typeof renderSettleHistory === 'function') renderSettleHistory();
+            if (typeof window.fadeCurrency === 'function') window.fadeCurrency(document.getElementById('dashboard') || document.body);
         }
 
         function renderBiggestExpense() {
@@ -6808,18 +6809,6 @@ async function handleDeleteExpense(id) {
             font-weight: 500;
             margin-right: 2px;
             letter-spacing: 0.02em;
-            display: inline-block;
-            transform-origin: right center;
-            transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), opacity 0.35s ease;
-        }
-        /* First-load only: start at full size, then settle to mini */
-        .cur-faded.cur-intro {
-            transform: scale(1.47); /* ~1/0.68 so it visually matches surrounding text size */
-            opacity: 1;
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .cur-faded { transition: none; }
-            .cur-faded.cur-intro { transform: none; opacity: 0.55; }
         }
 
         /* 7. Jar condensation droplets */
@@ -6907,7 +6896,6 @@ async function handleDeleteExpense(id) {
 
         // ----- 6. Currency fade: wrap "SGD" prefixes in a subtle span -----
         let curBusy = false;
-        let curFirstPass = true; // animate the shrink only on the very first pass
         function fadeCurrency(root) {
             if (curBusy) return;
             curBusy = true;
@@ -6922,7 +6910,6 @@ async function handleDeleteExpense(id) {
             });
             const nodes = [];
             while (walker.nextNode()) nodes.push(walker.currentNode);
-            const introSpans = [];
             nodes.forEach(n => {
                 const frag = document.createDocumentFragment();
                 n.nodeValue.split(/(\bSGD\b)/).forEach(part => {
@@ -6930,7 +6917,6 @@ async function handleDeleteExpense(id) {
                         const s = document.createElement('span');
                         s.className = 'cur-faded';
                         s.textContent = 'SGD';
-                        if (curFirstPass) { s.classList.add('cur-intro'); introSpans.push(s); }
                         frag.appendChild(s);
                     } else if (part) {
                         frag.appendChild(document.createTextNode(part));
@@ -6938,15 +6924,9 @@ async function handleDeleteExpense(id) {
                 });
                 n.parentNode.replaceChild(frag, n);
             });
-            // Trigger the shrink transition on first load by removing the intro class next frame
-            if (curFirstPass && introSpans.length) {
-                requestAnimationFrame(() => requestAnimationFrame(() => {
-                    introSpans.forEach(s => s.classList.remove('cur-intro'));
-                }));
-            }
-            curFirstPass = false;
             curBusy = false;
         }
+        window.fadeCurrency = fadeCurrency;
         let curTimer = null;
         const curObserver = new MutationObserver(() => {
             clearTimeout(curTimer);
