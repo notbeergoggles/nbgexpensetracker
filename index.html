@@ -1579,11 +1579,13 @@
                         <div class="summary-label">Daily Burn Rate</div>
                         <div class="summary-value" id="dailyBurnRate">SGD 0.00</div>
                     </div>
-                    <div class="summary-item" id="forecastItem" style="display:none;">
-                        <div class="summary-label">Projected Month-End</div>
-                        <div class="summary-value" id="forecastValue">SGD 0.00</div>
+                </div>
+                <div id="forecastItem" style="display:none; margin-top:var(--space-16); padding:var(--space-12) var(--space-16); border-radius:var(--radius-base); background:linear-gradient(135deg, rgba(33,128,141,0.12), rgba(33,128,141,0.03)); border:1px solid rgba(33,128,141,0.2); display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                    <div style="text-align:left;">
+                        <div class="summary-label" style="margin:0;">Projected Month-End</div>
                         <div id="forecastSub" style="font-size:11px; color:var(--color-text-secondary); margin-top:2px;"></div>
                     </div>
+                    <div class="summary-value" id="forecastValue" style="margin:0; white-space:nowrap;">SGD 0.00</div>
                 </div>
             </div>
         </div>
@@ -1930,6 +1932,11 @@
                         <div class="form-group" style="flex:1; min-width:130px;">
                             <label class="form-label">Frequency</label>
                             <select id="hmFreq" class="form-input">
+                                <option value="1">Daily</option>
+                                <option value="2">Every 2 days</option>
+                                <option value="3">Every 3 days</option>
+                                <option value="7">Weekly</option>
+                                <option value="14">Every 2 weeks</option>
                                 <option value="30">Monthly</option>
                                 <option value="60">Every 2 months</option>
                                 <option value="90" selected>Every 3 months</option>
@@ -1937,8 +1944,13 @@
                                 <option value="180">Every 6 months</option>
                                 <option value="365">Yearly</option>
                                 <option value="730">Every 2 years</option>
+                                <option value="custom">Custom…</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="form-group" id="hmCustomWrap" style="display:none;">
+                        <label class="form-label">Custom frequency — every N days</label>
+                        <input type="number" id="hmCustomDays" class="form-input" placeholder="e.g. 10" min="1" step="1" inputmode="numeric">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Notes <span style="font-weight:400; color:var(--color-text-secondary);">(vendor, cost, model…)</span></label>
@@ -1976,7 +1988,8 @@
     (function initHome() {
         const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
         const HM_DOC = () => db.collection('home_maintenance').doc('shared');
-        const FREQ_LABEL = { 30:'Monthly', 60:'Every 2 months', 90:'Every 3 months', 120:'Every 4 months', 180:'Every 6 months', 365:'Yearly', 730:'Every 2 years' };
+        const FREQ_LABEL = { 1:'Daily', 2:'Every 2 days', 3:'Every 3 days', 7:'Weekly', 14:'Every 2 weeks', 30:'Monthly', 60:'Every 2 months', 90:'Every 3 months', 120:'Every 4 months', 180:'Every 6 months', 365:'Yearly', 730:'Every 2 years' };
+        function freqLabel(days) { return FREQ_LABEL[days] || `Every ${days} days`; }
 
         let items = []; // {id, item, lastDone(YYYY-MM-DD), freq(days), notes}
         let hmUnsub = null, hmSuppress = false, editingId = null;
@@ -2034,7 +2047,7 @@
                         <span class="hm-status" style="background:${bg}; color:${fg};">${label}</span>
                     </div>
                     <div class="hm-meta">
-                        <div><span>🔁</span><span>${FREQ_LABEL[it.freq] || '—'}${it.lastDone ? ' · last done ' + (window.fmtDate ? window.fmtDate(it.lastDone+'T12:00:00') : it.lastDone) : ''}</span></div>
+                        <div><span>🔁</span><span>${freqLabel(it.freq)}${it.lastDone ? ' · last done ' + (window.fmtDate ? window.fmtDate(it.lastDone+'T12:00:00') : it.lastDone) : ''}</span></div>
                         ${dueDate ? `<div><span>📅</span><span>Next due ${dueDate.toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})}</span></div>` : ''}
                         ${it.notes ? `<div><span>📝</span><span>${escapeHtml(it.notes)}</span></div>` : ''}
                     </div>
@@ -2060,11 +2073,17 @@
         }
 
         const form = document.getElementById('hmForm');
+        const freqSel = document.getElementById('hmFreq');
+        const customWrap = document.getElementById('hmCustomWrap');
+        function syncCustom() { customWrap.style.display = (freqSel.value === 'custom') ? 'block' : 'none'; }
+        freqSel.addEventListener('change', syncCustom);
         function clearForm() {
             document.getElementById('hmItem').value = '';
             document.getElementById('hmLastDone').value = '';
-            document.getElementById('hmFreq').value = '90';
+            freqSel.value = '90';
+            document.getElementById('hmCustomDays').value = '';
             document.getElementById('hmNotes').value = '';
+            syncCustom();
         }
         function openForm() { editingId = null; clearForm(); form.style.display = 'block'; }
         function openEdit(id) {
@@ -2072,8 +2091,17 @@
             editingId = id;
             document.getElementById('hmItem').value = it.item || '';
             document.getElementById('hmLastDone').value = it.lastDone || '';
-            document.getElementById('hmFreq').value = it.freq || 90;
+            // if freq matches a preset use it, else custom
+            const presets = ['1','2','3','7','14','30','60','90','120','180','365','730'];
+            if (presets.includes(String(it.freq))) {
+                freqSel.value = String(it.freq);
+                document.getElementById('hmCustomDays').value = '';
+            } else {
+                freqSel.value = 'custom';
+                document.getElementById('hmCustomDays').value = it.freq || '';
+            }
             document.getElementById('hmNotes').value = it.notes || '';
+            syncCustom();
             form.style.display = 'block';
         }
         document.getElementById('hmAddBtn').onclick = () => { form.style.display === 'block' ? (form.style.display = 'none') : openForm(); };
@@ -2081,10 +2109,17 @@
         document.getElementById('hmSave').onclick = () => {
             const item = document.getElementById('hmItem').value.trim();
             if (!item) { alert('Enter an item name'); return; }
+            let freq;
+            if (freqSel.value === 'custom') {
+                freq = parseInt(document.getElementById('hmCustomDays').value);
+                if (!freq || freq < 1) { alert('Enter a custom frequency in days (1 or more)'); return; }
+            } else {
+                freq = parseInt(freqSel.value) || 90;
+            }
             const data = {
                 item,
                 lastDone: document.getElementById('hmLastDone').value || '',
-                freq: parseInt(document.getElementById('hmFreq').value) || 90,
+                freq,
                 notes: document.getElementById('hmNotes').value.trim()
             };
             if (editingId) {
@@ -5887,7 +5922,7 @@ async function deleteExpenseFromFirebase(id) {
             const fItem = document.getElementById('forecastItem');
             if (fItem) {
                 if (filter === 'current' && t.currentDay < t.daysInMonth && t.monthTotalSoFar > 0) {
-                    fItem.style.display = '';
+                    fItem.style.display = 'flex';
                     document.getElementById('forecastValue').textContent = fmtMoney(t.forecast);
                     document.getElementById('forecastSub').textContent = `based on ${fmtDollar(t.monthTotalSoFar)} over ${t.currentDay} day${t.currentDay>1?'s':''}`;
                 } else {
