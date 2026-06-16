@@ -2347,29 +2347,59 @@
         .place-city-group { margin-bottom: var(--space-20); }
         /* City dropdown: pill variant of the styled select */
         #placeCitySelect { border-radius: 50px; }
+        /* City hero header */
         .place-city-header {
-            font-size: var(--font-size-base); font-weight: 700; margin-bottom: var(--space-12);
-            padding: 8px 14px; border-radius: var(--radius-base);
-            background: linear-gradient(135deg, rgba(33,128,141,0.12), rgba(33,128,141,0.04));
-            border-left: 4px solid var(--color-primary);
             display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; border-radius: var(--radius-lg); cursor: pointer;
+            margin-bottom: var(--space-8);
+            background: linear-gradient(135deg, rgba(33,128,141,0.18), rgba(33,128,141,0.04));
+            border: 1px solid rgba(33,128,141,0.25);
+            transition: background 0.15s;
         }
-        .place-city-count { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); }
+        .place-city-header:hover { background: linear-gradient(135deg, rgba(33,128,141,0.24), rgba(33,128,141,0.07)); }
+        .place-city-header .pch-left { display: flex; align-items: center; gap: 10px; }
+        .place-city-header .pch-emoji { font-size: 24px; line-height: 1; }
+        .place-city-header .pch-name { font-size: var(--font-size-lg); font-weight: 700; }
+        .place-city-header .pch-right { display: flex; align-items: center; gap: 10px; }
+        .place-city-count { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); background: var(--color-surface); padding: 3px 10px; border-radius: 50px; }
+        .pch-chevron { color: var(--color-primary); font-size: 12px; transition: transform 0.2s; }
+        .place-city-group.collapsed .pch-chevron { transform: rotate(-90deg); }
+        .place-city-group.collapsed .place-list { display: none; }
         .place-list { display: flex; flex-direction: column; gap: var(--space-8); }
+
+        /* Cleaner card hierarchy + category color coding */
         .place-item {
-            padding: var(--space-12); border-radius: var(--radius-base);
+            padding: var(--space-12) var(--space-16); border-radius: var(--radius-base);
             background: var(--color-background); border: 1px solid var(--color-border);
-            animation: cardEnter 0.3s ease both;
+            border-left: 4px solid var(--cat-color, var(--color-border));
+            animation: cardEnter 0.3s ease both; position: relative;
         }
-        .place-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-        .place-item-name { font-weight: 600; }
-        .place-item-cat { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 50px; background: rgba(33,128,141,0.12); color: var(--color-primary); white-space: nowrap; }
-        .place-item-desc { font-size: var(--font-size-sm); color: var(--color-text); margin-top: 4px; }
-        .place-item-meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 6px; }
-        .place-item-meta div { margin-top: 2px; }
-        .place-item-actions { display: flex; gap: 6px; margin-top: var(--space-8); }
+        .place-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .place-item-name { font-weight: 700; font-size: var(--font-size-base); line-height: 1.3; }
+        .place-item-cat { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 50px; background: var(--cat-tint, rgba(33,128,141,0.12)); color: var(--cat-color, var(--color-primary)); white-space: nowrap; letter-spacing: 0.02em; text-transform: uppercase; flex-shrink: 0; }
+        .place-item-desc { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-top: 5px; line-height: 1.4; }
+        .place-item-meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+        .place-item-meta div { display: flex; align-items: center; gap: 6px; }
+        .place-item-actions { display: flex; gap: 6px; margin-top: var(--space-12); }
         .place-item-actions button { padding: 4px 10px; font-size: 11px; }
-        .place-item.place-visited { opacity: 0.8; }
+
+        /* Visited stamp */
+        .place-item.place-visited { opacity: 0.72; overflow: hidden; }
+        .place-item.place-visited .place-item-name { color: var(--color-text-secondary); }
+        .place-item.place-visited::before {
+            content: '✓ VISITED'; position: absolute; top: 9px; right: -34px;
+            background: rgba(33,128,141,0.85); color: #fff; font-size: 9px; font-weight: 800;
+            letter-spacing: 0.08em; padding: 3px 36px; transform: rotate(45deg);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2); z-index: 1;
+        }
+        /* Empty-state charm */
+        .place-empty {
+            text-align: center; padding: var(--space-24) var(--space-16);
+            color: var(--color-text-secondary);
+        }
+        .place-empty .pe-emoji { font-size: 44px; line-height: 1; margin-bottom: 10px; opacity: 0.85; }
+        .place-empty .pe-title { font-weight: 600; margin-bottom: 4px; }
+        .place-empty .pe-sub { font-size: var(--font-size-sm); }
         #placesArchiveList:empty::after { content: 'No visited places yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
         #placesByCity:empty::after {
             content: 'No places saved yet. Add your first one above.';
@@ -2380,16 +2410,29 @@
     <script>
     (function initPlaces() {
         const CATEGORIES = [
-            { id: 'Food & Drink', emo: '🍜' },
-            { id: 'Hotel / Stay', emo: '🏨' },
-            { id: 'Shopping', emo: '🛍️' },
-            { id: 'Sightseeing', emo: '⛩️' },
-            { id: 'Experience', emo: '🎌' },
-            { id: 'Nature', emo: '🌳' },
-            { id: 'Anime / Hobby', emo: '🎁' },
-            { id: 'Other', emo: '📍' },
+            { id: 'Food & Drink', emo: '🍜', color: '#e8743b' },
+            { id: 'Hotel / Stay', emo: '🏨', color: '#3b82c4' },
+            { id: 'Shopping', emo: '🛍️', color: '#c4459d' },
+            { id: 'Sightseeing', emo: '⛩️', color: '#9b59b6' },
+            { id: 'Experience', emo: '🎌', color: '#e0a020' },
+            { id: 'Nature', emo: '🌳', color: '#21a05a' },
+            { id: 'Anime / Hobby', emo: '🎁', color: '#e84393' },
+            { id: 'Other', emo: '📍', color: '#7f8c9b' },
         ];
         const catEmo = id => (CATEGORIES.find(c => c.id === id) || {}).emo || '📍';
+        const catColor = id => (CATEGORIES.find(c => c.id === id) || {}).color || '#7f8c9b';
+        function hexToTint(hex) {
+            const n = parseInt(hex.slice(1), 16);
+            return `rgba(${(n>>16)&255}, ${(n>>8)&255}, ${n&255}, 0.14)`;
+        }
+        // City -> landmark emoji (falls back to 📍)
+        const CITY_EMOJI = {
+            'Tokyo': '🗼', 'Kyoto': '⛩️', 'Osaka': '🏯', 'Nara': '🦌', 'Hokkaido': '❄️',
+            'Sapporo': '❄️', 'Fukuoka': '🍜', 'Hiroshima': '🕊️', 'Nagoya': '🏰', 'Yokohama': '🌉',
+            'Kanazawa': '🍣', 'Kobe': '🥩', 'Okinawa': '🏝️', 'Hakone': '♨️', 'Nikko': '🌲',
+            'Kamakura': '🗿', 'Takayama': '🏔️', 'Otaru': '🎏', 'Sendai': '🌳', 'Kobe ': '🥩'
+        };
+        const cityEmoji = c => CITY_EMOJI[c] || '📍';
 
         const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
         const PLACES_DOC = () => db.collection('places').doc('shared');
@@ -2459,6 +2502,7 @@
         }
 
         // ----- Render places grouped by city -----
+        let collapsedCities = {}; // { cityName: true }
         function renderCities() {
             const container = document.getElementById('placesByCity');
             container.innerHTML = '';
@@ -2466,13 +2510,36 @@
             if (activeCity !== 'All') filtered = filtered.filter(p => p.city === activeCity);
             const cities = [...new Set(filtered.map(p => p.city).filter(Boolean))].sort();
 
+            if (!cities.length) {
+                const hasAny = places.filter(p => !p.visited).length > 0;
+                container.innerHTML = `<div class="place-empty">
+                    <div class="pe-emoji">${hasAny ? '🔍' : '🗺️'}</div>
+                    <div class="pe-title">${hasAny ? 'Nothing in this filter' : 'Your Japan list is empty'}</div>
+                    <div class="pe-sub">${hasAny ? 'Try a different category or city.' : 'Tap “+ New” to save your first spot.'}</div>
+                </div>`;
+                renderArchive();
+                return;
+            }
+
             cities.forEach(city => {
                 const cityPlaces = filtered.filter(p => p.city === city);
                 const group = document.createElement('div');
-                group.className = 'place-city-group';
+                group.className = 'place-city-group' + (collapsedCities[city] ? ' collapsed' : '');
                 const header = document.createElement('div');
                 header.className = 'place-city-header';
-                header.innerHTML = `<span>📍 ${escapeHtml(city)}</span><span class="place-city-count">${cityPlaces.length} place${cityPlaces.length>1?'s':''}</span>`;
+                header.innerHTML = `
+                    <div class="pch-left">
+                        <span class="pch-emoji">${cityEmoji(city)}</span>
+                        <span class="pch-name">${escapeHtml(city)}</span>
+                    </div>
+                    <div class="pch-right">
+                        <span class="place-city-count">${cityPlaces.length}</span>
+                        <span class="pch-chevron">▼</span>
+                    </div>`;
+                header.onclick = () => {
+                    collapsedCities[city] = !collapsedCities[city];
+                    group.classList.toggle('collapsed');
+                };
                 group.appendChild(header);
 
                 const list = document.createElement('div');
@@ -2488,17 +2555,23 @@
             if (!list) return;
             const visited = places.filter(p => p.visited);
             list.innerHTML = '';
-            // group archived by city too
             const cities = [...new Set(visited.map(p => p.city).filter(Boolean))].sort();
             cities.forEach(city => {
                 const cityPlaces = visited.filter(p => p.city === city);
                 const header = document.createElement('div');
                 header.className = 'place-city-header';
+                header.style.cursor = 'default';
                 header.style.marginTop = 'var(--space-12)';
-                header.innerHTML = `<span>✅ ${escapeHtml(city)}</span><span class="place-city-count">${cityPlaces.length} visited</span>`;
+                header.innerHTML = `
+                    <div class="pch-left">
+                        <span class="pch-emoji">${cityEmoji(city)}</span>
+                        <span class="pch-name">${escapeHtml(city)}</span>
+                    </div>
+                    <span class="place-city-count">${cityPlaces.length} visited</span>`;
                 list.appendChild(header);
                 const sub = document.createElement('div');
                 sub.className = 'place-list';
+                sub.style.marginBottom = 'var(--space-12)';
                 cityPlaces.forEach(p => sub.appendChild(renderPlaceItem(p, true)));
                 list.appendChild(sub);
             });
@@ -2527,6 +2600,9 @@
         function renderPlaceItem(p, isArchived) {
             const item = document.createElement('div');
             item.className = 'place-item' + (isArchived ? ' place-visited' : '');
+            const col = catColor(p.category);
+            item.style.setProperty('--cat-color', col);
+            item.style.setProperty('--cat-tint', hexToTint(col));
             item.innerHTML = `
                 <div class="place-item-top">
                     <div class="place-item-name">${escapeHtml(p.name || 'Untitled')}</div>
@@ -2534,9 +2610,9 @@
                 </div>
                 ${p.desc ? `<div class="place-item-desc">${escapeHtml(p.desc)}</div>` : ''}
                 <div class="place-item-meta">
-                    ${p.hours ? `<div>🕒 ${escapeHtml(p.hours)}</div>` : ''}
-                    ${p.remarks ? `<div>📝 ${escapeHtml(p.remarks)}</div>` : ''}
-                    ${isArchived && p.visitedAt ? `<div>✅ Visited ${window.fmtDate ? window.fmtDate(p.visitedAt) : ''}</div>` : ''}
+                    ${p.hours ? `<div><span>🕒</span><span>${escapeHtml(p.hours)}</span></div>` : ''}
+                    ${p.remarks ? `<div><span>📝</span><span>${escapeHtml(p.remarks)}</span></div>` : ''}
+                    ${isArchived && p.visitedAt ? `<div><span>✅</span><span>Visited ${window.fmtDate ? window.fmtDate(p.visitedAt) : ''}</span></div>` : ''}
                 </div>
                 <div class="place-item-actions"></div>
             `;
