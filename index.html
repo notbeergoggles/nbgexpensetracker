@@ -1401,6 +1401,7 @@
             <button type="button" class="tab-button" data-tab="places">🗾 Japan List</button>
             <button type="button" class="tab-button" data-tab="mood">😊 Mood</button>
             <button type="button" class="tab-button" data-tab="notes">💌 Notes</button>
+            <button type="button" class="tab-button" data-tab="home">🔧 Home</button>
         </div>
 
         <!-- ===== Mobile bottom nav + drawer ===== -->
@@ -1577,6 +1578,11 @@
                     <div class="summary-item">
                         <div class="summary-label">Daily Burn Rate</div>
                         <div class="summary-value" id="dailyBurnRate">SGD 0.00</div>
+                    </div>
+                    <div class="summary-item" id="forecastItem" style="display:none;">
+                        <div class="summary-label">Projected Month-End</div>
+                        <div class="summary-value" id="forecastValue">SGD 0.00</div>
+                        <div id="forecastSub" style="font-size:11px; color:var(--color-text-secondary); margin-top:2px;"></div>
                     </div>
                 </div>
             </div>
@@ -1902,6 +1908,200 @@
             </form>
         </div>
     </div>
+
+    <!-- ============ HOME MAINTENANCE TAB ============ -->
+    <div id="home" class="tab-content">
+        <div class="home-wrap">
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">🔧 Home Maintenance</h3>
+                    <button type="button" class="btn btn--accent accent-teal" id="hmAddBtn" style="padding:8px 16px;"><span style="font-size:15px; line-height:1;">＋</span> Add</button>
+                </div>
+                <div id="hmForm" style="display:none; margin-bottom:var(--space-12);">
+                    <div class="form-group">
+                        <label class="form-label">Item / system</label>
+                        <input type="text" id="hmItem" class="form-input" placeholder="e.g. Aircon servicing, Water filter">
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <div class="form-group" style="flex:1; min-width:130px;">
+                            <label class="form-label">Last done</label>
+                            <input type="date" id="hmLastDone" class="form-input">
+                        </div>
+                        <div class="form-group" style="flex:1; min-width:130px;">
+                            <label class="form-label">Frequency</label>
+                            <select id="hmFreq" class="form-input">
+                                <option value="30">Monthly</option>
+                                <option value="60">Every 2 months</option>
+                                <option value="90" selected>Every 3 months</option>
+                                <option value="120">Every 4 months</option>
+                                <option value="180">Every 6 months</option>
+                                <option value="365">Yearly</option>
+                                <option value="730">Every 2 years</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes <span style="font-weight:400; color:var(--color-text-secondary);">(vendor, cost, model…)</span></label>
+                        <input type="text" id="hmNotes" class="form-input" placeholder="e.g. CoolAir $80, cleaned coils + new filter">
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn--secondary" id="hmCancel" style="padding:8px 18px;">Cancel</button>
+                        <button type="button" class="btn btn--primary" id="hmSave" style="padding:8px 18px;">Save</button>
+                    </div>
+                </div>
+                <div id="hmList" class="hm-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .home-wrap { max-width: 760px; margin: 0 auto; }
+        .hm-list { display:flex; flex-direction:column; gap:var(--space-8); }
+        .hm-list:empty::after { content:'No maintenance items yet. Tap “＋ Add” to start.'; display:block; text-align:center; padding:var(--space-16); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+        .hm-item {
+            padding:var(--space-12) var(--space-16); border-radius:var(--radius-base);
+            background:var(--color-background); border:1px solid var(--color-border);
+            border-left:4px solid var(--hm-color, var(--color-border));
+        }
+        .hm-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+        .hm-name { font-weight:700; }
+        .hm-status { font-size:11px; font-weight:700; padding:3px 10px; border-radius:50px; white-space:nowrap; }
+        .hm-meta { font-size:12px; color:var(--color-text-secondary); margin-top:5px; display:flex; flex-direction:column; gap:2px; }
+        .hm-meta div { display:flex; align-items:center; gap:6px; }
+        .hm-actions { display:flex; gap:6px; margin-top:var(--space-8); }
+        .hm-actions button { padding:4px 10px; font-size:11px; }
+    </style>
+
+    <script>
+    (function initHome() {
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const HM_DOC = () => db.collection('home_maintenance').doc('shared');
+        const FREQ_LABEL = { 30:'Monthly', 60:'Every 2 months', 90:'Every 3 months', 120:'Every 4 months', 180:'Every 6 months', 365:'Yearly', 730:'Every 2 years' };
+
+        let items = []; // {id, item, lastDone(YYYY-MM-DD), freq(days), notes}
+        let hmUnsub = null, hmSuppress = false, editingId = null;
+
+        async function save() {
+            if (hmSuppress) return;
+            if (isLive()) { try { await HM_DOC().set({ items }); } catch (e) { window.showSaveError && window.showSaveError('home maintenance', e); } }
+            else { localStorage.setItem('homeMaintenance', JSON.stringify(items)); }
+        }
+        function loadLocal() { const raw = localStorage.getItem('homeMaintenance'); items = raw ? (JSON.parse(raw)||[]) : []; render(); }
+        function listenLive() {
+            if (hmUnsub) hmUnsub();
+            window.showSkeleton && window.showSkeleton('hmList', 3, true);
+            hmUnsub = HM_DOC().onSnapshot(snap => {
+                hmSuppress = true;
+                items = (snap.exists && snap.data().items) ? snap.data().items : [];
+                hmSuppress = false;
+                render();
+            }, err => console.error('home listen', err));
+        }
+
+        function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        // days until next due (negative = overdue)
+        function daysUntilDue(it) {
+            if (!it.lastDone || !it.freq) return null;
+            const last = new Date(it.lastDone + 'T12:00:00');
+            const due = new Date(last.getTime() + it.freq * 86400000);
+            const today = new Date(); today.setHours(12,0,0,0);
+            return Math.round((due - today) / 86400000);
+        }
+        function render() {
+            const list = document.getElementById('hmList');
+            if (!list) return;
+            // sort by soonest due (overdue first)
+            const sorted = [...items].sort((a, b) => {
+                const da = daysUntilDue(a), db_ = daysUntilDue(b);
+                if (da == null) return 1; if (db_ == null) return -1;
+                return da - db_;
+            });
+            list.innerHTML = '';
+            sorted.forEach(it => {
+                const d = daysUntilDue(it);
+                let color, bg, fg, label;
+                if (d == null) { color = 'var(--color-border)'; bg = 'rgba(127,140,155,0.15)'; fg = 'var(--color-text-secondary)'; label = 'No schedule'; }
+                else if (d < 0) { color = '#d4453e'; bg = 'rgba(212,69,62,0.15)'; fg = '#d4453e'; label = `⚠️ Overdue ${-d}d`; }
+                else if (d <= 14) { color = '#e0a020'; bg = 'rgba(230,160,30,0.18)'; fg = '#b5790f'; label = `Due in ${d}d`; }
+                else { color = '#21a05a'; bg = 'rgba(33,160,90,0.14)'; fg = '#21a05a'; label = `Due in ${d}d`; }
+                const dueDate = (it.lastDone && it.freq) ? new Date(new Date(it.lastDone+'T12:00:00').getTime() + it.freq*86400000) : null;
+                const item = document.createElement('div');
+                item.className = 'hm-item';
+                item.style.setProperty('--hm-color', color);
+                item.innerHTML = `
+                    <div class="hm-top">
+                        <span class="hm-name">${escapeHtml(it.item || 'Untitled')}</span>
+                        <span class="hm-status" style="background:${bg}; color:${fg};">${label}</span>
+                    </div>
+                    <div class="hm-meta">
+                        <div><span>🔁</span><span>${FREQ_LABEL[it.freq] || '—'}${it.lastDone ? ' · last done ' + (window.fmtDate ? window.fmtDate(it.lastDone+'T12:00:00') : it.lastDone) : ''}</span></div>
+                        ${dueDate ? `<div><span>📅</span><span>Next due ${dueDate.toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})}</span></div>` : ''}
+                        ${it.notes ? `<div><span>📝</span><span>${escapeHtml(it.notes)}</span></div>` : ''}
+                    </div>
+                    <div class="hm-actions"></div>
+                `;
+                const actions = item.querySelector('.hm-actions');
+                const done = document.createElement('button');
+                done.className = 'btn btn--primary'; done.textContent = '✓ Done today';
+                done.onclick = () => {
+                    const t = new Date();
+                    it.lastDone = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+                    save(); render();
+                };
+                const edit = document.createElement('button');
+                edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
+                edit.onclick = () => openEdit(it.id);
+                const del = document.createElement('button');
+                del.className = 'btn btn--secondary'; del.textContent = '🗑️';
+                del.onclick = () => { if (confirm('Delete this item?')) { items = items.filter(x => x.id !== it.id); save(); render(); } };
+                actions.append(done, edit, del);
+                list.appendChild(item);
+            });
+        }
+
+        const form = document.getElementById('hmForm');
+        function clearForm() {
+            document.getElementById('hmItem').value = '';
+            document.getElementById('hmLastDone').value = '';
+            document.getElementById('hmFreq').value = '90';
+            document.getElementById('hmNotes').value = '';
+        }
+        function openForm() { editingId = null; clearForm(); form.style.display = 'block'; }
+        function openEdit(id) {
+            const it = items.find(x => x.id === id); if (!it) return;
+            editingId = id;
+            document.getElementById('hmItem').value = it.item || '';
+            document.getElementById('hmLastDone').value = it.lastDone || '';
+            document.getElementById('hmFreq').value = it.freq || 90;
+            document.getElementById('hmNotes').value = it.notes || '';
+            form.style.display = 'block';
+        }
+        document.getElementById('hmAddBtn').onclick = () => { form.style.display === 'block' ? (form.style.display = 'none') : openForm(); };
+        document.getElementById('hmCancel').onclick = () => { form.style.display = 'none'; };
+        document.getElementById('hmSave').onclick = () => {
+            const item = document.getElementById('hmItem').value.trim();
+            if (!item) { alert('Enter an item name'); return; }
+            const data = {
+                item,
+                lastDone: document.getElementById('hmLastDone').value || '',
+                freq: parseInt(document.getElementById('hmFreq').value) || 90,
+                notes: document.getElementById('hmNotes').value.trim()
+            };
+            if (editingId) {
+                const it = items.find(x => x.id === editingId);
+                if (it) Object.assign(it, data);
+            } else {
+                items.push({ id: 'hm_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), ...data });
+            }
+            save(); render();
+            form.style.display = 'none';
+        };
+
+        if (isLive()) listenLive(); else loadLocal();
+        window.homeInitLive = function() { listenLive(); };
+        window.homeInitLocal = function() { if (hmUnsub) hmUnsub(); loadLocal(); };
+    })();
+    </script>
 
     <!-- ============ LOVE NOTES TAB ============ -->
     <div id="notes" class="tab-content">
@@ -5080,6 +5280,7 @@
                     if (window.placesInitLive) window.placesInitLive();
                     if (window.moodInitLive) window.moodInitLive();
                     if (window.notesInitLive) window.notesInitLive();
+                    if (window.homeInitLive) window.homeInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -5091,6 +5292,7 @@
                     if (window.placesInitLocal) window.placesInitLocal();
                     if (window.moodInitLocal) window.moodInitLocal();
                     if (window.notesInitLocal) window.notesInitLocal();
+                    if (window.homeInitLocal) window.homeInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -5324,6 +5526,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'places',    label: 'Japan List', ico: 'fa-solid fa-map-location-dot' },
             { tab: 'mood',      label: 'Mood',      ico: 'fa-solid fa-face-smile' },
             { tab: 'notes',     label: 'Notes',     ico: 'fa-solid fa-envelope-open-text' },
+            { tab: 'home',      label: 'Home',      ico: 'fa-solid fa-screwdriver-wrench' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
@@ -5643,6 +5846,8 @@ async function deleteExpenseFromFirebase(id) {
             });
             const monthTotal = monthOnlyExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
             const dailyBurn = monthTotal / currentDay;
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const forecast = dailyBurn * daysInMonth;
         
             const net = kennyTotalPaid - kennyTotalShare;
         
@@ -5656,7 +5861,11 @@ async function deleteExpenseFromFirebase(id) {
                 categoryTotals,
                 individualTotals, // Passed to dashboard
                 net,
-                dailyBurn: dailyBurn || 0
+                dailyBurn: dailyBurn || 0,
+                forecast: forecast || 0,
+                monthTotalSoFar: monthTotal || 0,
+                daysInMonth,
+                currentDay
             };
         }
 
@@ -5672,6 +5881,19 @@ async function deleteExpenseFromFirebase(id) {
             document.getElementById('totalExpenses').textContent = fmtMoney(t.totalExpenses);
             document.getElementById('entryCount').textContent = t.entryCount;
             document.getElementById('dailyBurnRate').textContent = fmtMoney(t.dailyBurn);
+
+            // Spending forecast — only meaningful for the current (incomplete) month
+            const filter = document.getElementById('monthFilter')?.value || 'current';
+            const fItem = document.getElementById('forecastItem');
+            if (fItem) {
+                if (filter === 'current' && t.currentDay < t.daysInMonth && t.monthTotalSoFar > 0) {
+                    fItem.style.display = '';
+                    document.getElementById('forecastValue').textContent = fmtMoney(t.forecast);
+                    document.getElementById('forecastSub').textContent = `based on ${fmtDollar(t.monthTotalSoFar)} over ${t.currentDay} day${t.currentDay>1?'s':''}`;
+                } else {
+                    fItem.style.display = 'none';
+                }
+            }
 
             document.getElementById('settlement').textContent = fmtMoney(Math.abs(t.net));
             document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
