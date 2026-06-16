@@ -2257,13 +2257,23 @@
                 </div>
             </div>
 
-            <!-- Add place -->
-            <div class="card">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+            <!-- Header + filters (merged) -->
+            <div class="card" style="padding:var(--space-16);">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-16);">
                     <h3 style="margin:0;">🗾 Japan List</h3>
                     <button type="button" class="btn btn--primary" id="placeAddBtn" style="padding:4px 10px; font-size:12px;">+ New</button>
                 </div>
-                <div id="placeForm" style="display:none;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:var(--space-12);">
+                    <label class="form-label" style="margin:0; white-space:nowrap;">City</label>
+                    <select id="placeCitySelect" class="form-input" style="flex:1;"></select>
+                </div>
+                <div class="place-cat-filters" id="placeCatFilters"></div>
+            </div>
+
+            <!-- Add place form (shown on demand) -->
+            <div class="card" id="placeFormCard" style="display:none;">
+                <h3 style="margin:0 0 var(--space-12);">New place</h3>
+                <div id="placeForm">
                     <div style="display:flex; gap:8px;">
                         <div class="form-group" style="flex:1;">
                             <label class="form-label">City</label>
@@ -2300,15 +2310,6 @@
                         <button type="button" class="btn btn--primary" id="placeFormSave">Save</button>
                     </div>
                 </div>
-            </div>
-
-            <!-- City selector + category filter -->
-            <div class="card" style="padding:var(--space-12) var(--space-16);">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:var(--space-12);">
-                    <label class="form-label" style="margin:0; white-space:nowrap;">City</label>
-                    <select id="placeCitySelect" class="form-input" style="flex:1;"></select>
-                </div>
-                <div class="place-cat-filters" id="placeCatFilters"></div>
             </div>
 
             <!-- Places grouped by city -->
@@ -2659,7 +2660,7 @@
         function renderAll() { populateCityDatalist(); renderCitySelect(); renderFilters(); renderCities(); }
 
         // ----- Form -----
-        const form = document.getElementById('placeForm');
+        const form = document.getElementById('placeFormCard');
         let editingId = null;
         function openForm() { editingId = null; clearForm(); form.style.display = 'block'; }
         function clearForm() {
