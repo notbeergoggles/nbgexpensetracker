@@ -1769,7 +1769,52 @@
                 <div style="font-size:12px; font-weight:600; color:var(--color-text-secondary); margin-bottom:8px;">History</div>
                 <div id="healthLogContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
             </div>
+
+            <!-- Medication refill tracker -->
+            <div class="card" style="margin-top: 20px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">💊 Medication Refills</h3>
+                    <button type="button" class="btn btn--primary btn--sm" id="medAddBtn">+ Add</button>
+                </div>
+                <div id="medForm" style="display:none; margin-bottom:var(--space-12);">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <div class="form-group" style="flex:2; min-width:140px;">
+                            <label class="form-label">Medication name</label>
+                            <input type="text" id="medName" class="form-input" placeholder="e.g. Apoquel">
+                        </div>
+                        <div class="form-group" style="flex:1; min-width:90px;">
+                            <label class="form-label">Doses left</label>
+                            <input type="number" id="medDoses" class="form-input" placeholder="e.g. 30" min="0" step="1" inputmode="numeric">
+                        </div>
+                        <div class="form-group" style="flex:1; min-width:90px;">
+                            <label class="form-label">Doses/day</label>
+                            <input type="number" id="medPerDay" class="form-input" placeholder="e.g. 1" min="0.5" step="0.5" inputmode="decimal">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn--secondary btn--sm" id="medCancel">Cancel</button>
+                        <button type="button" class="btn btn--primary btn--sm" id="medSave">Save</button>
+                    </div>
+                </div>
+                <div id="medList" class="med-list"></div>
+            </div>
         </div>
+
+        <style>
+            .med-list { display:flex; flex-direction:column; gap:var(--space-8); }
+            .med-list:empty::after { content:'No medications tracked yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+            .med-item {
+                padding:var(--space-12) var(--space-16); border-radius:var(--radius-base);
+                background:var(--color-background); border:1px solid var(--color-border);
+                border-left:4px solid var(--med-color, var(--color-primary));
+            }
+            .med-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+            .med-name { font-weight:700; }
+            .med-status { font-size:12px; font-weight:600; padding:3px 10px; border-radius:50px; white-space:nowrap; }
+            .med-sub { font-size:12px; color:var(--color-text-secondary); margin-top:4px; }
+            .med-actions { display:flex; gap:6px; margin-top:var(--space-8); }
+            .med-actions button { padding:4px 10px; font-size:11px; }
+        </style>
 
         <style>
             .mp-grid-head { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
@@ -4239,6 +4284,110 @@
             svg.innerHTML = svgHtml;
         }
 
+        // ===== Mika Medication Refills (shared, supply-based countdown) =====
+        const MED_DOC = () => db.collection('mika_meds').doc('shared');
+        let meds = []; // {id, name, doses, perDay, setAt}
+        let medUnsub = null, medSuppress = false;
+        async function medSave() {
+            if (medSuppress) return;
+            try { await MED_DOC().set({ meds }); } catch (e) { window.showSaveError && window.showSaveError('medications', e); }
+        }
+        function initMikaMeds() {
+            if (medUnsub) medUnsub();
+            renderMeds();
+            medUnsub = MED_DOC().onSnapshot(snap => {
+                medSuppress = true;
+                meds = (snap.exists && snap.data().meds) ? snap.data().meds : [];
+                medSuppress = false;
+                renderMeds();
+            }, err => console.error('meds listen', err));
+        }
+        function medRemaining(m) {
+            const days = Math.floor((Date.now() - (m.setAt || Date.now())) / 86400000);
+            return Math.max(0, (m.doses || 0) - days * (m.perDay || 0));
+        }
+        function escapeHtmlMed(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function renderMeds() {
+            const list = document.getElementById('medList');
+            if (!list) return;
+            const sorted = [...meds].sort((a, b) => medRemaining(a)/(a.perDay||1) - medRemaining(b)/(b.perDay||1));
+            list.innerHTML = '';
+            sorted.forEach(m => {
+                const rem = medRemaining(m);
+                const daysLeft = m.perDay > 0 ? rem / m.perDay : Infinity;
+                let color, bg, fg, label;
+                if (rem <= 0) { color = '#d4453e'; bg = 'rgba(212,69,62,0.15)'; fg = '#d4453e'; label = '⚠️ Out — refill now'; }
+                else if (daysLeft <= 5) { color = '#e0a020'; bg = 'rgba(230,160,30,0.18)'; fg = '#b5790f'; label = `${rem % 1 === 0 ? rem : rem.toFixed(1)} left · ~${Math.ceil(daysLeft)}d`; }
+                else { color = '#21a05a'; bg = 'rgba(33,160,90,0.14)'; fg = '#21a05a'; label = `${rem % 1 === 0 ? rem : rem.toFixed(1)} left · ~${Math.ceil(daysLeft)}d`; }
+                const outDate = isFinite(daysLeft) ? new Date(Date.now() + daysLeft * 86400000) : null;
+                const item = document.createElement('div');
+                item.className = 'med-item';
+                item.style.setProperty('--med-color', color);
+                item.innerHTML = `
+                    <div class="med-top">
+                        <span class="med-name">${escapeHtmlMed(m.name || 'Medication')}</span>
+                        <span class="med-status" style="background:${bg}; color:${fg};">${label}</span>
+                    </div>
+                    <div class="med-sub">${m.perDay} dose${m.perDay==1?'':'s'}/day${outDate ? ' · runs out ' + outDate.toLocaleDateString('en-SG',{weekday:'short',day:'numeric',month:'short'}) : ''}</div>
+                    <div class="med-actions"></div>
+                `;
+                const actions = item.querySelector('.med-actions');
+                const refill = document.createElement('button');
+                refill.className = 'btn btn--primary'; refill.textContent = '↻ Refilled';
+                refill.onclick = () => {
+                    const ans = prompt(`Refilled ${m.name}. How many doses now?`, m.doses);
+                    if (ans === null) return;
+                    const v = parseFloat(ans);
+                    if (v >= 0) { m.doses = v; m.setAt = Date.now(); medSave(); renderMeds(); }
+                };
+                const edit = document.createElement('button');
+                edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
+                edit.onclick = () => openMedEdit(m.id);
+                const del = document.createElement('button');
+                del.className = 'btn btn--secondary'; del.textContent = '🗑️';
+                del.onclick = () => { if (confirm('Delete this medication?')) { meds = meds.filter(x => x.id !== m.id); medSave(); renderMeds(); } };
+                actions.append(refill, edit, del);
+                list.appendChild(item);
+            });
+        }
+        let medEditingId = null;
+        function openMedForm() {
+            medEditingId = null;
+            document.getElementById('medName').value = '';
+            document.getElementById('medDoses').value = '';
+            document.getElementById('medPerDay').value = '';
+            document.getElementById('medForm').style.display = 'block';
+        }
+        function openMedEdit(id) {
+            const m = meds.find(x => x.id === id); if (!m) return;
+            medEditingId = id;
+            document.getElementById('medName').value = m.name || '';
+            document.getElementById('medDoses').value = (m.doses ?? '');
+            document.getElementById('medPerDay').value = (m.perDay ?? '');
+            document.getElementById('medForm').style.display = 'block';
+        }
+        (function wireMeds() {
+            const addBtn = document.getElementById('medAddBtn');
+            const formEl = document.getElementById('medForm');
+            if (!addBtn || !formEl) return;
+            addBtn.onclick = () => { formEl.style.display === 'block' ? (formEl.style.display = 'none') : openMedForm(); };
+            document.getElementById('medCancel').onclick = () => { formEl.style.display = 'none'; };
+            document.getElementById('medSave').onclick = () => {
+                const name = document.getElementById('medName').value.trim();
+                const doses = parseFloat(document.getElementById('medDoses').value);
+                const perDay = parseFloat(document.getElementById('medPerDay').value);
+                if (!name || !(doses >= 0) || !(perDay > 0)) { alert('Enter name, doses left, and doses/day'); return; }
+                if (medEditingId) {
+                    const m = meds.find(x => x.id === medEditingId);
+                    if (m) { m.name = name; m.doses = doses; m.perDay = perDay; m.setAt = Date.now(); }
+                } else {
+                    meds.push({ id: 'med_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), name, doses, perDay, setAt: Date.now() });
+                }
+                medSave(); renderMeds();
+                formEl.style.display = 'none';
+            };
+        })();
+
         // ===== Mika Meal-Prep Calendar (shared) =====
         const MP_DOC = () => db.collection('mika_mealprep').doc('shared');
         let mpDays = {};   // { 'YYYY-MM-DD': { portions: N } }  (true also accepted for legacy)
@@ -4922,6 +5071,7 @@
                     await loadExpensesFromFirebase();
                     listenToExpensesChanges();
                     initMikaMealPrep();
+                    initMikaMeds();
                     initMikaHealth();
                     if (window.terraInitLive) window.terraInitLive();
                     if (window.weddingInitLive) window.weddingInitLive();
@@ -6774,6 +6924,44 @@ async function handleDeleteExpense(id) {
         [base, svc, gst].forEach(el => el.addEventListener('input', recompute));
         recompute();
     })();
+    </script>
+    <!-- Japan List floating add button (shown only on the Japan List tab) -->
+    <button type="button" id="placeFab" aria-label="Add place" style="display:none;">＋</button>
+    <style>
+        #placeFab {
+            position: fixed; right: 18px; bottom: 96px; z-index: 250;
+            width: 56px; height: 56px; border-radius: 50%;
+            border: none; cursor: pointer;
+            background: linear-gradient(135deg, #2dd4bf, var(--color-primary));
+            color: #fff; font-size: 30px; line-height: 56px; font-weight: 300;
+            box-shadow: 0 6px 18px rgba(33,128,141,0.5);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        #placeFab:hover { transform: scale(1.08); box-shadow: 0 8px 24px rgba(33,128,141,0.6); }
+        #placeFab:active { transform: scale(0.94); }
+    </style>
+    <script>
+        (function placeFabInit() {
+            const fab = document.getElementById('placeFab');
+            if (!fab) return;
+            fab.addEventListener('click', () => {
+                const addBtn = document.getElementById('placeAddBtn');
+                if (addBtn) addBtn.click();
+                const card = document.getElementById('placeFormCard');
+                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            // Show only when Japan List tab is active. Hook switchTab.
+            function syncFab(tabName) {
+                fab.style.display = (tabName === 'places') ? 'block' : 'none';
+            }
+            if (typeof switchTab === 'function') {
+                const orig = switchTab;
+                switchTab = function(t) { orig(t); syncFab(t); };
+            }
+            // initial state: hidden unless places is already active
+            const active = document.querySelector('.tab-content.active');
+            syncFab(active ? active.id : null);
+        })();
     </script>
 </body>
 </html>
