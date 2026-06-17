@@ -7400,7 +7400,14 @@ async function handleDeleteExpense(id) {
     }
     </script>
     <!-- ============ YEAR IN REVIEW PRESENTATION ============ -->
-    <div id="yrModal" style="display:none; position:fixed; inset:0; z-index:500; background:linear-gradient(160deg, #0d2b30, #1a1530); align-items:center; justify-content:center;">
+    <div id="yrModal" style="display:none; position:fixed; inset:0; z-index:500; align-items:center; justify-content:center; overflow:hidden;">
+        <!-- animated gradient base -->
+        <div id="yrGradient" class="yr-gradient"></div>
+        <!-- floating themed emoji layer -->
+        <div id="yrFloat" class="yr-float"></div>
+        <!-- confetti layer -->
+        <div id="yrConfetti" class="yr-confetti"></div>
+
         <!-- story progress bars -->
         <div id="yrBars" style="position:absolute; top:14px; left:14px; right:14px; display:flex; gap:6px; z-index:3;"></div>
         <button type="button" id="yrClose" style="position:absolute; top:30px; right:18px; z-index:4; background:rgba(255,255,255,0.15); border:none; color:#fff; width:34px; height:34px; border-radius:50%; font-size:18px; cursor:pointer;">×</button>
@@ -7413,6 +7420,41 @@ async function handleDeleteExpense(id) {
     </div>
 
     <style>
+        /* animated gradient base */
+        .yr-gradient {
+            position:absolute; inset:0; z-index:0;
+            background:linear-gradient(160deg, #0d2b30, #1a1530, #2a1238, #102b33);
+            background-size:300% 300%;
+            animation: yrGradShift 14s ease infinite;
+        }
+        @keyframes yrGradShift {
+            0% { background-position:0% 50%; }
+            50% { background-position:100% 50%; }
+            100% { background-position:0% 50%; }
+        }
+        /* floating emoji layer */
+        .yr-float { position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+        .yr-float span {
+            position:absolute; bottom:-60px; font-size:28px; opacity:0;
+            animation: yrRise linear forwards;
+            will-change: transform, opacity;
+        }
+        @keyframes yrRise {
+            0% { transform:translateY(0) rotate(0deg); opacity:0; }
+            12% { opacity:0.55; }
+            85% { opacity:0.55; }
+            100% { transform:translateY(-115vh) rotate(var(--yr-rot,40deg)); opacity:0; }
+        }
+        /* confetti */
+        .yr-confetti { position:absolute; inset:0; z-index:2; overflow:hidden; pointer-events:none; }
+        .yr-confetti i {
+            position:absolute; top:-20px; width:9px; height:14px; border-radius:2px;
+            animation: yrConfFall linear forwards;
+        }
+        @keyframes yrConfFall {
+            0% { transform:translateY(0) rotate(0deg); opacity:1; }
+            100% { transform:translateY(110vh) rotate(720deg); opacity:0.9; }
+        }
         .yr-bar { flex:1; height:3px; border-radius:3px; background:rgba(255,255,255,0.25); overflow:hidden; }
         .yr-bar > span { display:block; height:100%; width:0; background:#fff; }
         .yr-bar.done > span { width:100%; }
@@ -7426,7 +7468,8 @@ async function handleDeleteExpense(id) {
         .yr-cap { font-size:var(--font-size-lg); opacity:0.85; line-height:1.4; }
         .yr-sub { font-size:13px; opacity:0.6; margin-top:14px; }
         @media (prefers-reduced-motion: reduce) {
-            .yr-panel, .yr-big-emoji, .yr-bar.active > span { animation: none; }
+            .yr-panel, .yr-big-emoji, .yr-bar.active > span, .yr-gradient { animation: none; }
+            .yr-float, .yr-confetti { display:none; }
             .yr-bar.active > span { width:100%; }
         }
     </style>
@@ -7448,11 +7491,11 @@ async function handleDeleteExpense(id) {
             const notes = parseInt(document.getElementById('yrNotes')?.textContent) || 0;
             const yr = new Date().getFullYear();
             return [
-                { emoji:'✨', html:`<div class="yr-cap">Your year together</div><div class="yr-big-num">${yr}</div><div class="yr-cap" style="opacity:0.7;">${period}</div>` },
-                { emoji:'🍜', num: spent, numeric:false, cap:'Spent on food together this year' },
-                { emoji:'😊', num: moods, numeric:true, cap:`mood${moods===1?'':'s'} logged between you two` },
-                { emoji:'💌', num: notes, numeric:true, cap:`love note${notes===1?'':'s'} exchanged` },
-                { emoji:'💕', html:`<div class="yr-big-num" style="font-size:clamp(32px,9vw,52px);">What a year</div><div class="yr-cap">Here's to many more, together.</div>` },
+                { emoji:'✨', float:['✨','⭐','🌟'], html:`<div class="yr-cap">Your year together</div><div class="yr-big-num">${yr}</div><div class="yr-cap" style="opacity:0.7;">${period}</div>` },
+                { emoji:'🍜', float:['🍜','🍣','🍙','🍵'], num: spent, numeric:false, cap:'Spent on food together this year' },
+                { emoji:'😊', float:['😊','🥰','😌','😄'], num: moods, numeric:true, cap:`mood${moods===1?'':'s'} logged between you two` },
+                { emoji:'💌', float:['💌','💗','💞','✉️'], num: notes, numeric:true, cap:`love note${notes===1?'':'s'} exchanged` },
+                { emoji:'💕', float:['💕','💖','🎉','💝'], confetti:true, html:`<div class="yr-big-num" style="font-size:clamp(32px,9vw,52px);">What a year</div><div class="yr-cap">Here's to many more, together.</div>` },
             ];
         }
 
@@ -7478,6 +7521,40 @@ async function handleDeleteExpense(id) {
             requestAnimationFrame(tick);
         }
 
+        function spawnFloats(emojis) {
+            const layer = document.getElementById('yrFloat');
+            if (!layer) return;
+            layer.innerHTML = '';
+            const count = 14;
+            for (let i = 0; i < count; i++) {
+                const el = document.createElement('span');
+                el.textContent = emojis[i % emojis.length];
+                el.style.left = Math.random() * 100 + '%';
+                const dur = 7 + Math.random() * 7; // 7-14s
+                el.style.animationDuration = dur + 's';
+                el.style.animationDelay = (-Math.random() * dur) + 's'; // pre-distribute
+                el.style.fontSize = (20 + Math.random() * 22) + 'px';
+                el.style.setProperty('--yr-rot', (Math.random() * 80 - 40) + 'deg');
+                layer.appendChild(el);
+            }
+        }
+        function burstConfetti() {
+            const layer = document.getElementById('yrConfetti');
+            if (!layer) return;
+            layer.innerHTML = '';
+            const colors = ['#2dd4bf','#e0a020','#e84393','#a84bff','#21a05a','#ff6b6b','#fff'];
+            for (let i = 0; i < 70; i++) {
+                const c = document.createElement('i');
+                c.style.left = Math.random() * 100 + '%';
+                c.style.background = colors[i % colors.length];
+                c.style.animationDuration = (2.2 + Math.random() * 1.8) + 's';
+                c.style.animationDelay = (Math.random() * 0.5) + 's';
+                c.style.transform = `rotate(${Math.random()*360}deg)`;
+                layer.appendChild(c);
+            }
+            setTimeout(() => { if (layer) layer.innerHTML = ''; }, 4500);
+        }
+
         function show(i) {
             if (i < 0) i = 0;
             if (i >= slides.length) { close(); return; }
@@ -7493,6 +7570,8 @@ async function handleDeleteExpense(id) {
             }
             stage.innerHTML = `<div class="yr-panel">${inner}</div>`;
             if (s.numeric) { const el = document.getElementById('yrCountNum'); if (el) countUp(el, s.num); }
+            if (s.float) spawnFloats(s.float);
+            if (s.confetti) burstConfetti();
             renderBars();
             clearTimeout(timer);
             timer = setTimeout(() => show(idx + 1), SLIDE_MS);
@@ -7507,6 +7586,8 @@ async function handleDeleteExpense(id) {
         function close() {
             clearTimeout(timer);
             modal.style.display = 'none';
+            const f = document.getElementById('yrFloat'); if (f) f.innerHTML = '';
+            const c = document.getElementById('yrConfetti'); if (c) c.innerHTML = '';
         }
 
         card.addEventListener('click', open);
