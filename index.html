@@ -2039,16 +2039,184 @@
         </div>
     </div>
 
-    <!-- ============ RENOVATION TAB (placeholder) ============ -->
+    <!-- ============ RENOVATION TAB ============ -->
     <div id="reno" class="tab-content">
-        <div style="max-width:760px; margin:0 auto;">
-            <div class="card" style="text-align:center; padding:var(--space-32) var(--space-16);">
-                <div style="font-size:48px; line-height:1; margin-bottom:12px;">🏗️</div>
-                <h2 style="margin:0 0 6px;">Renovation Spending</h2>
-                <p style="color:var(--color-text-secondary); font-size:var(--font-size-sm); margin:0;">Coming soon — tracking for your BTO renovation costs. To be built out later.</p>
+        <div class="reno-wrap">
+            <h2 style="margin:0 0 var(--space-12);">🏗️ Renovation</h2>
+
+            <!-- sub-nav -->
+            <div class="reno-subnav" id="renoSubnav">
+                <button type="button" class="reno-pill active" data-sub="overview">Overview</button>
+                <button type="button" class="reno-pill" data-sub="costs">Costs</button>
+                <button type="button" class="reno-pill" data-sub="payments">Payments</button>
+                <button type="button" class="reno-pill" data-sub="vendors">Vendors</button>
+                <button type="button" class="reno-pill" data-sub="selections">Selections</button>
+                <button type="button" class="reno-pill" data-sub="defects">Defects</button>
+                <button type="button" class="reno-pill" data-sub="timeline">Timeline</button>
+                <button type="button" class="reno-pill" data-sub="docs">Docs</button>
             </div>
+
+            <!-- ===== OVERVIEW ===== -->
+            <div class="reno-panel active" data-panel="overview">
+                <div class="card">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:var(--space-12);">
+                        <h3 style="margin:0;">Budget</h3>
+                        <button type="button" class="btn btn--secondary" id="renoBudgetBtn" style="padding:4px 12px; font-size:12px;">Set budget</button>
+                    </div>
+                    <div id="renoBudgetSummary"></div>
+                </div>
+
+                <div class="card" style="margin-top:16px;">
+                    <h3 style="margin:0 0 var(--space-12);">Move-in countdown</h3>
+                    <div id="renoCountdown" style="text-align:center;"></div>
+                </div>
+
+                <div class="reno-ov-grid">
+                    <div class="card reno-ov-stat">
+                        <div class="reno-ov-num" id="ovNextPayment">—</div>
+                        <div class="reno-ov-lbl">Next payment due</div>
+                    </div>
+                    <div class="card reno-ov-stat">
+                        <div class="reno-ov-num" id="ovPending">0</div>
+                        <div class="reno-ov-lbl">Pending decisions</div>
+                    </div>
+                    <div class="card reno-ov-stat">
+                        <div class="reno-ov-num" id="ovDefects">0</div>
+                        <div class="reno-ov-lbl">Open defects</div>
+                    </div>
+                    <div class="card reno-ov-stat">
+                        <div class="reno-ov-num" id="ovMilestone">—</div>
+                        <div class="reno-ov-lbl">Next milestone</div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top:16px;">
+                    <h3 style="margin:0 0 var(--space-12);">Spend by category</h3>
+                    <div id="renoCatChart"></div>
+                </div>
+            </div>
+
+            <!-- ===== COSTS ===== -->
+            <div class="reno-panel" data-panel="costs">
+                <div class="card">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:var(--space-12);">
+                        <h3 style="margin:0;">Cost Items</h3>
+                        <button type="button" class="btn btn--accent accent-teal" id="costAddBtn" style="padding:8px 16px;"><span style="font-size:15px; line-height:1;">＋</span> Add item</button>
+                    </div>
+                    <!-- group toggle -->
+                    <div class="reno-group-toggle">
+                        <button type="button" class="rgt active" data-group="category">By category</button>
+                        <button type="button" class="rgt" data-group="room">By room</button>
+                    </div>
+                    <!-- add/edit form -->
+                    <div id="costForm" class="reno-collapse">
+                        <div class="reno-collapse-inner">
+                            <div class="form-group">
+                                <label class="form-label">Item name</label>
+                                <input type="text" id="costName" class="form-input" placeholder="e.g. Kitchen carpentry, Floor tiles">
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Category</label>
+                                    <select id="costCategory" class="form-input"></select>
+                                </div>
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Room</label>
+                                    <select id="costRoom" class="form-input"></select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Vendor <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                <input type="text" id="costVendor" class="form-input" placeholder="e.g. ID firm, contractor name">
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1; min-width:120px;">
+                                    <label class="form-label">Quoted (SGD)</label>
+                                    <input type="number" id="costQuoted" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                                </div>
+                                <div class="form-group" style="flex:1; min-width:120px;">
+                                    <label class="form-label">Actual (SGD) <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                    <input type="number" id="costActual" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:var(--space-12);">
+                                <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="costGst"> GST-inclusive
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                                    <input type="checkbox" id="costPackage"> In package
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Notes <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                <input type="text" id="costNotes" class="form-input" placeholder="e.g. quartz top, soft-close hinges">
+                            </div>
+                            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                <button type="button" class="btn btn--secondary" id="costCancel" style="padding:8px 18px;">Cancel</button>
+                                <button type="button" class="btn btn--primary" id="costSave" style="padding:8px 18px;">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="costList" class="reno-cost-list"></div>
+                </div>
+            </div>
+
+            <!-- ===== PLACEHOLDER PANELS ===== -->
+            <div class="reno-panel" data-panel="payments"><div class="card reno-soon"><div class="reno-soon-emoji">💳</div><div class="reno-soon-title">Payments</div><div class="reno-soon-sub">Progressive payment schedule — coming soon.</div></div></div>
+            <div class="reno-panel" data-panel="vendors"><div class="card reno-soon"><div class="reno-soon-emoji">📇</div><div class="reno-soon-title">Vendors</div><div class="reno-soon-sub">Contractor & tradesman directory — coming soon.</div></div></div>
+            <div class="reno-panel" data-panel="selections"><div class="card reno-soon"><div class="reno-soon-emoji">🎨</div><div class="reno-soon-title">Selections</div><div class="reno-soon-sub">Material & finish decisions log — coming soon.</div></div></div>
+            <div class="reno-panel" data-panel="defects"><div class="card reno-soon"><div class="reno-soon-emoji">🔍</div><div class="reno-soon-title">Defects</div><div class="reno-soon-sub">BTO defect & snagging checklist — coming soon.</div></div></div>
+            <div class="reno-panel" data-panel="timeline"><div class="card reno-soon"><div class="reno-soon-emoji">📅</div><div class="reno-soon-title">Timeline</div><div class="reno-soon-sub">Reno milestones & schedule — coming soon.</div></div></div>
+            <div class="reno-panel" data-panel="docs"><div class="card reno-soon"><div class="reno-soon-emoji">📁</div><div class="reno-soon-title">Docs</div><div class="reno-soon-sub">Document vault & warranties — coming soon.</div></div></div>
         </div>
     </div>
+
+    <style>
+        .reno-wrap { max-width:760px; margin:0 auto; }
+        .reno-subnav { display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:var(--space-16); -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+        .reno-subnav::-webkit-scrollbar { display:none; }
+        .reno-pill { flex:0 0 auto; border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); font-size:13px; font-weight:600; padding:7px 16px; border-radius:50px; cursor:pointer; transition:background-color 0.2s, color 0.2s, border-color 0.2s; white-space:nowrap; }
+        .reno-pill.active { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+        .reno-panel { display:none; animation:renoFade 0.3s ease both; }
+        .reno-panel.active { display:block; }
+        @keyframes renoFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+        /* overview */
+        .reno-ov-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:16px; }
+        .reno-ov-stat { text-align:center; padding:var(--space-16) var(--space-8); }
+        .reno-ov-num { font-size:var(--font-size-lg); font-weight:700; color:var(--color-primary); }
+        .reno-ov-lbl { font-size:11px; color:var(--color-text-secondary); margin-top:4px; }
+        .reno-soon { text-align:center; padding:var(--space-32) var(--space-16); }
+        .reno-soon-emoji { font-size:44px; line-height:1; margin-bottom:10px; opacity:0.85; }
+        .reno-soon-title { font-weight:700; font-size:var(--font-size-lg); }
+        .reno-soon-sub { font-size:var(--font-size-sm); color:var(--color-text-secondary); margin-top:4px; }
+        /* costs */
+        .reno-group-toggle { display:inline-flex; gap:4px; background:var(--color-background); border:1px solid var(--color-border); border-radius:50px; padding:3px; margin-bottom:var(--space-12); }
+        .rgt { border:none; background:none; color:var(--color-text-secondary); font-size:12px; font-weight:600; padding:5px 14px; border-radius:50px; cursor:pointer; transition:background-color 0.25s, color 0.25s; }
+        .rgt.active { background:var(--color-primary); color:#fff; }
+        .reno-collapse { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.28s ease, margin-bottom 0.32s ease; margin-bottom:0; }
+        .reno-collapse.open { grid-template-rows:1fr; opacity:1; margin-bottom:var(--space-12); }
+        .reno-collapse-inner { overflow:hidden; min-height:0; }
+        .reno-cost-list { display:flex; flex-direction:column; gap:var(--space-16); }
+        .reno-cost-list:empty::after { content:'No cost items yet. Tap “＋ Add item” to start tracking.'; display:block; text-align:center; padding:var(--space-16); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+        .reno-grp { }
+        .reno-grp-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+        .reno-grp-title { font-weight:700; font-size:var(--font-size-base); }
+        .reno-grp-bar { height:6px; border-radius:6px; background:var(--color-border); overflow:hidden; margin:6px 0 4px; }
+        .reno-grp-bar > span { display:block; height:100%; border-radius:6px; transition:width 0.4s ease; }
+        .reno-grp-sub { font-size:11px; color:var(--color-text-secondary); }
+        .reno-cost-item { padding:var(--space-12) var(--space-16); border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); border-left:4px solid var(--rc-color, var(--color-border)); margin-top:8px; }
+        .reno-cost-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+        .reno-cost-name { font-weight:700; }
+        .reno-cost-amt { font-weight:700; white-space:nowrap; }
+        .reno-cost-meta { font-size:12px; color:var(--color-text-secondary); margin-top:4px; display:flex; flex-wrap:wrap; gap:4px 10px; }
+        .reno-chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:50px; text-transform:uppercase; letter-spacing:0.02em; }
+        .reno-cost-actions { display:flex; gap:6px; margin-top:var(--space-8); }
+        .reno-cost-actions button { padding:4px 10px; font-size:11px; }
+        .reno-budget-row { display:flex; justify-content:space-between; padding:6px 0; font-size:var(--font-size-sm); border-bottom:1px solid var(--color-border); }
+        .reno-budget-row:last-child { border-bottom:none; }
+        .reno-budget-row.total { font-weight:700; font-size:var(--font-size-base); }
+        @media (prefers-reduced-motion: reduce) { .reno-panel { animation:none; } .reno-collapse { transition:none; } }
+    </style>
 
     <!-- ============ HOME MAINTENANCE TAB ============ -->
     <div id="home" class="tab-content">
@@ -5684,6 +5852,7 @@
                     if (window.moodInitLive) window.moodInitLive();
                     if (window.notesInitLive) window.notesInitLive();
                     if (window.homeInitLive) window.homeInitLive();
+                    if (window.renoInitLive) window.renoInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -5696,6 +5865,7 @@
                     if (window.moodInitLocal) window.moodInitLocal();
                     if (window.notesInitLocal) window.notesInitLocal();
                     if (window.homeInitLocal) window.homeInitLocal();
+                    if (window.renoInitLocal) window.renoInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -7989,6 +8159,240 @@ async function handleDeleteExpense(id) {
         document.getElementById('yrClose').addEventListener('click', (e) => { e.stopPropagation(); close(); });
         document.getElementById('yrNext').addEventListener('click', () => show(idx + 1));
         document.getElementById('yrPrev').addEventListener('click', () => show(idx - 1));
+    })();
+    </script>
+    <script>
+    (function renoModule() {
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const RENO_CAT = ['Hacking','Masonry','Plumbing','Electrical','Carpentry','Flooring','Painting','Glass/Aluminium','Ceiling/Partition','Waterproofing','Misc'];
+        const RENO_CAT_COLOR = {
+            'Hacking':'#e8743b','Masonry':'#9b8579','Plumbing':'#3b82c4','Electrical':'#e0a020',
+            'Carpentry':'#a0763b','Flooring':'#7f8c9b','Painting':'#21a05a','Glass/Aluminium':'#2dd4bf',
+            'Ceiling/Partition':'#9b59b6','Waterproofing':'#4a90d9','Misc':'#7f8c9b'
+        };
+        const RENO_ROOMS = ['Whole-house','Living','Kitchen','Master Bedroom','Bedroom 2','Bedroom 3','Common Bath','Master Bath','Yard/Service'];
+        const catColorR = c => RENO_CAT_COLOR[c] || '#7f8c9b';
+
+        // ---- sub-nav ----
+        const subnav = document.getElementById('renoSubnav');
+        const panels = document.querySelectorAll('#reno .reno-panel');
+        if (subnav) {
+            subnav.querySelectorAll('.reno-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    subnav.querySelectorAll('.reno-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    const target = pill.dataset.sub;
+                    panels.forEach(pan => pan.classList.toggle('active', pan.dataset.panel === target));
+                    if (target === 'overview') renderOverview();
+                });
+            });
+        }
+
+        // ---- populate selects ----
+        function fillSelect(id, opts) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
+        }
+        fillSelect('costCategory', RENO_CAT);
+        fillSelect('costRoom', RENO_ROOMS);
+
+        // ---- data ----
+        const COSTS_DOC = () => db.collection('reno_costs').doc('shared');
+        const BUDGET_DOC = () => db.collection('reno_meta').doc('shared');
+        let costs = [];        // {id,name,category,room,vendor,quoted,actual,gst,inPackage,notes}
+        let renoBudget = 0;    // overall budget
+        let moveInDate = '';   // ISO date string
+        let costGroup = 'category';
+        let cUnsub = null, mUnsub = null, suppress = false, editingId = null;
+
+        function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        const money = n => window.fmtMoney ? window.fmtMoney(Number(n)||0) : 'SGD '+(Number(n)||0).toFixed(2);
+        const effective = it => (it.actual != null && it.actual !== '') ? Number(it.actual) : (Number(it.quoted)||0);
+
+        async function saveCosts() {
+            if (suppress) return;
+            if (isLive()) { try { await COSTS_DOC().set({ items: costs }); } catch(e){ window.showSaveError && window.showSaveError('reno costs', e);} }
+            else localStorage.setItem('renoCosts', JSON.stringify(costs));
+        }
+        async function saveMeta() {
+            if (suppress) return;
+            if (isLive()) { try { await BUDGET_DOC().set({ budget: renoBudget, moveIn: moveInDate }); } catch(e){ window.showSaveError && window.showSaveError('reno budget', e);} }
+            else localStorage.setItem('renoMeta', JSON.stringify({ budget: renoBudget, moveIn: moveInDate }));
+        }
+
+        function initRenoLive() {
+            if (cUnsub) cUnsub(); if (mUnsub) mUnsub();
+            cUnsub = COSTS_DOC().onSnapshot(s => { suppress=true; costs = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderCosts(); renderOverview(); }, e=>console.error('reno costs',e));
+            mUnsub = BUDGET_DOC().onSnapshot(s => { suppress=true; if(s.exists){ renoBudget=s.data().budget||0; moveInDate=s.data().moveIn||''; } suppress=false; renderOverview(); }, e=>console.error('reno meta',e));
+        }
+        function initRenoLocal() {
+            if (cUnsub) cUnsub(); if (mUnsub) mUnsub();
+            costs = JSON.parse(localStorage.getItem('renoCosts')||'[]');
+            const meta = JSON.parse(localStorage.getItem('renoMeta')||'{}');
+            renoBudget = meta.budget||0; moveInDate = meta.moveIn||'';
+            renderCosts(); renderOverview();
+        }
+        window.renoInitLive = initRenoLive;
+        window.renoInitLocal = initRenoLocal;
+
+        // ---- costs rendering ----
+        const costForm = document.getElementById('costForm');
+        document.querySelectorAll('#reno .rgt').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('#reno .rgt').forEach(x=>x.classList.remove('active'));
+            b.classList.add('active'); costGroup = b.dataset.group; renderCosts();
+        }));
+
+        function renderCosts() {
+            const list = document.getElementById('costList');
+            if (!list) return;
+            list.innerHTML = '';
+            if (!costs.length) return;
+            const keyOf = it => costGroup === 'category' ? (it.category||'Misc') : (it.room||'Whole-house');
+            const groups = {};
+            costs.forEach(it => { const k = keyOf(it); (groups[k] = groups[k] || []).push(it); });
+            const order = costGroup === 'category' ? RENO_CAT : RENO_ROOMS;
+            const keys = Object.keys(groups).sort((a,b)=>{ const ia=order.indexOf(a), ib=order.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib); });
+            keys.forEach(k => {
+                const items = groups[k];
+                const sum = items.reduce((s,it)=>s+effective(it),0);
+                const grp = document.createElement('div');
+                grp.className = 'reno-grp';
+                const col = costGroup === 'category' ? catColorR(k) : 'var(--color-primary)';
+                grp.innerHTML = `<div class="reno-grp-head"><span class="reno-grp-title">${esc(k)}</span><span class="reno-grp-title">${money(sum)}</span></div>`;
+                items.forEach(it => {
+                    const node = document.createElement('div');
+                    node.className = 'reno-cost-item';
+                    node.style.setProperty('--rc-color', catColorR(it.category));
+                    const hasActual = it.actual != null && it.actual !== '';
+                    node.innerHTML = `
+                        <div class="reno-cost-top">
+                            <span class="reno-cost-name">${esc(it.name||'Item')}</span>
+                            <span class="reno-cost-amt">${money(effective(it))}</span>
+                        </div>
+                        <div class="reno-cost-meta">
+                            <span>${esc(it.category||'')}</span>
+                            <span>· ${esc(it.room||'')}</span>
+                            ${it.vendor?`<span>· ${esc(it.vendor)}</span>`:''}
+                            ${hasActual && Number(it.quoted)?`<span>· quoted ${money(it.quoted)}</span>`:''}
+                            ${it.gst?`<span class="reno-chip" style="background:rgba(224,160,32,0.15);color:#b5790f;">GST inc</span>`:''}
+                            ${it.inPackage?`<span class="reno-chip" style="background:rgba(33,160,90,0.15);color:#21a05a;">Package</span>`:''}
+                        </div>
+                        ${it.notes?`<div class="reno-cost-meta"><span>📝 ${esc(it.notes)}</span></div>`:''}
+                        <div class="reno-cost-actions"></div>`;
+                    const acts = node.querySelector('.reno-cost-actions');
+                    const ed = document.createElement('button'); ed.className='btn btn--secondary'; ed.textContent='Edit'; ed.onclick=()=>openCostEdit(it.id);
+                    const dl = document.createElement('button'); dl.className='btn btn--secondary'; dl.textContent='🗑️'; dl.onclick=()=>{ if(confirm('Delete this item?')){ costs=costs.filter(x=>x.id!==it.id); saveCosts(); renderCosts(); renderOverview(); } };
+                    acts.append(ed, dl);
+                    grp.appendChild(node);
+                });
+                list.appendChild(grp);
+            });
+        }
+
+        function clearCostForm(){ ['costName','costVendor','costQuoted','costActual','costNotes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('costCategory').value=RENO_CAT[0]; document.getElementById('costRoom').value=RENO_ROOMS[0]; document.getElementById('costGst').checked=false; document.getElementById('costPackage').checked=false; }
+        function openCostForm(){ editingId=null; clearCostForm(); costForm.classList.add('open'); }
+        function openCostEdit(id){
+            const it = costs.find(x=>x.id===id); if(!it) return; editingId=id;
+            document.getElementById('costName').value=it.name||'';
+            document.getElementById('costCategory').value=it.category||RENO_CAT[0];
+            document.getElementById('costRoom').value=it.room||RENO_ROOMS[0];
+            document.getElementById('costVendor').value=it.vendor||'';
+            document.getElementById('costQuoted').value=it.quoted??'';
+            document.getElementById('costActual').value=it.actual??'';
+            document.getElementById('costGst').checked=!!it.gst;
+            document.getElementById('costPackage').checked=!!it.inPackage;
+            document.getElementById('costNotes').value=it.notes||'';
+            costForm.classList.add('open');
+        }
+        document.getElementById('costAddBtn').onclick=()=>{ costForm.classList.contains('open')?costForm.classList.remove('open'):openCostForm(); };
+        document.getElementById('costCancel').onclick=()=>costForm.classList.remove('open');
+        document.getElementById('costSave').onclick=()=>{
+            const name=document.getElementById('costName').value.trim();
+            const quoted=parseFloat(document.getElementById('costQuoted').value);
+            if(!name){ alert('Enter an item name'); return; }
+            if(!(quoted>=0) && document.getElementById('costActual').value===''){ alert('Enter a quoted or actual price'); return; }
+            const actualRaw=document.getElementById('costActual').value;
+            const data={
+                name,
+                category:document.getElementById('costCategory').value,
+                room:document.getElementById('costRoom').value,
+                vendor:document.getElementById('costVendor').value.trim(),
+                quoted: isNaN(quoted)?'':quoted,
+                actual: actualRaw===''?'':parseFloat(actualRaw),
+                gst:document.getElementById('costGst').checked,
+                inPackage:document.getElementById('costPackage').checked,
+                notes:document.getElementById('costNotes').value.trim()
+            };
+            if(editingId){ const it=costs.find(x=>x.id===editingId); if(it) Object.assign(it,data); }
+            else costs.push({ id:'rc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), ...data });
+            saveCosts(); renderCosts(); renderOverview();
+            costForm.classList.remove('open');
+        };
+
+        // ---- budget ----
+        document.getElementById('renoBudgetBtn').onclick=()=>{
+            const b=prompt('Total renovation budget (SGD):', renoBudget||'');
+            if(b===null) return;
+            const v=parseFloat(b); if(!(v>=0)){ alert('Enter a valid amount'); return; }
+            renoBudget=v; saveMeta(); renderOverview();
+        };
+
+        // ---- overview ----
+        function renderOverview() {
+            const committed = costs.reduce((s,it)=>s+(Number(it.quoted)||effective(it)),0);
+            const actualPaid = costs.reduce((s,it)=>s+((it.actual!=null&&it.actual!=='')?Number(it.actual):0),0);
+            const projected = costs.reduce((s,it)=>s+effective(it),0);
+            const remaining = renoBudget - projected;
+            const bs=document.getElementById('renoBudgetSummary');
+            if(bs){
+                if(!renoBudget && !costs.length){ bs.innerHTML=`<div style="color:var(--color-text-secondary); font-size:var(--font-size-sm); text-align:center; padding:8px;">Set a budget and add cost items to see your summary.</div>`; }
+                else {
+                    const overPct = renoBudget>0 ? Math.min(100,(projected/renoBudget)*100) : 0;
+                    const over = remaining<0;
+                    bs.innerHTML=`
+                        <div class="reno-grp-bar" style="height:8px;"><span style="width:${overPct}%; background:${over?'#d4453e':'var(--color-primary)'};"></span></div>
+                        <div class="reno-budget-row"><span>Budget</span><span>${money(renoBudget)}</span></div>
+                        <div class="reno-budget-row"><span>Committed (quoted)</span><span>${money(committed)}</span></div>
+                        <div class="reno-budget-row"><span>Actual spent</span><span>${money(actualPaid)}</span></div>
+                        <div class="reno-budget-row"><span>Projected total</span><span>${money(projected)}</span></div>
+                        <div class="reno-budget-row total"><span>${over?'Over budget':'Remaining'}</span><span style="color:${over?'#d4453e':'#21a05a'};">${money(Math.abs(remaining))}</span></div>`;
+                }
+            }
+            // countdown
+            const cd=document.getElementById('renoCountdown');
+            if(cd){
+                if(moveInDate){
+                    const days=Math.ceil((new Date(moveInDate+'T00:00:00')-new Date().setHours(0,0,0,0))/86400000);
+                    cd.innerHTML=`<div style="font-size:32px; font-weight:800; color:var(--color-primary);">${days>=0?days:0}</div><div style="font-size:12px; color:var(--color-text-secondary);">days to move-in · ${new Date(moveInDate+'T00:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})}</div><button type="button" class="btn btn--secondary" id="moveInBtn" style="padding:3px 12px; font-size:11px; margin-top:8px;">Change date</button>`;
+                } else {
+                    cd.innerHTML=`<button type="button" class="btn btn--secondary" id="moveInBtn" style="padding:6px 16px; font-size:12px;">Set move-in date</button>`;
+                }
+                const mb=document.getElementById('moveInBtn');
+                if(mb) mb.onclick=()=>{ const d=prompt('Move-in date (YYYY-MM-DD):', moveInDate||''); if(d===null)return; if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ alert('Use format YYYY-MM-DD'); return; } moveInDate=d; saveMeta(); renderOverview(); };
+            }
+            // stat cards (payments/selections/defects come later → placeholders)
+            document.getElementById('ovNextPayment').textContent='—';
+            document.getElementById('ovPending').textContent='0';
+            document.getElementById('ovDefects').textContent='0';
+            document.getElementById('ovMilestone').textContent='—';
+            // category chart (simple bars)
+            const cc=document.getElementById('renoCatChart');
+            if(cc){
+                if(!costs.length){ cc.innerHTML=`<div style="color:var(--color-text-secondary); font-size:var(--font-size-sm); text-align:center; padding:8px;">Add cost items to see the breakdown.</div>`; }
+                else {
+                    const byCat={}; costs.forEach(it=>{ byCat[it.category]=(byCat[it.category]||0)+effective(it); });
+                    const max=Math.max(...Object.values(byCat));
+                    cc.innerHTML=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`
+                        <div style="margin-bottom:10px;">
+                            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span>${esc(c)}</span><span>${money(v)}</span></div>
+                            <div class="reno-grp-bar"><span style="width:${(v/max*100).toFixed(0)}%; background:${catColorR(c)};"></span></div>
+                        </div>`).join('');
+                }
+            }
+        }
+
+        // initial
+        if (isLive()) initRenoLive(); else initRenoLocal();
     })();
     </script>
 </body>
