@@ -5864,6 +5864,37 @@
         let currentUser = null;
         let isGuestMode = false;
 
+        // ===== PM (project manager) restricted access =====
+        // PMs see ONLY the Renovation tab — everything personal is hidden.
+        // Add PM emails here (lowercase). Supports several.
+        const PM_EMAILS = [
+            // 'mypm@example.com',
+        ];
+        function isPmEmail(email) {
+            return !!email && PM_EMAILS.includes(email.toLowerCase().trim());
+        }
+        function applyPmMode() {
+            // hide the fun action buttons (keep Logout)
+            ['dateNightBtn','coinFlipBtn','gstBtn'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.style.display = 'none';
+            });
+            // hide bottom nav entirely (no access to other tabs / drawer)
+            const bn = document.getElementById('bottomNav'); if (bn) bn.style.display = 'none';
+            // close the drawer if open
+            if (window.closeNavDrawer) window.closeNavDrawer();
+            // force Reno tab and lock to it
+            switchTab('reno');
+            // small label so the PM knows the scope
+            const ue = document.getElementById('userEmail');
+            if (ue && !document.getElementById('pmBadge')) {
+                const b = document.createElement('span');
+                b.id = 'pmBadge';
+                b.textContent = ' · Renovation access';
+                b.style.cssText = 'font-size:11px; color:var(--color-primary); font-weight:600;';
+                ue.appendChild(b);
+            }
+        }
+
         const categoryColors = {
             'Necessities': '#FF6B6B',
             'Installments & Obligations': '#4ECDC4',
@@ -5887,6 +5918,12 @@
                 
                 if (user) {
                     document.getElementById('userEmail').textContent = user.email;
+                    if (isPmEmail(user.email)) {
+                        // PM: load ONLY renovation data, hide everything else
+                        if (window.renoInitLive) window.renoInitLive();
+                        applyPmMode();
+                        return;
+                    }
                     await loadExpensesFromFirebase();
                     listenToExpensesChanges();
                     initMikaMealPrep();
