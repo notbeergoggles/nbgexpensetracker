@@ -8216,11 +8216,11 @@ async function handleDeleteExpense(id) {
     <script>
     (function renoModule() {
         const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
-        const RENO_CAT = ['Hacking','Masonry','Plumbing','Electrical','Carpentry','Flooring','Painting','Glass/Aluminium','Ceiling/Partition','Waterproofing','Misc'];
+        const RENO_CAT = ['Hacking','Masonry','Plumbing','Electrical','Carpentry','Flooring','Painting','Glass/Aluminium','Ceiling/Partition','Waterproofing','Furniture & Appliances','Misc'];
         const RENO_CAT_COLOR = {
             'Hacking':'#e8743b','Masonry':'#9b8579','Plumbing':'#3b82c4','Electrical':'#e0a020',
             'Carpentry':'#a0763b','Flooring':'#7f8c9b','Painting':'#21a05a','Glass/Aluminium':'#2dd4bf',
-            'Ceiling/Partition':'#9b59b6','Waterproofing':'#4a90d9','Misc':'#7f8c9b'
+            'Ceiling/Partition':'#9b59b6','Waterproofing':'#4a90d9','Furniture & Appliances':'#e84393','Misc':'#7f8c9b'
         };
         const RENO_ROOMS = ['Whole-house','Living','Kitchen','Master Bedroom','Bedroom 2','Bedroom 3','Common Bath','Master Bath','Yard/Service'];
         const catColorR = c => RENO_CAT_COLOR[c] || '#7f8c9b';
