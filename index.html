@@ -1402,6 +1402,7 @@
             <button type="button" class="tab-button" data-tab="mood">😊 Mood</button>
             <button type="button" class="tab-button" data-tab="notes">💌 Notes</button>
             <button type="button" class="tab-button" data-tab="home">🔧 Home</button>
+            <button type="button" class="tab-button" data-tab="reno">🏗️ Reno</button>
         </div>
 
         <!-- ===== Mobile bottom nav + drawer ===== -->
@@ -1560,6 +1561,12 @@
             <div class="card" id="biggestCard" style="margin-top: 20px; display:none;">
                 <h2 style="margin-bottom: var(--space-12);">💸 Biggest Expense</h2>
                 <div id="biggestExpense"></div>
+            </div>
+
+            <!-- Quietest spending day -->
+            <div class="card" id="quietCard" style="margin-top: 20px; display:none;">
+                <h2 style="margin-bottom: var(--space-8);">🤫 Quietest Spending Day</h2>
+                <div id="quietDay"></div>
             </div>
 
             <!-- Year in review (tap to open presentation) -->
@@ -1816,9 +1823,56 @@
                 <div id="medList" class="med-list"></div>
             </div>
 
-            <!-- Weight Tracking -->
+            <!-- Vet visit log -->
             <div class="card" style="margin-top: 20px;">
-                <h3 style="margin-bottom: 15px;"><i class="fas fa-weight-scale"></i> Mika Weight Tracker</h3>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h3 style="margin:0;">🏥 Vet Visits</h3>
+                    <button type="button" class="btn btn--accent accent-teal" id="vetAddBtn" style="padding:8px 16px;"><span style="font-size:15px; line-height:1;">＋</span> Add visit</button>
+                </div>
+                <div id="vetForm" style="display:none; margin-bottom:var(--space-12);">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <div class="form-group" style="flex:1; min-width:120px;">
+                            <label class="form-label">Date</label>
+                            <input type="date" id="vetDate" class="form-input">
+                        </div>
+                        <div class="form-group" style="flex:1; min-width:110px;">
+                            <label class="form-label">Cost (SGD) <span style="font-weight:400; opacity:0.6;">(optional)</span></label>
+                            <input type="number" id="vetCost" class="form-input" placeholder="e.g. 120" min="0" step="0.01" inputmode="decimal">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reason</label>
+                        <input type="text" id="vetReason" class="form-input" placeholder="e.g. Annual checkup, skin flare-up">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Next checkup <span style="font-weight:400; opacity:0.6;">(optional)</span></label>
+                        <input type="date" id="vetNext" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes <span style="font-weight:400; opacity:0.6;">(optional)</span></label>
+                        <input type="text" id="vetNotes" class="form-input" placeholder="e.g. New meds prescribed, clinic name">
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn--secondary" id="vetCancel" style="padding:8px 18px;">Cancel</button>
+                        <button type="button" class="btn btn--primary" id="vetSave" style="padding:8px 18px;">Save</button>
+                    </div>
+                </div>
+                <div id="vetList" class="vet-list"></div>
+            </div>
+
+            <style>
+                .vet-list { display:flex; flex-direction:column; gap:var(--space-8); }
+                .vet-list:empty::after { content:'No vet visits logged yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+                .vet-item { padding:var(--space-12) var(--space-16); border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); border-left:4px solid #45B7D1; }
+                .vet-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+                .vet-reason { font-weight:700; }
+                .vet-cost { font-size:12px; font-weight:700; padding:3px 10px; border-radius:50px; background:rgba(69,183,209,0.16); color:#2c8aa6; white-space:nowrap; }
+                .vet-meta { font-size:12px; color:var(--color-text-secondary); margin-top:5px; display:flex; flex-direction:column; gap:2px; }
+                .vet-meta div { display:flex; align-items:center; gap:6px; }
+                .vet-next { color:#2c8aa6; font-weight:600; }
+                .vet-actions { display:flex; gap:6px; margin-top:var(--space-8); }
+                .vet-actions button { padding:4px 10px; font-size:11px; }
+            </style>
                 <div class="mika-weight-form">
                     <div class="mwf-field">
                         <label class="form-label">Weight (kg)</label>
@@ -1936,6 +1990,17 @@
                     <button type="submit" class="btn btn--primary" style="flex: 1;">Save Changes</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ============ RENOVATION TAB (placeholder) ============ -->
+    <div id="reno" class="tab-content">
+        <div style="max-width:760px; margin:0 auto;">
+            <div class="card" style="text-align:center; padding:var(--space-32) var(--space-16);">
+                <div style="font-size:48px; line-height:1; margin-bottom:12px;">🏗️</div>
+                <h2 style="margin:0 0 6px;">Renovation Spending</h2>
+                <p style="color:var(--color-text-secondary); font-size:var(--font-size-sm); margin:0;">Coming soon — tracking for your BTO renovation costs. To be built out later.</p>
+            </div>
         </div>
     </div>
 
@@ -4536,20 +4601,31 @@
                     drawWeightChart(series);
                 }
             }
-            // List (most recent first)
+            // List (most recent first), collapsible to latest 5
             const container = document.getElementById('healthLogContainer');
             if (container) {
-                container.innerHTML = [...series].reverse().map(x => `
+                const all = [...series].reverse();
+                const rowHtml = x => `
                     <div class="mika-weight-entry">
                         <span>${x.dateStr || ''}</span>
                         <span style="display:flex; align-items:center; gap:12px;">
                             <span class="w-val">${x.w.toFixed(2)} kg</span>
                             <button onclick="deleteHealthLog('${x.id}')" style="background:none; border:none; color:var(--color-text-secondary); cursor:pointer;"><i class="fas fa-trash"></i></button>
                         </span>
-                    </div>
-                `).join('');
+                    </div>`;
+                const LIMIT = 5;
+                if (all.length <= LIMIT) {
+                    container.innerHTML = all.map(rowHtml).join('');
+                } else {
+                    const shown = weightExpanded ? all : all.slice(0, LIMIT);
+                    container.innerHTML = shown.map(rowHtml).join('') +
+                        `<button type="button" id="weightToggle" style="background:none; border:none; color:var(--color-primary); cursor:pointer; font-size:13px; font-weight:600; padding:8px 0; text-align:center; width:100%;">${weightExpanded ? '▲ Show less' : `▼ Show all ${all.length} records`}</button>`;
+                    const tog = document.getElementById('weightToggle');
+                    if (tog) tog.onclick = () => { weightExpanded = !weightExpanded; renderWeight(); };
+                }
             }
         }
+        let weightExpanded = false;
         function drawWeightChart(series) {
             const svg = document.getElementById('mikaWeightSvg');
             if (!svg) return;
@@ -4579,6 +4655,100 @@
             series.forEach(s => { svgHtml += `<circle cx="${px(s.t).toFixed(1)}" cy="${py(s.w).toFixed(1)}" r="3.5" fill="${accent}"/>`; });
             svg.innerHTML = svgHtml;
         }
+
+        // ===== Mika Vet Visits (shared) =====
+        const VET_DOC = () => db.collection('mika_vet').doc('shared');
+        let vetVisits = []; // {id, date, cost, reason, next, notes}
+        let vetUnsub = null, vetSuppress = false, vetEditingId = null;
+        async function vetSave() {
+            if (vetSuppress) return;
+            try { await VET_DOC().set({ visits: vetVisits }); } catch (e) { window.showSaveError && window.showSaveError('vet visits', e); }
+        }
+        function initMikaVet() {
+            if (vetUnsub) vetUnsub();
+            renderVet();
+            vetUnsub = VET_DOC().onSnapshot(snap => {
+                vetSuppress = true;
+                vetVisits = (snap.exists && snap.data().visits) ? snap.data().visits : [];
+                vetSuppress = false;
+                renderVet();
+            }, err => console.error('vet listen', err));
+        }
+        function escapeHtmlVet(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function fmtVetDate(d) { return d ? new Date(d+'T12:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) : ''; }
+        function renderVet() {
+            const list = document.getElementById('vetList');
+            if (!list) return;
+            const sorted = [...vetVisits].sort((a, b) => new Date(b.date||0) - new Date(a.date||0));
+            list.innerHTML = '';
+            sorted.forEach(v => {
+                const item = document.createElement('div');
+                item.className = 'vet-item';
+                item.innerHTML = `
+                    <div class="vet-top">
+                        <span class="vet-reason">${escapeHtmlVet(v.reason || 'Visit')}</span>
+                        ${(v.cost != null && v.cost !== '') ? `<span class="vet-cost">${window.fmtMoney ? window.fmtMoney(Number(v.cost)) : 'SGD '+v.cost}</span>` : ''}
+                    </div>
+                    <div class="vet-meta">
+                        <div><span>📅</span><span>${fmtVetDate(v.date) || 'No date'}</span></div>
+                        ${v.next ? `<div><span>🔔</span><span class="vet-next">Next checkup ${fmtVetDate(v.next)}</span></div>` : ''}
+                        ${v.notes ? `<div><span>📝</span><span>${escapeHtmlVet(v.notes)}</span></div>` : ''}
+                    </div>
+                    <div class="vet-actions"></div>
+                `;
+                const actions = item.querySelector('.vet-actions');
+                const edit = document.createElement('button');
+                edit.className = 'btn btn--secondary'; edit.textContent = 'Edit';
+                edit.onclick = () => openVetEdit(v.id);
+                const del = document.createElement('button');
+                del.className = 'btn btn--secondary'; del.textContent = '🗑️';
+                del.onclick = () => { if (confirm('Delete this vet visit?')) { vetVisits = vetVisits.filter(x => x.id !== v.id); vetSave(); renderVet(); } };
+                actions.append(edit, del);
+                list.appendChild(item);
+            });
+        }
+        function openVetForm() {
+            vetEditingId = null;
+            ['vetDate','vetCost','vetReason','vetNext','vetNotes'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('vetForm').style.display = 'block';
+        }
+        function openVetEdit(id) {
+            const v = vetVisits.find(x => x.id === id); if (!v) return;
+            vetEditingId = id;
+            document.getElementById('vetDate').value = v.date || '';
+            document.getElementById('vetCost').value = (v.cost ?? '');
+            document.getElementById('vetReason').value = v.reason || '';
+            document.getElementById('vetNext').value = v.next || '';
+            document.getElementById('vetNotes').value = v.notes || '';
+            document.getElementById('vetForm').style.display = 'block';
+        }
+        (function wireVet() {
+            const addBtn = document.getElementById('vetAddBtn');
+            const formEl = document.getElementById('vetForm');
+            if (!addBtn || !formEl) return;
+            addBtn.onclick = () => { formEl.style.display === 'block' ? (formEl.style.display = 'none') : openVetForm(); };
+            document.getElementById('vetCancel').onclick = () => { formEl.style.display = 'none'; };
+            document.getElementById('vetSave').onclick = () => {
+                const reason = document.getElementById('vetReason').value.trim();
+                const date = document.getElementById('vetDate').value;
+                if (!reason || !date) { alert('Enter at least a date and reason'); return; }
+                const costRaw = document.getElementById('vetCost').value;
+                const data = {
+                    date, reason,
+                    cost: costRaw === '' ? '' : parseFloat(costRaw),
+                    next: document.getElementById('vetNext').value || '',
+                    notes: document.getElementById('vetNotes').value.trim()
+                };
+                if (vetEditingId) {
+                    const v = vetVisits.find(x => x.id === vetEditingId);
+                    if (v) Object.assign(v, data);
+                } else {
+                    vetVisits.push({ id: 'vet_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), ...data });
+                }
+                vetSave(); renderVet();
+                formEl.style.display = 'none';
+            };
+        })();
 
         // ===== Mika Medication Refills (shared, supply-based countdown) =====
         const MED_DOC = () => db.collection('mika_meds').doc('shared');
@@ -5368,6 +5538,7 @@
                     listenToExpensesChanges();
                     initMikaMealPrep();
                     initMikaMeds();
+                    initMikaVet();
                     initMikaHealth();
                     if (window.terraInitLive) window.terraInitLive();
                     if (window.weddingInitLive) window.weddingInitLive();
@@ -5623,6 +5794,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'mood',      label: 'Mood',      ico: 'fa-solid fa-face-smile' },
             { tab: 'notes',     label: 'Notes',     ico: 'fa-solid fa-envelope-open-text' },
             { tab: 'home',      label: 'Home',      ico: 'fa-solid fa-screwdriver-wrench' },
+            { tab: 'reno',      label: 'Reno',      ico: 'fa-solid fa-helmet-safety' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
@@ -5999,6 +6171,7 @@ async function deleteExpenseFromFirebase(id) {
             renderIndividualSpending(t.individualTotals);
             renderSpendingCompare();
             renderBiggestExpense();
+            renderQuietestDay();
             renderYearReview();
             if (typeof renderSettleHistory === 'function') renderSettleHistory();
             if (typeof window.fadeCurrency === 'function') window.fadeCurrency(document.getElementById('dashboard') || document.body);
@@ -6024,6 +6197,38 @@ async function deleteExpenseFromFirebase(id) {
                         <div class="be-meta">${safe(top.category||'')} · ${d.toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'})} · paid by ${safe(top.paidBy||'—')}</div>
                     </div>
                     <div class="biggest-amt">${fmtMoney(Number(top.amount))}</div>
+                </div>`;
+        }
+
+        function renderQuietestDay() {
+            const card = document.getElementById('quietCard');
+            const el = document.getElementById('quietDay');
+            if (!card || !el) return;
+            const list = workingExpenses().filter(e => e.isRecurring !== true && !e.isPayment);
+            const mm = selectedAndPrevMonth();
+            let scoped = list;
+            if (mm) scoped = list.filter(e => { const d = new Date(e.date); return d.getFullYear() === mm.selYear && d.getMonth() === mm.selMonth; });
+            if (scoped.length < 3) { card.style.display = 'none'; return; }
+            // sum + count per weekday (0=Sun)
+            const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+            const totals = [0,0,0,0,0,0,0], counts = [0,0,0,0,0,0,0];
+            scoped.forEach(e => { const d = new Date(e.date).getDay(); totals[d] += Number(e.amount) || 0; counts[d]++; });
+            // only consider weekdays that actually have spending logged
+            let best = -1;
+            for (let i = 0; i < 7; i++) {
+                if (counts[i] === 0) continue;
+                if (best === -1 || totals[i] < totals[best]) best = i;
+            }
+            if (best === -1) { card.style.display = 'none'; return; }
+            const avg = totals[best] / counts[best];
+            card.style.display = '';
+            el.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                    <div>
+                        <div style="font-weight:700; font-size:var(--font-size-lg);">${days[best]}</div>
+                        <div style="font-size:12px; color:var(--color-text-secondary); margin-top:3px;">avg ${fmtMoney(avg)}/day spent · your lightest day</div>
+                    </div>
+                    <div style="font-size:30px;">🍃</div>
                 </div>`;
         }
 
