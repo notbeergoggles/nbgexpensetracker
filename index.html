@@ -1940,6 +1940,13 @@
             .mika-weight-entry { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:8px; background:var(--color-background); border:1px solid var(--color-border); font-size:var(--font-size-sm); }
             .mika-weight-entry .w-val { font-weight:700; color:var(--color-primary); }
             #healthLogContainer:empty::after { content:'No weight records yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+            .wt-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+            .wt-latest { font-size:24px; font-weight:800; color:var(--color-text); }
+            .wt-unit { font-size:13px; font-weight:600; color:var(--color-text-secondary); margin-left:3px; }
+            .wt-change { font-size:13px; font-weight:600; margin-left:10px; }
+            .wt-range-group { display:flex; gap:4px; background:var(--color-background); border:1px solid var(--color-border); border-radius:50px; padding:3px; }
+            .wt-range { border:none; background:none; color:var(--color-text-secondary); font-size:12px; font-weight:600; padding:4px 12px; border-radius:50px; cursor:pointer; transition:all 0.15s; }
+            .wt-range.active { background:var(--color-primary); color:#fff; }
             .mika-weight-form {
                 display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
                 align-items: end;
@@ -4614,8 +4621,38 @@
                 if (series.length < 2) {
                     wrap.innerHTML = `<div style="text-align:center; padding:16px; color:var(--color-text-secondary); font-size:13px;">${series.length === 0 ? 'Add weights to see a trend line.' : 'Add one more weight to see a trend.'}</div>`;
                 } else {
-                    wrap.innerHTML = '<svg id="mikaWeightSvg" width="100%" height="160" style="overflow:visible;"></svg>';
-                    drawWeightChart(series);
+                    // filter by selected range
+                    const now = Date.now();
+                    const cutoff = weightRange === '1M' ? now - 31*86400000 : weightRange === '3M' ? now - 93*86400000 : 0;
+                    let view = series.filter(x => x.t >= cutoff);
+                    if (view.length < 2) view = series.slice(-2); // always show at least a segment
+
+                    // headline: latest weight + change vs previous reading
+                    const latest = series[series.length - 1];
+                    const prev = series[series.length - 2];
+                    const diff = latest.w - prev.w;
+                    const diffTxt = Math.abs(diff) < 0.005 ? 'no change' :
+                        `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff).toFixed(2)} kg`;
+                    const diffColor = Math.abs(diff) < 0.005 ? 'var(--color-text-secondary)' : (diff > 0 ? '#e0a020' : '#21a05a');
+
+                    const ranges = ['1M','3M','All'];
+                    const toggle = ranges.map(r =>
+                        `<button type="button" class="wt-range${weightRange===r?' active':''}" data-range="${r}">${r}</button>`
+                    ).join('');
+
+                    wrap.innerHTML = `
+                        <div class="wt-head">
+                            <div>
+                                <span class="wt-latest">${latest.w.toFixed(2)}<span class="wt-unit">kg</span></span>
+                                <span class="wt-change" style="color:${diffColor};">${diffTxt}</span>
+                            </div>
+                            <div class="wt-range-group">${toggle}</div>
+                        </div>
+                        <svg id="mikaWeightSvg" width="100%" height="150" style="overflow:visible;"></svg>`;
+                    wrap.querySelectorAll('.wt-range').forEach(b => {
+                        b.onclick = () => { weightRange = b.dataset.range; renderWeight(); };
+                    });
+                    drawWeightChart(view);
                 }
             }
             // List (most recent first), collapsible to latest 5
@@ -4643,33 +4680,65 @@
             }
         }
         let weightExpanded = false;
+        let weightRange = '3M';
         function drawWeightChart(series) {
             const svg = document.getElementById('mikaWeightSvg');
             if (!svg) return;
             let W = svg.clientWidth || svg.parentElement.clientWidth || 320;
-            if (W < 50) { requestAnimationFrame(() => drawWeightChart(series)); return; } // wait for layout
-            const H = 160, pad = { l: 36, r: 12, t: 12, b: 24 };
+            if (W < 50) { requestAnimationFrame(() => drawWeightChart(series)); return; }
+            const H = 150, pad = { l: 34, r: 14, t: 14, b: 22 };
             const xs = series.map(s => s.t), ws = series.map(s => s.w);
             const minT = Math.min(...xs), maxT = Math.max(...xs);
             const minW = Math.min(...ws), maxW = Math.max(...ws);
-            const padW = (maxW - minW) * 0.2 || 0.5;
+            const padW = (maxW - minW) * 0.25 || 0.4;
             const loW = minW - padW, hiW = maxW + padW;
             const px = t => pad.l + (maxT === minT ? 0.5 : (t - minT) / (maxT - minT)) * (W - pad.l - pad.r);
             const py = w => pad.t + (1 - (w - loW) / (hiW - loW)) * (H - pad.t - pad.b);
             const accent = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#21808d';
-            let svgHtml = '';
-            // y gridlines (3)
-            for (let i = 0; i <= 2; i++) {
-                const wv = loW + (hiW - loW) * (i / 2);
-                const y = py(wv);
-                svgHtml += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="var(--color-border)" stroke-width="1"/>`;
-                svgHtml += `<text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="var(--color-text-secondary)">${wv.toFixed(1)}</text>`;
+            const pts = series.map(s => ({ x: px(s.t), y: py(s.w) }));
+
+            // smooth path via Catmull-Rom -> cubic bezier
+            function smoothPath(p) {
+                if (p.length < 2) return '';
+                let d = `M${p[0].x.toFixed(1)},${p[0].y.toFixed(1)}`;
+                for (let i = 0; i < p.length - 1; i++) {
+                    const p0 = p[i === 0 ? 0 : i - 1], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2 < p.length ? i + 2 : i + 1];
+                    const t = 0.16;
+                    const c1x = p1.x + (p2.x - p0.x) * t, c1y = p1.y + (p2.y - p0.y) * t;
+                    const c2x = p2.x - (p3.x - p1.x) * t, c2y = p2.y - (p3.y - p1.y) * t;
+                    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+                }
+                return d;
             }
-            // line path
-            const d = series.map((s, i) => `${i === 0 ? 'M' : 'L'}${px(s.t).toFixed(1)},${py(s.w).toFixed(1)}`).join(' ');
-            svgHtml += `<path d="${d}" fill="none" stroke="${accent}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-            // points
-            series.forEach(s => { svgHtml += `<circle cx="${px(s.t).toFixed(1)}" cy="${py(s.w).toFixed(1)}" r="3.5" fill="${accent}"/>`; });
+            const linePath = smoothPath(pts);
+            const areaPath = linePath + ` L${pts[pts.length-1].x.toFixed(1)},${(H-pad.b).toFixed(1)} L${pts[0].x.toFixed(1)},${(H-pad.b).toFixed(1)} Z`;
+
+            let svgHtml = `<defs><linearGradient id="wtGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${accent}" stop-opacity="0.28"/>
+                <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+            </linearGradient></defs>`;
+
+            // 2 subtle gridlines (top & bottom of value range) with labels
+            [hiW - padW*0.4, loW + padW*0.4].forEach(wv => {
+                const y = py(wv);
+                svgHtml += `<line x1="${pad.l}" y1="${y}" x2="${W - pad.r}" y2="${y}" stroke="var(--color-border)" stroke-width="1" stroke-opacity="0.4"/>`;
+                svgHtml += `<text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="var(--color-text-secondary)">${wv.toFixed(1)}</text>`;
+            });
+
+            // area + line
+            svgHtml += `<path d="${areaPath}" fill="url(#wtGrad)"/>`;
+            svgHtml += `<path d="${linePath}" fill="none" stroke="${accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+            // only the latest point gets a dot + label
+            const last = pts[pts.length - 1], lastV = series[series.length - 1];
+            svgHtml += `<circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="6" fill="${accent}" fill-opacity="0.18"/>`;
+            svgHtml += `<circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="3.5" fill="${accent}" stroke="#fff" stroke-width="1.5"/>`;
+
+            // x-axis: first & last date only
+            const fmtX = t => new Date(t).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+            svgHtml += `<text x="${pad.l}" y="${H - 5}" text-anchor="start" font-size="9" fill="var(--color-text-secondary)">${fmtX(minT)}</text>`;
+            svgHtml += `<text x="${W - pad.r}" y="${H - 5}" text-anchor="end" font-size="9" fill="var(--color-text-secondary)">${fmtX(maxT)}</text>`;
+
             svg.innerHTML = svgHtml;
         }
 
