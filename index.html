@@ -1829,7 +1829,8 @@
                     <h3 style="margin:0;">🏥 Vet Visits</h3>
                     <button type="button" class="btn btn--accent accent-teal" id="vetAddBtn" style="padding:8px 16px;"><span style="font-size:15px; line-height:1;">＋</span> Add visit</button>
                 </div>
-                <div id="vetForm" style="display:none; margin-bottom:var(--space-12);">
+                <div id="vetForm" class="vet-collapse" style="margin-bottom:var(--space-12);">
+                    <div class="vet-collapse-inner">
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         <div class="form-group" style="flex:1; min-width:120px;">
                             <label class="form-label">Date</label>
@@ -1856,12 +1857,24 @@
                         <button type="button" class="btn btn--secondary" id="vetCancel" style="padding:8px 18px;">Cancel</button>
                         <button type="button" class="btn btn--primary" id="vetSave" style="padding:8px 18px;">Save</button>
                     </div>
+                    </div>
                 </div>
                 <div id="vetList" class="vet-list"></div>
             </div>
 
             <style>
                 .vet-list { display:flex; flex-direction:column; gap:var(--space-8); }
+                /* Smooth slide-down + fade for the add form */
+                .vet-collapse {
+                    display:grid; grid-template-rows:0fr; opacity:0;
+                    transition: grid-template-rows 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.28s ease, margin-bottom 0.32s ease;
+                    margin-bottom:0 !important;
+                }
+                .vet-collapse.open { grid-template-rows:1fr; opacity:1; margin-bottom:var(--space-12) !important; }
+                .vet-collapse-inner { overflow:hidden; min-height:0; }
+                @media (prefers-reduced-motion: reduce) {
+                    .vet-collapse { transition:none; }
+                }
                 .vet-list:empty::after { content:'No vet visits logged yet.'; display:block; text-align:center; padding:var(--space-12); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
                 .vet-item { padding:var(--space-12) var(--space-16); border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); border-left:4px solid #45B7D1; }
                 .vet-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
@@ -1873,6 +1886,10 @@
                 .vet-actions { display:flex; gap:6px; margin-top:var(--space-8); }
                 .vet-actions button { padding:4px 10px; font-size:11px; }
             </style>
+
+            <!-- Weight Tracking -->
+            <div class="card" style="margin-top: 20px;">
+                <h3 style="margin-bottom: 15px;"><i class="fas fa-weight-scale"></i> Mika Weight Tracker</h3>
                 <div class="mika-weight-form">
                     <div class="mwf-field">
                         <label class="form-label">Weight (kg)</label>
@@ -4710,7 +4727,7 @@
         function openVetForm() {
             vetEditingId = null;
             ['vetDate','vetCost','vetReason','vetNext','vetNotes'].forEach(id => document.getElementById(id).value = '');
-            document.getElementById('vetForm').style.display = 'block';
+            document.getElementById('vetForm').classList.add('open');
         }
         function openVetEdit(id) {
             const v = vetVisits.find(x => x.id === id); if (!v) return;
@@ -4720,14 +4737,14 @@
             document.getElementById('vetReason').value = v.reason || '';
             document.getElementById('vetNext').value = v.next || '';
             document.getElementById('vetNotes').value = v.notes || '';
-            document.getElementById('vetForm').style.display = 'block';
+            document.getElementById('vetForm').classList.add('open');
         }
         (function wireVet() {
             const addBtn = document.getElementById('vetAddBtn');
             const formEl = document.getElementById('vetForm');
             if (!addBtn || !formEl) return;
-            addBtn.onclick = () => { formEl.style.display === 'block' ? (formEl.style.display = 'none') : openVetForm(); };
-            document.getElementById('vetCancel').onclick = () => { formEl.style.display = 'none'; };
+            addBtn.onclick = () => { formEl.classList.contains('open') ? formEl.classList.remove('open') : openVetForm(); };
+            document.getElementById('vetCancel').onclick = () => { formEl.classList.remove('open'); };
             document.getElementById('vetSave').onclick = () => {
                 const reason = document.getElementById('vetReason').value.trim();
                 const date = document.getElementById('vetDate').value;
@@ -4746,7 +4763,7 @@
                     vetVisits.push({ id: 'vet_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), ...data });
                 }
                 vetSave(); renderVet();
-                formEl.style.display = 'none';
+                formEl.classList.remove('open');
             };
         })();
 
