@@ -1945,8 +1945,23 @@
             .wt-unit { font-size:13px; font-weight:600; color:var(--color-text-secondary); margin-left:3px; }
             .wt-change { font-size:13px; font-weight:600; margin-left:10px; }
             .wt-range-group { display:flex; gap:4px; background:var(--color-background); border:1px solid var(--color-border); border-radius:50px; padding:3px; }
-            .wt-range { border:none; background:none; color:var(--color-text-secondary); font-size:12px; font-weight:600; padding:4px 12px; border-radius:50px; cursor:pointer; transition:all 0.15s; }
+            .wt-range { border:none; background:none; color:var(--color-text-secondary); font-size:12px; font-weight:600; padding:4px 12px; border-radius:50px; cursor:pointer; transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease; }
+            .wt-range:active { transform:scale(0.92); }
             .wt-range.active { background:var(--color-primary); color:#fff; }
+            /* trend line breathing when idle */
+            #wtLine.wt-breathe { animation: wtBreathe 3.4s ease-in-out infinite; }
+            @keyframes wtBreathe {
+                0%, 100% { opacity:0.7; filter:drop-shadow(0 0 0px var(--color-primary)); }
+                50% { opacity:1; filter:drop-shadow(0 0 4px var(--color-primary)); }
+            }
+            #wtDotHalo.wt-pulse { animation: wtPulse 3.4s ease-in-out infinite; transform-origin:center; transform-box:fill-box; }
+            @keyframes wtPulse {
+                0%, 100% { opacity:0.5; transform:scale(1); }
+                50% { opacity:1; transform:scale(1.35); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                #wtLine.wt-breathe, #wtDotHalo.wt-pulse { animation:none; }
+            }
             .mika-weight-form {
                 display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
                 align-items: end;
@@ -4726,13 +4741,13 @@
             });
 
             // area + line
-            svgHtml += `<path d="${areaPath}" fill="url(#wtGrad)"/>`;
-            svgHtml += `<path d="${linePath}" fill="none" stroke="${accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+            svgHtml += `<path d="${areaPath}" id="wtArea" fill="url(#wtGrad)" opacity="0"/>`;
+            svgHtml += `<path d="${linePath}" id="wtLine" fill="none" stroke="${accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
 
             // only the latest point gets a dot + label
             const last = pts[pts.length - 1], lastV = series[series.length - 1];
-            svgHtml += `<circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="6" fill="${accent}" fill-opacity="0.18"/>`;
-            svgHtml += `<circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="3.5" fill="${accent}" stroke="#fff" stroke-width="1.5"/>`;
+            svgHtml += `<circle id="wtDotHalo" cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="6" fill="${accent}" fill-opacity="0.18" opacity="0"/>`;
+            svgHtml += `<circle id="wtDot" cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="3.5" fill="${accent}" stroke="#fff" stroke-width="1.5" opacity="0"/>`;
 
             // x-axis: first & last date only
             const fmtX = t => new Date(t).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
@@ -4740,6 +4755,34 @@
             svgHtml += `<text x="${W - pad.r}" y="${H - 5}" text-anchor="end" font-size="9" fill="var(--color-text-secondary)">${fmtX(maxT)}</text>`;
 
             svg.innerHTML = svgHtml;
+
+            // --- animate: draw the line in, then start breathing ---
+            const lineEl = document.getElementById('wtLine');
+            const areaEl = document.getElementById('wtArea');
+            const dotEl = document.getElementById('wtDot');
+            const haloEl = document.getElementById('wtDotHalo');
+            const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (lineEl && !reduce) {
+                const len = lineEl.getTotalLength();
+                lineEl.style.strokeDasharray = len;
+                lineEl.style.strokeDashoffset = len;
+                lineEl.getBoundingClientRect(); // force reflow
+                lineEl.style.transition = 'stroke-dashoffset 0.7s cubic-bezier(0.4,0,0.2,1)';
+                lineEl.style.strokeDashoffset = '0';
+                if (areaEl) { areaEl.style.transition = 'opacity 0.7s ease 0.2s'; requestAnimationFrame(() => areaEl.style.opacity = '1'); }
+                // reveal dot + start breathing after the draw completes
+                setTimeout(() => {
+                    if (dotEl) { dotEl.style.transition = 'opacity 0.3s'; dotEl.style.opacity = '1'; }
+                    if (haloEl) haloEl.style.opacity = '1';
+                    if (lineEl) { lineEl.style.strokeDasharray = 'none'; lineEl.classList.add('wt-breathe'); }
+                    if (haloEl) haloEl.classList.add('wt-pulse');
+                }, 720);
+            } else {
+                // reduced motion: show instantly
+                if (areaEl) areaEl.style.opacity = '1';
+                if (dotEl) dotEl.style.opacity = '1';
+                if (haloEl) haloEl.style.opacity = '1';
+            }
         }
 
         // ===== Mika Vet Visits (shared) =====
