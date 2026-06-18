@@ -1951,10 +1951,11 @@
             .wt-latest { font-size:24px; font-weight:800; color:var(--color-text); }
             .wt-unit { font-size:13px; font-weight:600; color:var(--color-text-secondary); margin-left:3px; }
             .wt-change { font-size:13px; font-weight:600; margin-left:10px; }
-            .wt-range-group { display:flex; gap:4px; background:var(--color-background); border:1px solid var(--color-border); border-radius:50px; padding:3px; }
-            .wt-range { border:none; background:none; color:var(--color-text-secondary); font-size:12px; font-weight:600; padding:4px 12px; border-radius:50px; cursor:pointer; transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease; }
+            .wt-range-group { display:flex; gap:4px; background:var(--color-background); border:1px solid var(--color-border); border-radius:50px; padding:3px; position:relative; }
+            .wt-range-indicator { position:absolute; top:3px; bottom:3px; border-radius:50px; background:var(--color-primary); transition:left 0.32s cubic-bezier(0.34,1.4,0.5,1), width 0.32s cubic-bezier(0.34,1.4,0.5,1); z-index:0; }
+            .wt-range { position:relative; z-index:1; border:none; background:none; color:var(--color-text-secondary); font-size:12px; font-weight:600; padding:4px 12px; border-radius:50px; cursor:pointer; transition: color 0.25s ease, transform 0.2s ease; }
             .wt-range:active { transform:scale(0.92); }
-            .wt-range.active { background:var(--color-primary); color:#fff; }
+            .wt-range.active { color:#fff; }
             /* trend line breathing when idle */
             #wtLine.wt-breathe { animation: wtBreathe 3.4s ease-in-out infinite; }
             @keyframes wtBreathe {
@@ -1977,6 +1978,14 @@
             .mika-weight-form .form-label { margin-bottom: 5px; }
             .mika-weight-form > button { grid-column: 1 / -1; width: 100%; }
             #mikaWeightChartWrap svg { display: block; }
+            .wt-chart-anim { will-change: transform, opacity; }
+            .wt-chart-anim.wt-slide-l { animation: wtSlideL 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+            .wt-chart-anim.wt-slide-r { animation: wtSlideR 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+            @keyframes wtSlideL { from { opacity:0; transform:translateX(-22px); } to { opacity:1; transform:none; } }
+            @keyframes wtSlideR { from { opacity:0; transform:translateX(22px); } to { opacity:1; transform:none; } }
+            @media (prefers-reduced-motion: reduce) {
+                .wt-chart-anim.wt-slide-l, .wt-chart-anim.wt-slide-r { animation:none; }
+            }
         </style>
 
 
@@ -4830,18 +4839,46 @@
                         `<button type="button" class="wt-range${weightRange===r?' active':''}" data-range="${r}">${r}</button>`
                     ).join('');
 
+                    // direction for the slide: wider range slides in from left, narrower from right
+                    const newIdx = ranges.indexOf(weightRange);
+                    const fromIdx = weightRangePrev;
+                    const slideClass = (fromIdx == null || newIdx === fromIdx) ? '' :
+                        (newIdx > fromIdx ? 'wt-slide-l' : 'wt-slide-r');
+                    weightRangePrev = newIdx;
+
                     wrap.innerHTML = `
                         <div class="wt-head">
                             <div>
                                 <span class="wt-latest">${latest.w.toFixed(2)}<span class="wt-unit">kg</span></span>
                                 <span class="wt-change" style="color:${diffColor};">${diffTxt}</span>
                             </div>
-                            <div class="wt-range-group">${toggle}</div>
+                            <div class="wt-range-group"><span class="wt-range-indicator"></span>${toggle}</div>
                         </div>
-                        <svg id="mikaWeightSvg" width="100%" height="150" style="overflow:visible;"></svg>`;
+                        <div class="wt-chart-anim ${slideClass}">
+                            <svg id="mikaWeightSvg" width="100%" height="150" style="overflow:visible;"></svg>
+                        </div>`;
                     wrap.querySelectorAll('.wt-range').forEach(b => {
                         b.onclick = () => { weightRange = b.dataset.range; renderWeight(); };
                     });
+                    // position the sliding indicator (animate from previous pill to the new one)
+                    const group = wrap.querySelector('.wt-range-group');
+                    const indicator = wrap.querySelector('.wt-range-indicator');
+                    const btns = [...wrap.querySelectorAll('.wt-range')];
+                    if (group && indicator && btns.length) {
+                        const place = (idx, withTransition) => {
+                            const b = btns[idx]; if (!b) return;
+                            indicator.style.transition = withTransition ? '' : 'none';
+                            indicator.style.left = b.offsetLeft + 'px';
+                            indicator.style.width = b.offsetWidth + 'px';
+                        };
+                        if (fromIdx != null && fromIdx !== newIdx) {
+                            place(fromIdx, false);            // start at old pill, no anim
+                            indicator.getBoundingClientRect(); // reflow
+                            requestAnimationFrame(() => place(newIdx, true)); // slide to new
+                        } else {
+                            place(newIdx, false);             // first render: just sit there
+                        }
+                    }
                     drawWeightChart(view);
                 }
             }
@@ -4871,6 +4908,7 @@
         }
         let weightExpanded = false;
         let weightRange = '3M';
+        let weightRangePrev = null;
         function drawWeightChart(series) {
             const svg = document.getElementById('mikaWeightSvg');
             if (!svg) return;
