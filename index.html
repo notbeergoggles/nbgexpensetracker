@@ -4864,6 +4864,14 @@
                     const group = wrap.querySelector('.wt-range-group');
                     const indicator = wrap.querySelector('.wt-range-indicator');
                     const btns = [...wrap.querySelectorAll('.wt-range')];
+                    window.__placeWeightIndicator = function(forceIdx) {
+                        if (!group || !indicator || !btns.length) return;
+                        const idx = forceIdx != null ? forceIdx : ranges.indexOf(weightRange);
+                        const b = btns[idx]; if (!b) return;
+                        indicator.style.transition = 'none';
+                        indicator.style.left = b.offsetLeft + 'px';
+                        indicator.style.width = b.offsetWidth + 'px';
+                    };
                     if (group && indicator && btns.length) {
                         const place = (idx, withTransition) => {
                             const b = btns[idx]; if (!b) return;
@@ -4877,6 +4885,9 @@
                             requestAnimationFrame(() => place(newIdx, true)); // slide to new
                         } else {
                             place(newIdx, false);             // first render: just sit there
+                            // also retry shortly after, in case the tab/container was hidden
+                            // (offsetWidth/Left read 0 on display:none parents)
+                            requestAnimationFrame(() => window.__placeWeightIndicator());
                         }
                     }
                     drawWeightChart(view);
@@ -6249,6 +6260,9 @@ async function deleteExpenseFromFirebase(id) {
                 renderExpenseList();
             } else if (tabName === 'dashboard') {
                 updateDashboard();
+            } else if (tabName === 'mika') {
+                // the weight-range pill indicator can't size itself while the tab was hidden
+                requestAnimationFrame(() => { if (window.__placeWeightIndicator) window.__placeWeightIndicator(); });
             }
         }
 
