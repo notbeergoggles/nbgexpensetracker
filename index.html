@@ -6001,6 +6001,12 @@ async function deleteExpenseFromFirebase(id) {
             drawer.addEventListener('pointerup', dragEnd);
             drawer.addEventListener('pointercancel', dragEnd);
 
+            // Block the browser's native pull-to-refresh while actively dragging the drawer.
+            // Pointer events don't suppress it, so we preventDefault on a non-passive touchmove.
+            drawer.addEventListener('touchmove', (e) => {
+                if (dragging) e.preventDefault();
+            }, { passive: false });
+
             // Bottom nav pinned buttons
             document.querySelectorAll('.bnav-item[data-tab]').forEach(btn => {
                 btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
@@ -7464,6 +7470,11 @@ async function handleDeleteExpense(id) {
         document.body.appendChild(ind);
 
         document.addEventListener('touchstart', (e) => {
+            // Don't engage pull-to-refresh while the nav drawer is open or when the
+            // touch starts inside the drawer (so dragging the drawer handle won't refresh).
+            const drawerOpen = document.getElementById('navDrawer')?.classList.contains('open');
+            const inDrawer = e.target.closest && e.target.closest('.drawer');
+            if (drawerOpen || inDrawer) { pulling = false; startY = null; return; }
             if (window.scrollY <= 0) { startY = e.touches[0].clientY; pulling = true; }
         }, { passive: true });
         document.addEventListener('touchmove', (e) => {
