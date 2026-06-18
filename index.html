@@ -1483,7 +1483,14 @@
             .drawer-handle {
                 width: 40px; height: 4px; border-radius: 2px;
                 background: var(--color-border); margin: 0 auto var(--space-12);
+                position: relative; cursor: grab; touch-action: none;
             }
+            .drawer-handle::before {
+                content: ''; position: absolute; left: 50%; top: 50%;
+                transform: translate(-50%, -50%);
+                width: 120px; height: 32px; /* generous invisible grab zone */
+            }
+            .drawer { touch-action: pan-y; }
             .drawer-grid {
                 display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
                 gap: var(--space-12);
@@ -5950,6 +5957,49 @@ async function deleteExpenseFromFirebase(id) {
 
             moreBtn.addEventListener('click', openDrawer);
             overlay.addEventListener('click', closeDrawer);
+
+            // ---- Drag-to-dismiss ----
+            let dragging = false, startY = 0, curY = 0, height = 0;
+            const handle = drawer.querySelector('.drawer-handle');
+            function dragStart(y) {
+                dragging = true; startY = y; curY = y;
+                height = drawer.offsetHeight;
+                drawer.style.transition = 'none';
+                overlay.style.transition = 'none';
+            }
+            function dragMove(y) {
+                if (!dragging) return;
+                curY = y;
+                const dy = Math.max(0, y - startY); // only downward
+                drawer.style.transform = `translateY(${dy}px)`;
+                // fade overlay proportionally as it's pulled down
+                const ratio = Math.min(1, dy / height);
+                overlay.style.opacity = String(1 - ratio * 0.85);
+            }
+            function dragEnd() {
+                if (!dragging) return;
+                dragging = false;
+                const dy = Math.max(0, curY - startY);
+                drawer.style.transition = '';
+                overlay.style.transition = '';
+                drawer.style.transform = '';
+                overlay.style.opacity = '';
+                // dismiss if dragged more than 28% of height, or a clear flick
+                if (dy > height * 0.28) closeDrawer();
+            }
+
+            // Pointer events (covers touch + mouse on modern browsers)
+            drawer.addEventListener('pointerdown', (e) => {
+                // only start drag from the handle area / top region, not from buttons
+                const fromHandle = e.target === handle || e.target.closest('.drawer-handle');
+                const topZone = e.offsetY != null && e.offsetY < 56 && !e.target.closest('.drawer-item');
+                if (!fromHandle && !topZone) return;
+                dragStart(e.clientY);
+                drawer.setPointerCapture && drawer.setPointerCapture(e.pointerId);
+            });
+            drawer.addEventListener('pointermove', (e) => dragMove(e.clientY));
+            drawer.addEventListener('pointerup', dragEnd);
+            drawer.addEventListener('pointercancel', dragEnd);
 
             // Bottom nav pinned buttons
             document.querySelectorAll('.bnav-item[data-tab]').forEach(btn => {
