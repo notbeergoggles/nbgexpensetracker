@@ -5868,8 +5868,7 @@
         // PMs see ONLY the Renovation tab — everything personal is hidden.
         // Add PM emails here (lowercase). Supports several.
         const PM_EMAILS = [
-             'ccgpanzerdivision@gmail.com',
-             'you@trackermail.com',
+            // 'mypm@example.com',
         ];
         function isPmEmail(email) {
             return !!email && PM_EMAILS.includes(email.toLowerCase().trim());
@@ -5908,6 +5907,30 @@
             'Shopping': '#BB8FCE'
         };
 
+        // ===== Lazy tab data loading =====
+        // To cut Firestore reads, each tab's listener(s) start only when the tab is first
+        // opened — not all at once on login. ensureTabData() runs the right init once per tab.
+        const _tabDataLoaded = {};
+        function ensureTabData(tabName) {
+            if (isGuestMode || !currentUser) return; // local mode loads everything up front
+            if (_tabDataLoaded[tabName]) return;
+            const loaders = {
+                mika: () => { initMikaMealPrep(); initMikaMeds(); initMikaVet(); initMikaHealth(); },
+                terrarium: () => window.terraInitLive && window.terraInitLive(),
+                wedding: () => window.weddingInitLive && window.weddingInitLive(),
+                todo: () => window.todoInitLive && window.todoInitLive(),
+                vouchers: () => window.vouchersInitLive && window.vouchersInitLive(),
+                places: () => window.placesInitLive && window.placesInitLive(),
+                mood: () => window.moodInitLive && window.moodInitLive(),
+                notes: () => window.notesInitLive && window.notesInitLive(),
+                home: () => window.homeInitLive && window.homeInitLive(),
+                reno: () => window.renoInitLive && window.renoInitLive(),
+            };
+            const fn = loaders[tabName];
+            if (fn) { fn(); _tabDataLoaded[tabName] = true; }
+        }
+        window.ensureTabData = ensureTabData;
+
         auth.onAuthStateChanged(async (user) => {
             const authScreen = document.getElementById('authScreen');
             const appContainer = document.getElementById('appContainer');
@@ -5921,25 +5944,13 @@
                     document.getElementById('userEmail').textContent = user.email;
                     if (isPmEmail(user.email)) {
                         // PM: load ONLY renovation data, hide everything else
-                        if (window.renoInitLive) window.renoInitLive();
+                        ensureTabData('reno');
                         applyPmMode();
                         return;
                     }
-                    await loadExpensesFromFirebase();
+                    // Only the expenses listener loads on login (dashboard needs it).
+                    // Every other tab's data is loaded lazily on first visit — see ensureTabData().
                     listenToExpensesChanges();
-                    initMikaMealPrep();
-                    initMikaMeds();
-                    initMikaVet();
-                    initMikaHealth();
-                    if (window.terraInitLive) window.terraInitLive();
-                    if (window.weddingInitLive) window.weddingInitLive();
-                    if (window.todoInitLive) window.todoInitLive();
-                    if (window.vouchersInitLive) window.vouchersInitLive();
-                    if (window.placesInitLive) window.placesInitLive();
-                    if (window.moodInitLive) window.moodInitLive();
-                    if (window.notesInitLive) window.notesInitLive();
-                    if (window.homeInitLive) window.homeInitLive();
-                    if (window.renoInitLive) window.renoInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
@@ -5973,8 +5984,20 @@
                 try {
                     await auth.signInWithEmailAndPassword(email, password);
                 } catch (error) {
-                    if (error.code === 'auth/user-not-found') {
-                        await auth.createUserWithEmailAndPassword(email, password);
+                    // Modern Firebase projects mask "no such account" behind a generic
+                    // 'auth/invalid-credential' (email enumeration protection), instead of
+                    // the old 'auth/user-not-found'. Treat both as "try creating the account".
+                    const looksLikeNoAccount = ['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(error.code);
+                    if (looksLikeNoAccount) {
+                        try {
+                            await auth.createUserWithEmailAndPassword(email, password);
+                        } catch (createErr) {
+                            if (createErr.code === 'auth/email-already-in-use') {
+                                // account genuinely exists — so the original failure was a wrong password
+                                throw new Error('Incorrect password for this email. Please try again.');
+                            }
+                            throw createErr;
+                        }
                     } else {
                         throw error;
                     }
@@ -6023,9 +6046,13 @@
     }
 }
 
+        let expensesListenerActive = false;
         function listenToExpensesChanges() {
     if (!currentUser) return;
-    // Update to the same 'shared_expenses' collection
+    if (expensesListenerActive) return; // guard against duplicate listeners
+    expensesListenerActive = true;
+    // Single real-time listener on 'shared_expenses' — this is the ONLY read of the
+    // live collection per session (the old separate .get() was removed to halve reads).
     db.collection('shared_expenses').onSnapshot(snapshot => {
         expenses = [];
         snapshot.forEach(doc => {
@@ -6293,6 +6320,9 @@ async function deleteExpenseFromFirebase(id) {
                 targetContent.classList.add('active');
             }
             
+            // Lazy-load this tab's Firestore data on first visit (read optimization)
+            if (window.ensureTabData) window.ensureTabData(tabName);
+
             // 5. Run tab-specific refreshes
             if (tabName === 'history') {
                 renderExpenseList();
@@ -8233,6 +8263,9 @@ async function handleDeleteExpense(id) {
         }
 
         function open() {
+            // These tabs may not have been visited yet (lazy loading), so their counts
+            // could be unset. Trigger their cheap single-doc loads before playing.
+            if (window.ensureTabData) { window.ensureTabData('mood'); window.ensureTabData('notes'); }
             slides = buildSlides();
             idx = 0;
             modal.style.display = 'flex';
