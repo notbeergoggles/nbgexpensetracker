@@ -5971,11 +5971,22 @@
                     // which writes to the terrarium doc — so its real data MUST be loaded first
                     // to avoid overwriting it. It's a cheap single-doc read.
                     listenToExpensesChanges();
+                    // These are all single-document reads (1 read each) — cheap, and several
+                    // have cross-app hooks or are landing-adjacent, so we load them on login
+                    // for correctness. Only the heavy multi-doc 'mika' tab stays lazy (its
+                    // weight history reads up to 60 docs) — it loads on first Mika visit.
                     if (window.terraInitLive) window.terraInitLive();
-                    // If the user is already on a lazy tab when auth resolves (e.g. they
-                    // landed there before login completed), load that tab's data now.
-                    const activeTab = document.querySelector('.tab-content.active');
-                    if (activeTab && activeTab.id) ensureTabData(activeTab.id);
+                    if (window.weddingInitLive) window.weddingInitLive();
+                    if (window.todoInitLive) window.todoInitLive();
+                    if (window.vouchersInitLive) window.vouchersInitLive();
+                    if (window.placesInitLive) window.placesInitLive();
+                    if (window.moodInitLive) window.moodInitLive();
+                    if (window.notesInitLive) window.notesInitLive();
+                    if (window.homeInitLive) window.homeInitLive();
+                    if (window.renoInitLive) window.renoInitLive();
+                    // mark them loaded so ensureTabData won't double-attach
+                    ['terrarium','wedding','todo','vouchers','places','mood','notes','home','reno']
+                        .forEach(t => { _tabDataLoaded[t] = true; });
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
