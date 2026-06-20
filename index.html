@@ -4438,6 +4438,7 @@
         let activeCat = 'Plants';
         let terraUnsub = null;
         let suppressWrite = false;
+        let terraHydrated = false; // becomes true after first Firestore read; blocks writes before data loads
 
         const TERRA_DOC = () => db.collection('terrarium').doc('shared');
         const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
@@ -4446,6 +4447,9 @@
         async function saveState() {
             if (suppressWrite) return;
             if (isLive()) {
+                // CRITICAL: never write to Firestore before we've loaded the existing doc,
+                // or we'd overwrite real data with the empty default state.
+                if (!terraHydrated) return;
                 try { await TERRA_DOC().set(state); }
                 catch (e) { window.showSaveError && window.showSaveError('terrarium', e); }
             } else {
@@ -4466,7 +4470,11 @@
                     if (!state.stats) state.stats = { logs:0, claims:0, placed:0 };
                     if (!state.badges) state.badges = [];
                     suppressWrite = false;
+                    terraHydrated = true; // real data loaded — saves are now safe
                 } else {
+                    // Doc doesn't exist yet. Only seed it from a fresh default the very first
+                    // time; mark hydrated so future saves work, but don't clobber anything.
+                    terraHydrated = true;
                     TERRA_DOC().set(state);
                 }
                 renderAll();
@@ -5915,7 +5923,7 @@
         // ===== Lazy tab data loading =====
         // To cut Firestore reads, each tab's listener(s) start only when the tab is first
         // opened — not all at once on login. ensureTabData() runs the right init once per tab.
-        const _tabDataLoaded = {};
+        const _tabDataLoaded = { terrarium: true }; // terrarium eager-loads on login (write-hook safety)
         function ensureTabData(tabName) {
             if (isGuestMode || !currentUser) return; // local mode loads everything up front
             if (_tabDataLoaded[tabName]) return;
@@ -5954,8 +5962,11 @@
                         return;
                     }
                     // Only the expenses listener loads on login (dashboard needs it).
-                    // Every other tab's data is loaded lazily on first visit — see ensureTabData().
+                    // Terrarium also loads now: logging an expense triggers terraRewardLog(),
+                    // which writes to the terrarium doc — so its real data MUST be loaded first
+                    // to avoid overwriting it. It's a cheap single-doc read.
                     listenToExpensesChanges();
+                    if (window.terraInitLive) window.terraInitLive();
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
