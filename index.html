@@ -2447,15 +2447,10 @@
             save(); render();
             form.style.display = 'none';
         };
-
-        if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.<tab>InitLive)
         window.homeInitLive = function() { listenLive(); };
         window.homeInitLocal = function() { if (hmUnsub) hmUnsub(); loadLocal(); };
-
-        // If auth already resolved before this script ran, attach immediately.
-        // Otherwise the auth handler / ensureTabData attaches on first Home tab visit.
-        if (isLive()) listenLive();
-        else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.homeInitLive)
     })();
     </script>
 
@@ -2626,8 +2621,7 @@
             log.scrollTop = log.scrollHeight;
             renderStickers();
         }
-
-        if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.<tab>InitLive)
         window.notesInitLive = function() { listenLive(); };
         window.notesInitLocal = function() { if (nUnsub) nUnsub(); poppedThisSession = false; loadLocal(); };
     })();
@@ -2844,8 +2838,7 @@
         }
         // refresh "Xm ago" every minute
         setInterval(() => { renderNow('Kenny'); renderNow('Sayuri'); }, 60000);
-
-        if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.<tab>InitLive)
         window.moodInitLive = function() { listenLive(); };
         window.moodInitLocal = function() { if (mUnsub) mUnsub(); loadLocal(); };
     })();
@@ -3393,7 +3386,7 @@
             jpyEl.addEventListener('input', () => recompute('jpy'));
             fetchRate();
         })();
-        if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.<tab>InitLive)
         window.placesInitLive = function() { listenLive(); };
         window.placesInitLocal = function() { if (pUnsub) pUnsub(); loadLocal(); };
     })();
@@ -3650,7 +3643,7 @@
         };
 
         // Init
-        if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.<tab>InitLive)
         window.vouchersInitLive = function() { listenLive(); };
         window.vouchersInitLocal = function() { if (vUnsub) vUnsub(); loadLocal(); };
     })();
@@ -3869,7 +3862,7 @@
         chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') askClaude(chatInput.value); });
 
         // ----- Init / auth hooks -----
-        if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.<tab>InitLive)
         window.todoInitLive = function() { listenLive(); };
         window.todoInitLocal = function() { if (todoUnsub) todoUnsub(); loadLocal(); };
     })();
@@ -4235,7 +4228,7 @@
         });
 
         // Init
-        if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.<tab>InitLive)
         window.weddingInitLive = function() { listenLive(); };
         window.weddingInitLocal = function() { if (weddingUnsub) weddingUnsub(); loadLocal(); };
     })();
@@ -4778,13 +4771,7 @@
         // Called for guest / signed-out mode.
         window.terraInitLocal = function() { if (terraUnsub){terraUnsub();terraUnsub=null;} loadLocal(); };
 
-        // If auth already resolved before this script ran, attach immediately.
-        // If a user is logged in but the listener hasn't attached yet (lazy load),
-        // the auth handler / ensureTabData calls terraInitLive() on first tab visit.
-        // We only loadLocal() here when genuinely in guest mode, to avoid rendering an
-        // empty default state that looks like a reset while auth is still resolving.
-        if (isLive()) listenLive();
-        else if (isGuestMode) loadLocal();
+        // (init handled by auth handler on login via window.terraInitLive)
     })();
     </script>
 
