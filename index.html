@@ -2451,6 +2451,11 @@
         if (isLive()) listenLive(); else if (isGuestMode) loadLocal();
         window.homeInitLive = function() { listenLive(); };
         window.homeInitLocal = function() { if (hmUnsub) hmUnsub(); loadLocal(); };
+
+        // If auth already resolved before this script ran, attach immediately.
+        // Otherwise the auth handler / ensureTabData attaches on first Home tab visit.
+        if (isLive()) listenLive();
+        else if (isGuestMode) loadLocal();
     })();
     </script>
 
@@ -5967,6 +5972,10 @@
                     // to avoid overwriting it. It's a cheap single-doc read.
                     listenToExpensesChanges();
                     if (window.terraInitLive) window.terraInitLive();
+                    // If the user is already on a lazy tab when auth resolves (e.g. they
+                    // landed there before login completed), load that tab's data now.
+                    const activeTab = document.querySelector('.tab-content.active');
+                    if (activeTab && activeTab.id) ensureTabData(activeTab.id);
                 } else {
                     expenses = JSON.parse(localStorage.getItem('expenses')) || [];
                     updateDashboard();
