@@ -2221,7 +2221,67 @@
 
             <!-- ===== PLACEHOLDER PANELS ===== -->
             <div class="reno-panel" data-panel="payments"><div class="card reno-soon"><div class="reno-soon-emoji">💳</div><div class="reno-soon-title">Payments</div><div class="reno-soon-sub">Progressive payment schedule — coming soon.</div></div></div>
-            <div class="reno-panel" data-panel="vendors"><div class="card reno-soon"><div class="reno-soon-emoji">📇</div><div class="reno-soon-title">Vendors</div><div class="reno-soon-sub">Contractor & tradesman directory — coming soon.</div></div></div>
+            <div class="reno-panel" data-panel="vendors">
+                <div class="card">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:var(--space-12);">
+                        <h3 style="margin:0;">Vendors</h3>
+                        <button type="button" class="btn btn--accent accent-teal" id="venAddBtn" style="padding:8px 16px;"><span style="font-size:15px; line-height:1;">＋</span> Add vendor</button>
+                    </div>
+                    <!-- add/edit form -->
+                    <div id="venForm" class="reno-collapse">
+                        <div class="reno-collapse-inner">
+                            <div class="form-group">
+                                <label class="form-label">Company / vendor name</label>
+                                <input type="text" id="venName" class="form-input" placeholder="e.g. ABC Interior, Lim Plumbing">
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Trade</label>
+                                    <select id="venTrade" class="form-input"></select>
+                                </div>
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Status</label>
+                                    <select id="venStatus" class="form-input">
+                                        <option value="Considering">Considering</option>
+                                        <option value="Quoted">Quoted</option>
+                                        <option value="Hired">Hired</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Dropped">Dropped</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contact person <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                <input type="text" id="venContact" class="form-input" placeholder="e.g. Mr Tan">
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Phone <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                    <input type="tel" id="venPhone" class="form-input" placeholder="e.g. 9123 4567" inputmode="tel">
+                                </div>
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Email <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                    <input type="email" id="venEmail" class="form-input" placeholder="e.g. sales@abc.sg" inputmode="email">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Quoted total (SGD) <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                <input type="number" id="venQuoted" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Notes <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                <input type="text" id="venNotes" class="form-input" placeholder="e.g. recommended by neighbour, 1yr warranty">
+                            </div>
+                            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                <button type="button" class="btn btn--secondary" id="venCancel" style="padding:8px 18px;">Cancel</button>
+                                <button type="button" class="btn btn--primary" id="venSave" style="padding:8px 18px;">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="venList" class="reno-vendor-list"></div>
+                </div>
+            </div>
+
             <div class="reno-panel" data-panel="selections"><div class="card reno-soon"><div class="reno-soon-emoji">🎨</div><div class="reno-soon-title">Selections</div><div class="reno-soon-sub">Material & finish decisions log — coming soon.</div></div></div>
             <div class="reno-panel" data-panel="defects"><div class="card reno-soon"><div class="reno-soon-emoji">🔍</div><div class="reno-soon-title">Defects</div><div class="reno-soon-sub">BTO defect & snagging checklist — coming soon.</div></div></div>
             <div class="reno-panel" data-panel="timeline"><div class="card reno-soon"><div class="reno-soon-emoji">📅</div><div class="reno-soon-title">Timeline</div><div class="reno-soon-sub">Reno milestones & schedule — coming soon.</div></div></div>
@@ -2273,6 +2333,22 @@
         .reno-budget-row { display:flex; justify-content:space-between; padding:6px 0; font-size:var(--font-size-sm); border-bottom:1px solid var(--color-border); }
         .reno-budget-row:last-child { border-bottom:none; }
         .reno-budget-row.total { font-weight:700; font-size:var(--font-size-base); }
+        /* vendors */
+        .reno-vendor-list { display:flex; flex-direction:column; gap:var(--space-12); }
+        .reno-vendor-list:empty::after { content:'No vendors yet. Tap “＋ Add vendor” to build your contractor directory.'; display:block; text-align:center; padding:var(--space-16); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+        .reno-ven-item { padding:var(--space-12) var(--space-16); border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); border-left:4px solid var(--rv-color, var(--color-border)); }
+        .reno-ven-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+        .reno-ven-name { font-weight:700; }
+        .reno-ven-trade { font-size:12px; color:var(--color-text-secondary); margin-top:2px; }
+        .reno-ven-meta { font-size:12px; color:var(--color-text-secondary); margin-top:8px; display:flex; flex-wrap:wrap; gap:4px 14px; }
+        .reno-ven-meta a { color:var(--color-primary); text-decoration:none; font-weight:600; }
+        .reno-ven-contacts { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+        .reno-ven-contacts a { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; text-decoration:none; padding:6px 12px; border-radius:50px; background:var(--color-surface); border:1px solid var(--color-border); color:var(--color-text); }
+        .reno-ven-amt { font-weight:700; white-space:nowrap; }
+        .reno-ven-notes { font-size:12px; color:var(--color-text-secondary); margin-top:8px; }
+        .reno-ven-actions { display:flex; gap:6px; margin-top:var(--space-12); }
+        .reno-ven-actions button { padding:4px 10px; font-size:11px; }
+        .reno-status-chip { font-size:10px; font-weight:700; padding:3px 9px; border-radius:50px; text-transform:uppercase; letter-spacing:0.02em; white-space:nowrap; }
         @media (prefers-reduced-motion: reduce) { .reno-panel { animation:none; } .reno-collapse { transition:none; } }
     </style>
 
@@ -8496,15 +8572,18 @@ async function handleDeleteExpense(id) {
         }
         fillSelect('costCategory', RENO_CAT);
         fillSelect('costRoom', RENO_ROOMS);
+        fillSelect('venTrade', RENO_CAT);
 
         // ---- data ----
         const COSTS_DOC = () => db.collection('reno_costs').doc('shared');
         const BUDGET_DOC = () => db.collection('reno_meta').doc('shared');
+        const VENDORS_DOC = () => db.collection('reno_vendors').doc('shared');
         let costs = [];        // {id,name,category,room,vendor,quoted,actual,gst,inPackage,notes}
+        let vendors = [];      // {id,name,trade,status,contact,phone,email,quoted,notes}
         let renoBudget = 0;    // overall budget
         let moveInDate = '';   // ISO date string
         let costGroup = 'category';
-        let cUnsub = null, mUnsub = null, suppress = false, editingId = null;
+        let cUnsub = null, mUnsub = null, vUnsub = null, suppress = false, editingId = null, editingVenId = null;
 
         function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         const money = n => window.fmtMoney ? window.fmtMoney(Number(n)||0) : 'SGD '+(Number(n)||0).toFixed(2);
@@ -8520,18 +8599,25 @@ async function handleDeleteExpense(id) {
             if (isLive()) { try { await BUDGET_DOC().set({ budget: renoBudget, moveIn: moveInDate }); } catch(e){ window.showSaveError && window.showSaveError('reno budget', e);} }
             else localStorage.setItem('renoMeta', JSON.stringify({ budget: renoBudget, moveIn: moveInDate }));
         }
+        async function saveVendors() {
+            if (suppress) return;
+            if (isLive()) { try { await VENDORS_DOC().set({ items: vendors }); } catch(e){ window.showSaveError && window.showSaveError('reno vendors', e);} }
+            else localStorage.setItem('renoVendors', JSON.stringify(vendors));
+        }
 
         function initRenoLive() {
-            if (cUnsub) cUnsub(); if (mUnsub) mUnsub();
-            cUnsub = COSTS_DOC().onSnapshot(s => { suppress=true; costs = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderCosts(); renderOverview(); }, e=>console.error('reno costs',e));
+            if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub();
+            cUnsub = COSTS_DOC().onSnapshot(s => { suppress=true; costs = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderCosts(); renderOverview(); renderVendors(); }, e=>console.error('reno costs',e));
             mUnsub = BUDGET_DOC().onSnapshot(s => { suppress=true; if(s.exists){ renoBudget=s.data().budget||0; moveInDate=s.data().moveIn||''; } suppress=false; renderOverview(); }, e=>console.error('reno meta',e));
+            vUnsub = VENDORS_DOC().onSnapshot(s => { suppress=true; vendors = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderVendors(); renderOverview(); }, e=>console.error('reno vendors',e));
         }
         function initRenoLocal() {
-            if (cUnsub) cUnsub(); if (mUnsub) mUnsub();
+            if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub();
             costs = JSON.parse(localStorage.getItem('renoCosts')||'[]');
+            vendors = JSON.parse(localStorage.getItem('renoVendors')||'[]');
             const meta = JSON.parse(localStorage.getItem('renoMeta')||'{}');
             renoBudget = meta.budget||0; moveInDate = meta.moveIn||'';
-            renderCosts(); renderOverview();
+            renderCosts(); renderOverview(); renderVendors();
         }
         window.renoInitLive = initRenoLive;
         window.renoInitLocal = initRenoLocal;
@@ -8628,6 +8714,108 @@ async function handleDeleteExpense(id) {
             else costs.push({ id:'rc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), ...data });
             saveCosts(); renderCosts(); renderOverview();
             costForm.classList.remove('open');
+        };
+
+        // ---- vendors ----
+        const VEN_STATUS_COLOR = {
+            'Considering':{bg:'rgba(127,140,155,0.15)',fg:'#7f8c9b'},
+            'Quoted':{bg:'rgba(224,160,32,0.15)',fg:'#b5790f'},
+            'Hired':{bg:'rgba(46,134,222,0.15)',fg:'#2e86de'},
+            'Completed':{bg:'rgba(33,160,90,0.15)',fg:'#21a05a'},
+            'Dropped':{bg:'rgba(212,69,62,0.15)',fg:'#d4453e'}
+        };
+        // sum of cost items committed to a given vendor name (matched case-insensitively)
+        function vendorCommitted(name){
+            if(!name) return 0;
+            const n = name.trim().toLowerCase();
+            return costs.reduce((s,it)=> (it.vendor && it.vendor.trim().toLowerCase()===n) ? s+effective(it) : s, 0);
+        }
+        const venForm = document.getElementById('venForm');
+
+        function renderVendors(){
+            const list = document.getElementById('venList');
+            if(!list) return;
+            list.innerHTML = '';
+            if(!vendors.length) return;
+            // sort: by trade order, then name
+            const sorted = vendors.slice().sort((a,b)=>{
+                const ia=RENO_CAT.indexOf(a.trade), ib=RENO_CAT.indexOf(b.trade);
+                const ta=(ia<0?99:ia), tb=(ib<0?99:ib);
+                if(ta!==tb) return ta-tb;
+                return (a.name||'').localeCompare(b.name||'');
+            });
+            sorted.forEach(v=>{
+                const node = document.createElement('div');
+                node.className = 'reno-ven-item';
+                node.style.setProperty('--rv-color', catColorR(v.trade));
+                const sc = VEN_STATUS_COLOR[v.status] || VEN_STATUS_COLOR['Considering'];
+                const committed = vendorCommitted(v.name);
+                const phoneClean = (v.phone||'').replace(/[^\d+]/g,'');
+                node.innerHTML = `
+                    <div class="reno-ven-top">
+                        <div>
+                            <div class="reno-ven-name">${esc(v.name||'Vendor')}</div>
+                            <div class="reno-ven-trade">${esc(v.trade||'')}${v.contact?` · ${esc(v.contact)}`:''}</div>
+                        </div>
+                        <span class="reno-status-chip" style="background:${sc.bg};color:${sc.fg};">${esc(v.status||'Considering')}</span>
+                    </div>
+                    ${(v.phone||v.email)?`<div class="reno-ven-contacts">
+                        ${v.phone?`<a href="tel:${esc(phoneClean)}">📞 ${esc(v.phone)}</a>`:''}
+                        ${v.phone?`<a href="https://wa.me/${esc(phoneClean.replace(/^\+/,''))}">💬 WhatsApp</a>`:''}
+                        ${v.email?`<a href="mailto:${esc(v.email)}">✉️ Email</a>`:''}
+                    </div>`:''}
+                    <div class="reno-ven-meta">
+                        ${Number(v.quoted)?`<span>Quoted: <strong>${money(v.quoted)}</strong></span>`:''}
+                        ${committed>0?`<span>Committed in costs: <strong>${money(committed)}</strong></span>`:''}
+                    </div>
+                    ${v.notes?`<div class="reno-ven-notes">📝 ${esc(v.notes)}</div>`:''}
+                    <div class="reno-ven-actions"></div>`;
+                const acts = node.querySelector('.reno-ven-actions');
+                const ed = document.createElement('button'); ed.className='btn btn--secondary'; ed.textContent='Edit'; ed.onclick=()=>openVenEdit(v.id);
+                const dl = document.createElement('button'); dl.className='btn btn--secondary'; dl.textContent='🗑️'; dl.onclick=()=>{ if(confirm('Delete this vendor?')){ vendors=vendors.filter(x=>x.id!==v.id); saveVendors(); renderVendors(); renderOverview(); } };
+                acts.append(ed, dl);
+                list.appendChild(node);
+            });
+        }
+
+        function clearVenForm(){
+            ['venName','venContact','venPhone','venEmail','venQuoted','venNotes'].forEach(id=>document.getElementById(id).value='');
+            document.getElementById('venTrade').value=RENO_CAT[0];
+            document.getElementById('venStatus').value='Considering';
+        }
+        function openVenForm(){ editingVenId=null; clearVenForm(); venForm.classList.add('open'); }
+        function openVenEdit(id){
+            const v = vendors.find(x=>x.id===id); if(!v) return; editingVenId=id;
+            document.getElementById('venName').value=v.name||'';
+            document.getElementById('venTrade').value=v.trade||RENO_CAT[0];
+            document.getElementById('venStatus').value=v.status||'Considering';
+            document.getElementById('venContact').value=v.contact||'';
+            document.getElementById('venPhone').value=v.phone||'';
+            document.getElementById('venEmail').value=v.email||'';
+            document.getElementById('venQuoted').value=v.quoted??'';
+            document.getElementById('venNotes').value=v.notes||'';
+            venForm.classList.add('open');
+        }
+        document.getElementById('venAddBtn').onclick=()=>{ venForm.classList.contains('open')?venForm.classList.remove('open'):openVenForm(); };
+        document.getElementById('venCancel').onclick=()=>venForm.classList.remove('open');
+        document.getElementById('venSave').onclick=()=>{
+            const name=document.getElementById('venName').value.trim();
+            if(!name){ alert('Enter a vendor name'); return; }
+            const q=parseFloat(document.getElementById('venQuoted').value);
+            const data={
+                name,
+                trade:document.getElementById('venTrade').value,
+                status:document.getElementById('venStatus').value,
+                contact:document.getElementById('venContact').value.trim(),
+                phone:document.getElementById('venPhone').value.trim(),
+                email:document.getElementById('venEmail').value.trim(),
+                quoted: isNaN(q)?'':q,
+                notes:document.getElementById('venNotes').value.trim()
+            };
+            if(editingVenId){ const v=vendors.find(x=>x.id===editingVenId); if(v) Object.assign(v,data); }
+            else vendors.push({ id:'rv_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), ...data });
+            saveVendors(); renderVendors(); renderOverview();
+            venForm.classList.remove('open');
         };
 
         // ---- budget ----
