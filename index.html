@@ -7419,7 +7419,33 @@ async function handleDeleteExpense(id) {
             writeNamed('SAYURI_SHARE',  sayuriShare);
             writeNamed('NET_LABEL',     netLabel);
             writeNamed('NET_AMOUNT',    Math.abs(net));
-            writeNamed('RECURRING_TOT', recurringTotal);
+
+            // recurring — individual rows grouped by category, written from row 25 down
+            const sumWs = wb.Sheets['Summary'];
+            let sumRecR = 24; // 0-indexed = row 25
+            const recByCatSum = {};
+            recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||'')).forEach(e => {
+                const cat = e.category || 'Uncategorised';
+                if (!recByCatSum[cat]) recByCatSum[cat] = [];
+                recByCatSum[cat].push(e);
+            });
+            Object.entries(recByCatSum).forEach(([cat, items]) => {
+                items.forEach(e => {
+                    sumWs[XLSX.utils.encode_cell({r:sumRecR,c:0})] = {v:e.description||'',t:'s'};
+                    sumWs[XLSX.utils.encode_cell({r:sumRecR,c:1})] = {v:Number(e.amount||0),t:'n',z:'#,##0.00'};
+                    sumWs[XLSX.utils.encode_cell({r:sumRecR,c:2})] = {v:cat,t:'s'};
+                    sumRecR++;
+                });
+                const catTotal = items.reduce((s,e)=>s+Number(e.amount||0),0);
+                sumWs[XLSX.utils.encode_cell({r:sumRecR,c:0})] = {v:`${cat} subtotal`,t:'s'};
+                sumWs[XLSX.utils.encode_cell({r:sumRecR,c:1})] = {v:catTotal,t:'n',z:'#,##0.00'};
+                sumRecR+=2; // blank spacer
+            });
+            sumWs[XLSX.utils.encode_cell({r:sumRecR,c:0})] = {v:'MONTHLY TOTAL (recurring)',t:'s'};
+            sumWs[XLSX.utils.encode_cell({r:sumRecR,c:1})] = {v:recurringTotal,t:'n',z:'#,##0.00'};
+            // extend sheet ref to cover the new rows
+            const existingRef = XLSX.utils.decode_range(sumWs['!ref']||'A1:D25');
+            sumWs['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(existingRef.e.r,sumRecR),c:Math.max(existingRef.e.c,3)}});
 
             // category table C5:D14
             const cats = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,10);
