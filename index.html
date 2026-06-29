@@ -7354,18 +7354,142 @@ async function handleDeleteExpense(id) {
 }
 
         function exportToCSV() {
-            if (!expenses || expenses.length === 0) {
-                alert('No expenses to export');
-                return;
+            // --- scope: same filter as the current View Period ---
+            const filter = document.getElementById('monthFilter')?.value || 'current';
+            const now = new Date();
+            const all = workingExpenses();
+
+            const inScope = all.filter(e => {
+                if (filter === 'all') return true;
+                const d = new Date(e.date);
+                if (filter === 'current') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+                const [y, m] = filter.split('-');
+                return d.getFullYear() === parseInt(y) && d.getMonth() === parseInt(m) - 1;
+            });
+
+            if (!inScope.length) { alert('No expenses for the selected period.'); return; }
+
+            // --- income prompt ---
+            const kennyIncomeRaw = prompt('Kenny\'s income / inflow for this period (SGD):\n(Leave blank to skip)', '');
+            if (kennyIncomeRaw === null) return; // cancelled
+            const sayuriIncomeRaw = prompt('Sayuri\'s income / inflow for this period (SGD):\n(Leave blank to skip)', '');
+            if (sayuriIncomeRaw === null) return;
+            const kennyIncome = parseFloat(kennyIncomeRaw) || 0;
+            const sayuriIncome = parseFloat(sayuriIncomeRaw) || 0;
+            const totalIncome = kennyIncome + sayuriIncome;
+
+            // --- split into regular, settlements, recurring templates ---
+            const regular = inScope.filter(e => !e.isRecurring && !e.isPayment).sort((a,b) => new Date(a.date)-new Date(b.date));
+            const settlements = inScope.filter(e => e.isPayment).sort((a,b) => new Date(a.date)-new Date(b.date));
+            const recurring = inScope.filter(e => e.isRecurring === true).sort((a,b) => (a.category||'').localeCompare(b.category||''));
+
+            // --- derive human-readable split type ---
+            function splitLabel(e) {
+                if (e.isPayment) return 'Settlement';
+                const ys = Number(e.yourShare || 0);
+                const hs = Number(e.herShare || 0);
+                const amt = Number(e.amount || 0);
+                if (ys === 0 && hs === 0) return 'Unknown';
+                if (Math.abs(ys - hs) < 0.01) return 'Equal (50/50)';
+                if (hs === 0) return 'Kenny only';
+                if (ys === 0) return 'Sayuri only';
+                if (e.paidBy === 'Kenny' && hs === amt) return 'Kenny pays for Sayuri';
+                if (e.paidBy === 'Sayuri' && ys === amt) return 'Sayuri pays for Kenny';
+                return `Custom (Kenny ${Number(ys).toFixed(2)} / Sayuri ${Number(hs).toFixed(2)})`;
             }
-            const headers = ['id','date','category','description','amount','paidBy','yourShare','herShare','createdAt'];
-            const rows = expenses.map(e => headers.map(h => JSON.stringify(e[h] ?? '')).join(','));
-            const csv = [headers.join(','), ...rows].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
+
+            // --- period label ---
+            let periodLabel;
+            if (filter === 'all') periodLabel = 'All time';
+            else if (filter === 'current') periodLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+            else { const [y, m] = filter.split('-'); periodLabel = new Date(y, m-1).toLocaleString('default', { month: 'long', year: 'numeric' }); }
+
+            // --- settlement math (regular + settlement rows only, not recurring templates) ---
+            let kennyPaid = 0, sayuriPaid = 0, kennyShare = 0, sayuriShare = 0, totalSpend = 0;
+            [...regular, ...settlements].forEach(e => {
+                const amt = Number(e.amount || 0);
+                if (e.isPayment) {
+                    if (e.paidBy === 'Kenny') { kennyPaid += amt; sayuriShare += amt; }
+                    else { sayuriPaid += amt; kennyShare += amt; }
+                } else {
+                    totalSpend += amt;
+                    if (e.paidBy === 'Kenny') kennyPaid += amt; else sayuriPaid += amt;
+                    kennyShare += Number(e.yourShare || 0);
+                    sayuriShare += Number(e.herShare || 0);
+                }
+            });
+            const recurringTotal = recurring.reduce((s,e) => s + Number(e.amount||0), 0);
+            const net = kennyPaid - kennyShare;
+
+            // --- helpers ---
+            const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+            const m2 = v => Number(v||0).toFixed(2);
+            const hdrs = ['Date','Description','Category','Amount (SGD)','Paid By','Kenny Share','Sayuri Share','Split Type','Type'];
+            const toRow = e => [
+                q(e.date), q(e.description||''), q(e.category||''), m2(e.amount),
+                q(e.paidBy||''), m2(e.isPayment ? 0 : e.yourShare), m2(e.isPayment ? 0 : e.herShare),
+                q(splitLabel(e)), q(e.isPayment ? 'Settlement Payment' : 'Expense')
+            ].join(',');
+
+            // --- build CSV sections ---
+            const lines = [];
+
+            // 1. Income / inflow
+            lines.push(q(`=== ${periodLabel} — Monthly Close ===`));
+            lines.push('');
+            lines.push(q('INCOME / INFLOW'));
+            lines.push(['"Kenny"', kennyIncome > 0 ? m2(kennyIncome) : '"—"'].join(','));
+            lines.push(['"Sayuri"', sayuriIncome > 0 ? m2(sayuriIncome) : '"—"'].join(','));
+            lines.push(['"Total Household Income"', totalIncome > 0 ? m2(totalIncome) : '"—"'].join(','));
+            lines.push('');
+
+            // 2. Regular expenses
+            lines.push(q('EXPENSES'));
+            lines.push(hdrs.join(','));
+            if (regular.length) regular.forEach(e => lines.push(toRow(e)));
+            else lines.push(q('(no expenses this period)'));
+            lines.push(['"TOTAL EXPENSES"','','', m2(totalSpend)].join(','));
+            lines.push('');
+
+            // 3. Settlement payments
+            lines.push(q('SETTLEMENT PAYMENTS'));
+            lines.push(hdrs.join(','));
+            if (settlements.length) settlements.forEach(e => lines.push(toRow(e)));
+            else lines.push(q('(no settlements this period)'));
+            lines.push('');
+
+            // 4. Recurring templates
+            lines.push(q('RECURRING TEMPLATES (reference — not included in spend totals)'));
+            lines.push(hdrs.join(','));
+            if (recurring.length) recurring.forEach(e => lines.push(toRow(e)));
+            else lines.push(q('(no recurring templates)'));
+            lines.push(['"RECURRING TOTAL (monthly)"','','', m2(recurringTotal)].join(','));
+            lines.push('');
+
+            // 5. Summary
+            lines.push(q('SUMMARY'));
+            lines.push(['"Total Household Income"', totalIncome > 0 ? m2(totalIncome) : '"—"'].join(','));
+            lines.push(['"Total Spent"', m2(totalSpend)].join(','));
+            if (totalIncome > 0) lines.push(['"Surplus / (Deficit)"', m2(totalIncome - totalSpend)].join(','));
+            lines.push('');
+            lines.push(['"Kenny paid (card)"', m2(kennyPaid)].join(','));
+            lines.push(['"Sayuri paid (card)"', m2(sayuriPaid)].join(','));
+            lines.push('');
+            lines.push(['"Kenny\'s share (liability)"', m2(kennyShare)].join(','));
+            lines.push(['"Sayuri\'s share (liability)"', m2(sayuriShare)].join(','));
+            lines.push('');
+            lines.push(net > 0
+                ? ['"NET: Sayuri owes Kenny"', m2(net)].join(',')
+                : net < 0
+                ? ['"NET: Kenny owes Sayuri"', m2(Math.abs(net))].join(',')
+                : ['"NET: All settled ✓"', '0.00'].join(','));
+
+            const csv = lines.join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'expenses.csv';
+            a.download = `expenses_${periodLabel.replace(/\s/g,'_')}.csv`;
             a.click();
             URL.revokeObjectURL(url);
         }
