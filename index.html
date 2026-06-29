@@ -7462,16 +7462,36 @@ async function handleDeleteExpense(id) {
 
             // ── Recurring sheet ────────────────────────────────────────────────
             const recWs = wb.Sheets['Recurring'];
-            const recRows = recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||'')).map(toRow);
-            recRows.forEach((row,i) => row.forEach((val,c) => {
-                const addr = XLSX.utils.encode_cell({r:2+i, c});
-                recWs[addr] = {v:val, t:typeof val==='number'?'n':'s'};
-                if (typeof val==='number'&&c>=3) recWs[addr].z='#,##0.00';
-            }));
-            const rtRow = 2 + recRows.length;
-            recWs[XLSX.utils.encode_cell({r:rtRow,c:0})] = {v:'MONTHLY TOTAL',t:'s'};
-            recWs[XLSX.utils.encode_cell({r:rtRow,c:3})] = {v:recurringTotal,t:'n',z:'#,##0.00'};
-            recWs['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rtRow,c:7}});
+            // Group by category, sorted alphabetically within each group
+            const recByCat = {};
+            recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||'')).forEach(e => {
+                const cat = e.category || 'Uncategorised';
+                if (!recByCat[cat]) recByCat[cat] = [];
+                recByCat[cat].push(e);
+            });
+            let recR = 2; // current write row (0-indexed)
+            Object.entries(recByCat).forEach(([cat, items]) => {
+                // individual rows
+                items.forEach(e => {
+                    toRow(e).forEach((val,c) => {
+                        const addr = XLSX.utils.encode_cell({r:recR, c});
+                        recWs[addr] = {v:val, t:typeof val==='number'?'n':'s'};
+                        if (typeof val==='number'&&c>=3) recWs[addr].z='#,##0.00';
+                    });
+                    recR++;
+                });
+                // category subtotal row
+                const catTotal = items.reduce((s,e)=>s+Number(e.amount||0),0);
+                recWs[XLSX.utils.encode_cell({r:recR,c:0})] = {v:`${cat} — Subtotal`,t:'s'};
+                recWs[XLSX.utils.encode_cell({r:recR,c:3})] = {v:catTotal,t:'n',z:'#,##0.00'};
+                recR++;
+                // blank spacer row
+                recR++;
+            });
+            // grand total
+            recWs[XLSX.utils.encode_cell({r:recR,c:0})] = {v:'MONTHLY TOTAL (all recurring)',t:'s'};
+            recWs[XLSX.utils.encode_cell({r:recR,c:3})] = {v:recurringTotal,t:'n',z:'#,##0.00'};
+            recWs['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:recR,c:7}});
 
             // ── download ───────────────────────────────────────────────────────
             XLSX.writeFile(wb, `${periodLabel.replace(/\s/g,'_')}_MonthlyClose.xlsx`);
