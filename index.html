@@ -5806,6 +5806,22 @@
         
         let isProcessingRecurring = false; // re-entrancy guard
 
+        // ── Date helpers: avoid UTC/local mismatch (toISOString() uses UTC,
+        // which stamps the wrong calendar date for SGT users between 12am-8am) ──
+        function localDateStr(d) {
+            const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+            return `${y}-${m}-${day}`;
+        }
+        // "Business day": your day doesn't roll over until 8am local time.
+        // Between midnight and 8am, this still returns yesterday's date.
+        function businessToday(dayStartHour = 8) {
+            const now = new Date();
+            if (now.getHours() < dayStartHour) {
+                now.setDate(now.getDate() - 1);
+            }
+            return now;
+        }
+
         async function processRecurringExpenses() {
             if (expenses.length === 0) return;
             if (isProcessingRecurring) return; // a pass is already in flight
@@ -5813,7 +5829,7 @@
             isProcessingRecurring = true;
 
             try {
-                const now = new Date();
+                const now = businessToday(); // respects your 8am day-start rule
                 const currentMonth = now.getMonth();
                 const currentYear = now.getFullYear();
                 const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
@@ -5850,7 +5866,7 @@
 
                     const newInstance = {
                         ...template,
-                        date: now.toISOString().split('T')[0],
+                        date: localDateStr(now),
                         isRecurring: false,
                         sourceTemplateId: template.id,
                         instanceMonth: monthKey,
@@ -7278,7 +7294,7 @@ async function handleDeleteExpense(id) {
     const original = expenses.find(e => e.id === id);
     if (!original) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr(businessToday());
     const newExpense = {
         ...original,
         date: today,
