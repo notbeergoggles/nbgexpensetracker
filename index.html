@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NotBeerGoggles Shared Expenses Tracker</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -7331,7 +7331,6 @@ async function handleDeleteExpense(id) {
                 const [y,m] = filter.split('-');
                 return d.getFullYear()===parseInt(y) && d.getMonth()===parseInt(m)-1;
             });
-            // Recurring templates: include ALL (not date-filtered — their date is original creation date)
             const recurringTemplates = all.filter(e => e.isRecurring === true);
             const regularAndSettlements = inScope.filter(e => e.isRecurring !== true);
 
@@ -7339,7 +7338,6 @@ async function handleDeleteExpense(id) {
                 alert('No expenses for the selected period.'); return;
             }
 
-            // ── income prompt ──────────────────────────────────────────────────
             const kRaw = prompt("Kenny's income / inflow for this period (SGD):\n(Leave blank to skip)", '');
             if (kRaw === null) return;
             const sRaw = prompt("Sayuri's income / inflow for this period (SGD):\n(Leave blank to skip)", '');
@@ -7347,13 +7345,11 @@ async function handleDeleteExpense(id) {
             const kennyIncome  = parseFloat(kRaw)  || 0;
             const sayuriIncome = parseFloat(sRaw) || 0;
 
-            // ── period label ───────────────────────────────────────────────────
             let periodLabel;
             if (filter === 'all') periodLabel = 'All time';
             else if (filter === 'current') periodLabel = now.toLocaleString('default',{month:'long',year:'numeric'});
             else { const [y,m]=filter.split('-'); periodLabel=new Date(y,m-1).toLocaleString('default',{month:'long',year:'numeric'}); }
 
-            // ── split type label ───────────────────────────────────────────────
             function splitLabel(e) {
                 if (e.isPayment) return 'Settlement';
                 const ys=Number(e.yourShare||0), hs=Number(e.herShare||0), amt=Number(e.amount||0);
@@ -7366,7 +7362,6 @@ async function handleDeleteExpense(id) {
                 return `Custom (Kenny ${Number(ys).toFixed(2)} / Sayuri ${Number(hs).toFixed(2)})`;
             }
 
-            // ── settlement math ────────────────────────────────────────────────
             let kennyPaid=0, sayuriPaid=0, kennyShare=0, sayuriShare=0, totalSpend=0;
             const catTotals = {};
             regularAndSettlements.slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(e => {
@@ -7384,160 +7379,204 @@ async function handleDeleteExpense(id) {
             });
             const recurringTotal = recurringTemplates.reduce((s,e)=>s+Number(e.amount||0),0);
             const net = kennyPaid - kennyShare;
-            const netLabel = net>0 ? `Sayuri owes Kenny` : net<0 ? `Kenny owes Sayuri` : `All settled ✓`;
+            const netLabel = net>0 ? 'Sayuri owes Kenny' : net<0 ? 'Kenny owes Sayuri' : 'All settled';
 
-            // ── fetch & load template ──────────────────────────────────────────
             const btn = document.getElementById('exportBtn');
             const origText = btn.textContent;
             btn.textContent = '⏳ Generating…'; btn.disabled = true;
-            let wb;
+
             try {
-                const res = await fetch('./export-template.xlsx', {cache:'no-cache'});
-                if (!res.ok) throw new Error(`Template not found (${res.status}) — commit export-template.xlsx to your repo root.`);
-                const buf = await res.arrayBuffer();
-                wb = XLSX.read(buf, {type:'array', cellStyles:true});
+                await generateXlsxFromTemplate({
+                    periodLabel, kennyIncome, sayuriIncome, totalSpend,
+                    kennyPaid, sayuriPaid, kennyShare, sayuriShare,
+                    netLabel, netAmount: Math.abs(net), recurringTotal,
+                    catTotals, regularAndSettlements, recurringTemplates, splitLabel
+                });
             } catch(e) {
-                alert('Could not load export template: ' + e.message);
+                console.error(e);
+                alert('Export failed: ' + e.message);
+            } finally {
                 btn.textContent = origText; btn.disabled = false;
-                return;
+            }
+        }
+
+        // ── XML-level cell patch helpers (preserve styles/charts exactly) ───────
+        function escapeXmlText(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+        }
+        function patchXmlCell(xml, ref, value, isNum) {
+            const re = new RegExp('<c r="' + ref + '"([^>]*)(?:/>|>[\\s\\S]*?</c>)');
+            const m = xml.match(re);
+            if (!m) return xml; // cell not reserved in template — skip silently
+            const attrs = m[1].replace(/\st="[^"]*"/, '');
+            const newTag = isNum
+                ? `<c r="${ref}"${attrs}><v>${value}</v></c>`
+                : `<c r="${ref}"${attrs} t="inlineStr"><is><t>${escapeXmlText(value)}</t></is></c>`;
+            return xml.slice(0, m.index) + newTag + xml.slice(m.index + m[0].length);
+        }
+        function colLetterToNum(col) {
+            let n = 0;
+            for (let i=0;i<col.length;i++) n = n*26 + (col.charCodeAt(i)-64);
+            return n;
+        }
+        function numToColLetter(n) {
+            let s = '';
+            while (n > 0) { const r = (n-1)%26; s = String.fromCharCode(65+r) + s; n = Math.floor((n-1)/26); }
+            return s;
+        }
+
+        async function generateXlsxFromTemplate(d) {
+            const res = await fetch('./export-template.xlsx', {cache:'no-cache'});
+            if (!res.ok) throw new Error(`Template not found (${res.status}) — commit export-template.xlsx to your repo root.`);
+            const buf = await res.arrayBuffer();
+            const zip = await JSZip.loadAsync(buf);
+
+            // resolve sheet name -> internal xml path (order-agnostic attribute parsing)
+            const wbXml = await zip.file('xl/workbook.xml').async('string');
+            const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+            const sheetIdByName = {};
+            [...wbXml.matchAll(/<sheet\b[^>]*\/>/g)].forEach(m => {
+                const tag = m[0];
+                const nameM = tag.match(/name="([^"]+)"/);
+                const ridM = tag.match(/r:id="(rId\d+)"/);
+                if (nameM && ridM) sheetIdByName[nameM[1]] = ridM[1];
+            });
+            const pathByRid = {};
+            [...relsXml.matchAll(/<Relationship\b[^>]*\/>/g)].forEach(m => {
+                const tag = m[0];
+                const idM = tag.match(/Id="(rId\d+)"/);
+                const tgtM = tag.match(/Target="([^"]+)"/);
+                if (idM && tgtM) {
+                    let t = tgtM[1];
+                    if (!t.startsWith('/') && !t.startsWith('xl/')) t = 'xl/' + t;
+                    pathByRid[idM[1]] = t.replace(/^\//,'');
+                }
+            });
+            const sheetPath = name => pathByRid[sheetIdByName[name]];
+
+            const sheets = {};
+            for (const name of ['Summary','Expenses','Recurring','ChartData']) {
+                const path = sheetPath(name);
+                if (!path) throw new Error(`Sheet "${name}" not found in template`);
+                sheets[name] = await zip.file(path).async('string');
             }
 
-            // ── write to named range first cell ───────────────────────────────
-            function writeNamed(name, value) {
-                const entry = wb.Workbook && wb.Workbook.Names && wb.Workbook.Names.find(n=>n.Name===name);
-                if (!entry) return;
-                const match = entry.Ref.replace(/^=/, '').match(/'?([^'!]+)'?!\$([A-Z]+)\$(\d+)/);
-                if (!match) return;
-                const [,sheetName,col,row] = match;
-                const ws = wb.Sheets[sheetName]; if (!ws) return;
-                const addr = col + row;
-                ws[addr] = ws[addr] || {};
-                ws[addr].v = value;
-                ws[addr].t = typeof value==='number' ? 'n' : 's';
-                if (typeof value==='number') ws[addr].z = '#,##0.00';
+            // ── Summary: fixed cells ──────────────────────────────────────────
+            let sum = sheets.Summary;
+            sum = patchXmlCell(sum, 'A2', d.periodLabel, false);
+            sum = patchXmlCell(sum, 'B5', d.kennyIncome, true);
+            sum = patchXmlCell(sum, 'B6', d.sayuriIncome, true);
+            sum = patchXmlCell(sum, 'B10', d.totalSpend, true);
+            sum = patchXmlCell(sum, 'B14', d.kennyPaid, true);
+            sum = patchXmlCell(sum, 'B15', d.sayuriPaid, true);
+            sum = patchXmlCell(sum, 'B18', d.kennyShare, true);
+            sum = patchXmlCell(sum, 'B19', d.sayuriShare, true);
+            sum = patchXmlCell(sum, 'A22', d.netLabel, false);
+            sum = patchXmlCell(sum, 'B22', d.netAmount, true);
+
+            // category breakdown C5:D24 (20 reserved), trim unused
+            const catEntries = Object.entries(d.catTotals).sort((a,b)=>b[1]-a[1]).slice(0,20);
+            catEntries.forEach(([cat,amt],i) => {
+                const row = 5+i;
+                sum = patchXmlCell(sum, `C${row}`, cat, false);
+                sum = patchXmlCell(sum, `D${row}`, amt, true);
+            });
+            for (let i=catEntries.length; i<20; i++) {
+                const row = 5+i;
+                sum = trimXmlCell(sum, `C${row}`);
+                sum = trimXmlCell(sum, `D${row}`);
             }
-            function writeCell(sheetName, addr, value) {
-                const ws = wb.Sheets[sheetName]; if (!ws) return;
-                ws[addr] = ws[addr] || {};
-                ws[addr].v = value;
-                ws[addr].t = typeof value==='number' ? 'n' : 's';
-                if (typeof value==='number') ws[addr].z = '#,##0.00';
-            }
 
-            // ── Summary ────────────────────────────────────────────────────────
-            writeNamed('PERIOD',        periodLabel);
-            writeNamed('KENNY_INCOME',  kennyIncome);
-            writeNamed('SAYURI_INCOME', sayuriIncome);
-            writeNamed('TOTAL_SPENT',   totalSpend);
-            writeNamed('KENNY_PAID',    kennyPaid);
-            writeNamed('SAYURI_PAID',   sayuriPaid);
-            writeNamed('KENNY_SHARE',   kennyShare);
-            writeNamed('SAYURI_SHARE',  sayuriShare);
-            writeNamed('NET_LABEL',     netLabel);
-            writeNamed('NET_AMOUNT',    Math.abs(net));
-
-            // recurring — individual rows grouped by category, written from row 25 down
-            const sumWs = wb.Sheets['Summary'];
-            let sumRecR = 24; // 0-indexed = row 25
-            const recByCatSum = {};
-            recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||'')).forEach(e => {
-                const cat = e.category || 'Uncategorised';
-                if (!recByCatSum[cat]) recByCatSum[cat] = [];
-                recByCatSum[cat].push(e);
-            });
-            Object.entries(recByCatSum).forEach(([cat, items]) => {
-                items.forEach(e => {
-                    sumWs[XLSX.utils.encode_cell({r:sumRecR,c:0})] = {v:e.description||'',t:'s'};
-                    sumWs[XLSX.utils.encode_cell({r:sumRecR,c:1})] = {v:Number(e.amount||0),t:'n',z:'#,##0.00'};
-                    sumWs[XLSX.utils.encode_cell({r:sumRecR,c:2})] = {v:cat,t:'s'};
-                    sumRecR++;
-                });
-                const catTotal = items.reduce((s,e)=>s+Number(e.amount||0),0);
-                sumWs[XLSX.utils.encode_cell({r:sumRecR,c:0})] = {v:`${cat} subtotal`,t:'s'};
-                sumWs[XLSX.utils.encode_cell({r:sumRecR,c:1})] = {v:catTotal,t:'n',z:'#,##0.00'};
-                sumRecR+=2; // blank spacer
-            });
-            sumWs[XLSX.utils.encode_cell({r:sumRecR,c:0})] = {v:'MONTHLY TOTAL (recurring)',t:'s'};
-            sumWs[XLSX.utils.encode_cell({r:sumRecR,c:1})] = {v:recurringTotal,t:'n',z:'#,##0.00'};
-            // extend sheet ref to cover the new rows
-            const existingRef = XLSX.utils.decode_range(sumWs['!ref']||'A1:D25');
-            sumWs['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(existingRef.e.r,sumRecR),c:Math.max(existingRef.e.c,3)}});
-
-            // category table C5:D14
-            const cats = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,10);
-            cats.forEach(([cat,amt],i) => {
-                writeCell('Summary', `C${5+i}`, cat);
-                writeCell('Summary', `D${5+i}`, amt);
-            });
-
-            // ChartData
-            cats.forEach(([cat,amt],i) => {
-                writeCell('ChartData', `A${2+i}`, cat);
-                writeCell('ChartData', `B${2+i}`, amt);
-            });
-            writeCell('ChartData', 'E2', kennyIncome);
-            writeCell('ChartData', 'F2', kennyShare);
-            writeCell('ChartData', 'E3', sayuriIncome);
-            writeCell('ChartData', 'F3', sayuriShare);
-
-            // ── Expenses sheet ─────────────────────────────────────────────────
-            function toRow(e) {
-                return [e.date||''||'', e.description||'', e.category||'',
-                        Number(e.amount)||0, e.paidBy||'',
-                        e.isPayment?0:Number(e.yourShare||0),
-                        e.isPayment?0:Number(e.herShare||0),
-                        splitLabel(e)];
-            }
-            const expWs = wb.Sheets['Expenses'];
-            const expRows = regularAndSettlements.slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).map(toRow);
-            expRows.forEach((row,i) => row.forEach((val,c) => {
-                const addr = XLSX.utils.encode_cell({r:2+i, c});
-                expWs[addr] = {v:val, t:typeof val==='number'?'n':'s'};
-                if (typeof val==='number'&&c>=3) expWs[addr].z='#,##0.00';
-            }));
-            const etRow = 2 + expRows.length;
-            expWs[XLSX.utils.encode_cell({r:etRow,c:0})] = {v:'TOTAL',t:'s'};
-            [3,5,6].forEach(c => {
-                expWs[XLSX.utils.encode_cell({r:etRow,c})] = {v:expRows.reduce((s,r)=>s+(r[c]||0),0),t:'n',z:'#,##0.00'};
-            });
-            expWs['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:etRow,c:7}});
-
-            // ── Recurring sheet ────────────────────────────────────────────────
-            const recWs = wb.Sheets['Recurring'];
-            // Group by category, sorted alphabetically within each group
+            // recurring block A28:C127 (100 reserved), grouped by category with subtotals
             const recByCat = {};
-            recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||'')).forEach(e => {
+            d.recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||'')).forEach(e => {
                 const cat = e.category || 'Uncategorised';
-                if (!recByCat[cat]) recByCat[cat] = [];
-                recByCat[cat].push(e);
+                (recByCat[cat] = recByCat[cat] || []).push(e);
             });
-            let recR = 2; // current write row (0-indexed)
+            let r = 28;
             Object.entries(recByCat).forEach(([cat, items]) => {
-                // individual rows
                 items.forEach(e => {
-                    toRow(e).forEach((val,c) => {
-                        const addr = XLSX.utils.encode_cell({r:recR, c});
-                        recWs[addr] = {v:val, t:typeof val==='number'?'n':'s'};
-                        if (typeof val==='number'&&c>=3) recWs[addr].z='#,##0.00';
-                    });
-                    recR++;
+                    sum = patchXmlCell(sum, `A${r}`, e.description||'', false);
+                    sum = patchXmlCell(sum, `B${r}`, Number(e.amount||0), true);
+                    sum = patchXmlCell(sum, `C${r}`, cat, false);
+                    r++;
                 });
-                // category subtotal row
                 const catTotal = items.reduce((s,e)=>s+Number(e.amount||0),0);
-                recWs[XLSX.utils.encode_cell({r:recR,c:0})] = {v:`${cat} — Subtotal`,t:'s'};
-                recWs[XLSX.utils.encode_cell({r:recR,c:3})] = {v:catTotal,t:'n',z:'#,##0.00'};
-                recR++;
-                // blank spacer row
-                recR++;
+                sum = patchXmlCell(sum, `A${r}`, `${cat} — Subtotal`, false);
+                sum = patchXmlCell(sum, `B${r}`, catTotal, true);
+                r += 2; // spacer
             });
-            // grand total
-            recWs[XLSX.utils.encode_cell({r:recR,c:0})] = {v:'MONTHLY TOTAL (all recurring)',t:'s'};
-            recWs[XLSX.utils.encode_cell({r:recR,c:3})] = {v:recurringTotal,t:'n',z:'#,##0.00'};
-            recWs['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:recR,c:7}});
+            if (Object.keys(recByCat).length) {
+                sum = patchXmlCell(sum, `A${r}`, 'MONTHLY TOTAL (recurring)', false);
+                sum = patchXmlCell(sum, `B${r}`, d.recurringTotal, true);
+                r++;
+            }
+            for (let row = r; row < 28+100; row++) {
+                sum = trimXmlCell(sum, `A${row}`);
+                sum = trimXmlCell(sum, `B${row}`);
+                sum = trimXmlCell(sum, `C${row}`);
+            }
+            sheets.Summary = sum;
 
-            // ── download ───────────────────────────────────────────────────────
-            XLSX.writeFile(wb, `${periodLabel.replace(/\s/g,'_')}_MonthlyClose.xlsx`);
-            btn.textContent = origText; btn.disabled = false;
+            // ── ChartData ──────────────────────────────────────────────────────
+            let cd = sheets.ChartData;
+            catEntries.forEach(([cat,amt],i) => {
+                const row = 2+i;
+                cd = patchXmlCell(cd, `A${row}`, cat, false);
+                cd = patchXmlCell(cd, `B${row}`, amt, true);
+            });
+            for (let i=catEntries.length; i<20; i++) {
+                const row = 2+i;
+                cd = trimXmlCell(cd, `A${row}`);
+                cd = trimXmlCell(cd, `B${row}`);
+            }
+            cd = patchXmlCell(cd, 'E2', d.kennyIncome, true);
+            cd = patchXmlCell(cd, 'F2', d.kennyShare, true);
+            cd = patchXmlCell(cd, 'E3', d.sayuriIncome, true);
+            cd = patchXmlCell(cd, 'F3', d.sayuriShare, true);
+            sheets.ChartData = cd;
+
+            // ── Expenses / Recurring transaction tables ─────────────────────────
+            function fillTxnSheet(xml, rows, maxRows) {
+                rows.forEach((e,i) => {
+                    const row = 3+i;
+                    xml = patchXmlCell(xml, `A${row}`, e.date||'', false);
+                    xml = patchXmlCell(xml, `B${row}`, e.description||'', false);
+                    xml = patchXmlCell(xml, `C${row}`, e.category||'', false);
+                    xml = patchXmlCell(xml, `D${row}`, Number(e.amount)||0, true);
+                    xml = patchXmlCell(xml, `E${row}`, e.paidBy||'', false);
+                    xml = patchXmlCell(xml, `F${row}`, e.isPayment?0:Number(e.yourShare||0), true);
+                    xml = patchXmlCell(xml, `G${row}`, e.isPayment?0:Number(e.herShare||0), true);
+                    xml = patchXmlCell(xml, `H${row}`, d.splitLabel(e), false);
+                });
+                for (let i=rows.length; i<maxRows; i++) {
+                    const row = 3+i;
+                    ['A','B','C','D','E','F','G','H'].forEach(c => { xml = trimXmlCell(xml, `${c}${row}`); });
+                }
+                return xml;
+            }
+            const expRows = d.regularAndSettlements.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+            sheets.Expenses = fillTxnSheet(sheets.Expenses, expRows, 150);
+            const recRows = d.recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||''));
+            sheets.Recurring = fillTxnSheet(sheets.Recurring, recRows, 100);
+
+            // write patched sheets back into the zip, everything else untouched
+            for (const name of ['Summary','Expenses','Recurring','ChartData']) {
+                zip.file(sheetPath(name), sheets[name]);
+            }
+
+            const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${d.periodLabel.replace(/\s/g,'_')}_MonthlyClose.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function trimXmlCell(xml, ref) {
+            const re = new RegExp('<c r="' + ref + '"([^>]*)(?:/>|>[\\s\\S]*?</c>)');
+            return xml.replace(re, `<c r="${ref}"/>`);
         }
 
                 document.getElementById('exportBtn').addEventListener('click', exportToCSV);
