@@ -2228,7 +2228,61 @@
             </div>
 
             <!-- ===== PLACEHOLDER PANELS ===== -->
-            <div class="reno-panel" data-panel="payments"><div class="card reno-soon"><div class="reno-soon-emoji">💳</div><div class="reno-soon-title">Payments</div><div class="reno-soon-sub">Progressive payment schedule — coming soon.</div></div></div>
+            <div class="reno-panel" data-panel="payments">
+                <div class="card">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:var(--space-12);">
+                        <h3 style="margin:0;">Payments</h3>
+                        <button type="button" class="btn btn--accent accent-teal" id="payAddBtn" style="padding:8px 16px;"><span style="font-size:15px; line-height:1;">＋</span> Add payment</button>
+                    </div>
+                    <div id="paySummary" class="reno-pay-summary"></div>
+                    <!-- add/edit form -->
+                    <div id="payForm" class="reno-collapse">
+                        <div class="reno-collapse-inner">
+                            <div class="form-group">
+                                <label class="form-label">What's this payment for</label>
+                                <input type="text" id="payLabel" class="form-input" placeholder="e.g. Hacking & masonry — 2nd progress payment">
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Vendor <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                    <select id="payVendor" class="form-input"><option value="">— None —</option></select>
+                                </div>
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Amount (SGD)</label>
+                                    <input type="number" id="payAmount" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Due date</label>
+                                    <input type="date" id="payDue" class="form-input">
+                                </div>
+                                <div class="form-group" style="flex:1; min-width:130px;">
+                                    <label class="form-label">Status</label>
+                                    <select id="payStatus" class="form-input">
+                                        <option value="Upcoming">Upcoming</option>
+                                        <option value="Paid">Paid</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group" id="payPaidOnWrap" style="display:none;">
+                                <label class="form-label">Paid on</label>
+                                <input type="date" id="payPaidOn" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Notes <span style="font-weight:400; color:var(--color-text-secondary);">(optional)</span></label>
+                                <input type="text" id="payNotes" class="form-input" placeholder="e.g. PayNow to Mr Tan, ref INV-1023">
+                            </div>
+                            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                                <button type="button" class="btn btn--secondary" id="payCancel" style="padding:8px 18px;">Cancel</button>
+                                <button type="button" class="btn btn--primary" id="paySave" style="padding:8px 18px;">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="payList" class="reno-pay-list"></div>
+                </div>
+            </div>
+
             <div class="reno-panel" data-panel="vendors">
                 <div class="card">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:var(--space-12);">
@@ -2357,6 +2411,22 @@
         .reno-ven-actions { display:flex; gap:6px; margin-top:var(--space-12); }
         .reno-ven-actions button { padding:4px 10px; font-size:11px; }
         .reno-status-chip { font-size:10px; font-weight:700; padding:3px 9px; border-radius:50px; text-transform:uppercase; letter-spacing:0.02em; white-space:nowrap; }
+        /* payments */
+        .reno-pay-summary { display:flex; gap:8px; margin-bottom:var(--space-16); flex-wrap:wrap; }
+        .reno-pay-sum-card { flex:1; min-width:110px; padding:10px 12px; border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); text-align:center; }
+        .reno-pay-sum-num { font-size:18px; font-weight:800; }
+        .reno-pay-sum-lbl { font-size:10px; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:0.03em; margin-top:2px; }
+        .reno-pay-list { display:flex; flex-direction:column; gap:var(--space-12); }
+        .reno-pay-list:empty::after { content:'No payments scheduled yet. Tap “＋ Add payment” to log your progressive payment schedule.'; display:block; text-align:center; padding:var(--space-16); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+        .reno-pay-item { padding:var(--space-12) var(--space-16); border-radius:var(--radius-base); background:var(--color-background); border:1px solid var(--color-border); border-left:4px solid var(--rp-color, var(--color-border)); }
+        .reno-pay-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+        .reno-pay-label { font-weight:700; }
+        .reno-pay-vendor { font-size:12px; color:var(--color-text-secondary); margin-top:2px; }
+        .reno-pay-meta { font-size:12px; color:var(--color-text-secondary); margin-top:8px; display:flex; flex-wrap:wrap; gap:4px 14px; }
+        .reno-pay-amt { font-weight:700; font-size:15px; white-space:nowrap; }
+        .reno-pay-notes { font-size:12px; color:var(--color-text-secondary); margin-top:8px; }
+        .reno-pay-actions { display:flex; gap:6px; margin-top:var(--space-12); }
+        .reno-pay-actions button { padding:4px 10px; font-size:11px; }
         @media (prefers-reduced-motion: reduce) { .reno-panel { animation:none; } .reno-collapse { transition:none; } }
     </style>
 
@@ -8799,12 +8869,14 @@ async function handleDeleteExpense(id) {
         const COSTS_DOC = () => db.collection('reno_costs').doc('shared');
         const BUDGET_DOC = () => db.collection('reno_meta').doc('shared');
         const VENDORS_DOC = () => db.collection('reno_vendors').doc('shared');
+        const PAYMENTS_DOC = () => db.collection('reno_payments').doc('shared');
         let costs = [];        // {id,name,category,room,vendor,quoted,actual,gst,inPackage,notes}
         let vendors = [];      // {id,name,trade,status,contact,phone,email,quoted,notes}
+        let payments = [];     // {id,label,vendor,amount,due,status,paidOn,notes}
         let renoBudget = 0;    // overall budget
         let moveInDate = '';   // ISO date string
         let costGroup = 'category';
-        let cUnsub = null, mUnsub = null, vUnsub = null, suppress = false, editingId = null, editingVenId = null;
+        let cUnsub = null, mUnsub = null, vUnsub = null, pUnsub = null, suppress = false, editingId = null, editingVenId = null, editingPayId = null;
 
         function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         const money = n => window.fmtMoney ? window.fmtMoney(Number(n)||0) : 'SGD '+(Number(n)||0).toFixed(2);
@@ -8825,20 +8897,27 @@ async function handleDeleteExpense(id) {
             if (isLive()) { try { await VENDORS_DOC().set({ items: vendors }); } catch(e){ window.showSaveError && window.showSaveError('reno vendors', e);} }
             else localStorage.setItem('renoVendors', JSON.stringify(vendors));
         }
+        async function savePayments() {
+            if (suppress) return;
+            if (isLive()) { try { await PAYMENTS_DOC().set({ items: payments }); } catch(e){ window.showSaveError && window.showSaveError('reno payments', e);} }
+            else localStorage.setItem('renoPayments', JSON.stringify(payments));
+        }
 
         function initRenoLive() {
-            if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub();
+            if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub(); if (pUnsub) pUnsub();
             cUnsub = COSTS_DOC().onSnapshot(s => { suppress=true; costs = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderCosts(); renderOverview(); renderVendors(); }, e=>console.error('reno costs',e));
             mUnsub = BUDGET_DOC().onSnapshot(s => { suppress=true; if(s.exists){ renoBudget=s.data().budget||0; moveInDate=s.data().moveIn||''; } suppress=false; renderOverview(); }, e=>console.error('reno meta',e));
-            vUnsub = VENDORS_DOC().onSnapshot(s => { suppress=true; vendors = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderVendors(); renderOverview(); }, e=>console.error('reno vendors',e));
+            vUnsub = VENDORS_DOC().onSnapshot(s => { suppress=true; vendors = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderVendors(); renderOverview(); populatePayVendorOptions(); }, e=>console.error('reno vendors',e));
+            pUnsub = PAYMENTS_DOC().onSnapshot(s => { suppress=true; payments = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderPayments(); renderOverview(); }, e=>console.error('reno payments',e));
         }
         function initRenoLocal() {
-            if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub();
+            if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub(); if (pUnsub) pUnsub();
             costs = JSON.parse(localStorage.getItem('renoCosts')||'[]');
             vendors = JSON.parse(localStorage.getItem('renoVendors')||'[]');
+            payments = JSON.parse(localStorage.getItem('renoPayments')||'[]');
             const meta = JSON.parse(localStorage.getItem('renoMeta')||'{}');
             renoBudget = meta.budget||0; moveInDate = meta.moveIn||'';
-            renderCosts(); renderOverview(); renderVendors();
+            renderCosts(); renderOverview(); renderVendors(); renderPayments(); populatePayVendorOptions();
         }
         window.renoInitLive = initRenoLive;
         window.renoInitLocal = initRenoLocal;
@@ -9039,6 +9118,135 @@ async function handleDeleteExpense(id) {
             venForm.classList.remove('open');
         };
 
+        // ---- payments ----
+        function populatePayVendorOptions(){
+            const sel = document.getElementById('payVendor');
+            if(!sel) return;
+            const current = sel.value;
+            sel.innerHTML = '<option value="">— None —</option>' + vendors.map(v=>`<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+            sel.value = current;
+        }
+        function paymentStatusInfo(p){
+            if(p.status === 'Paid') return {label:'Paid', bg:'rgba(33,160,90,0.15)', fg:'#21a05a', color:'#21a05a'};
+            if(p.due){
+                const today = new Date(); today.setHours(0,0,0,0);
+                const dueDate = new Date(p.due+'T00:00:00');
+                if(dueDate < today) return {label:'Overdue', bg:'rgba(212,69,62,0.15)', fg:'#d4453e', color:'#d4453e'};
+                const days = Math.ceil((dueDate-today)/86400000);
+                if(days <= 7) return {label:'Due soon', bg:'rgba(224,160,32,0.15)', fg:'#b5790f', color:'#e0a020'};
+            }
+            return {label:'Upcoming', bg:'rgba(46,134,222,0.15)', fg:'#2e86de', color:'#2e86de'};
+        }
+        function renderPayments(){
+            const list = document.getElementById('payList');
+            const sum = document.getElementById('paySummary');
+            if(!list) return;
+            // summary cards
+            const totalDue = payments.filter(p=>p.status!=='Paid').reduce((s,p)=>s+Number(p.amount||0),0);
+            const totalPaid = payments.filter(p=>p.status==='Paid').reduce((s,p)=>s+Number(p.amount||0),0);
+            const overdueCount = payments.filter(p=>paymentStatusInfo(p).label==='Overdue').length;
+            if(sum) sum.innerHTML = `
+                <div class="reno-pay-sum-card"><div class="reno-pay-sum-num">${money(totalDue)}</div><div class="reno-pay-sum-lbl">Outstanding</div></div>
+                <div class="reno-pay-sum-card"><div class="reno-pay-sum-num" style="color:#21a05a;">${money(totalPaid)}</div><div class="reno-pay-sum-lbl">Paid</div></div>
+                <div class="reno-pay-sum-card"><div class="reno-pay-sum-num" style="color:${overdueCount>0?'#d4453e':'inherit'};">${overdueCount}</div><div class="reno-pay-sum-lbl">Overdue</div></div>`;
+
+            list.innerHTML = '';
+            // sort: unpaid by due date ascending (nulls last), then paid at the bottom by paidOn desc
+            const sorted = payments.slice().sort((a,b)=>{
+                if((a.status==='Paid') !== (b.status==='Paid')) return a.status==='Paid' ? 1 : -1;
+                if(a.status==='Paid') return (b.paidOn||'').localeCompare(a.paidOn||'');
+                if(!a.due && !b.due) return 0;
+                if(!a.due) return 1;
+                if(!b.due) return -1;
+                return a.due.localeCompare(b.due);
+            });
+            sorted.forEach(p=>{
+                const node = document.createElement('div');
+                node.className = 'reno-pay-item';
+                const info = paymentStatusInfo(p);
+                node.style.setProperty('--rp-color', info.color);
+                const dueStr = p.due ? new Date(p.due+'T00:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) : 'No due date';
+                const paidStr = p.paidOn ? new Date(p.paidOn+'T00:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'short',year:'numeric'}) : '';
+                node.innerHTML = `
+                    <div class="reno-pay-top">
+                        <div>
+                            <div class="reno-pay-label">${esc(p.label||'Payment')}</div>
+                            ${p.vendor?`<div class="reno-pay-vendor">${esc(p.vendor)}</div>`:''}
+                        </div>
+                        <span class="reno-status-chip" style="background:${info.bg};color:${info.fg};">${info.label}</span>
+                    </div>
+                    <div class="reno-pay-meta">
+                        <span class="reno-pay-amt">${money(p.amount)}</span>
+                        <span>${p.status==='Paid' ? `Paid ${paidStr}` : `Due ${dueStr}`}</span>
+                    </div>
+                    ${p.notes?`<div class="reno-pay-notes">📝 ${esc(p.notes)}</div>`:''}
+                    <div class="reno-pay-actions"></div>`;
+                const acts = node.querySelector('.reno-pay-actions');
+                if(p.status !== 'Paid'){
+                    const markPaid = document.createElement('button');
+                    markPaid.className = 'btn btn--accent accent-teal';
+                    markPaid.textContent = '✓ Mark paid';
+                    markPaid.onclick = () => { p.status='Paid'; p.paidOn = localDateStr(new Date()); savePayments(); renderPayments(); renderOverview(); };
+                    acts.appendChild(markPaid);
+                }
+                const ed = document.createElement('button'); ed.className='btn btn--secondary'; ed.textContent='Edit'; ed.onclick=()=>openPayEdit(p.id);
+                const dl = document.createElement('button'); dl.className='btn btn--secondary'; dl.textContent='🗑️'; dl.onclick=()=>{ if(confirm('Delete this payment?')){ payments=payments.filter(x=>x.id!==p.id); savePayments(); renderPayments(); renderOverview(); } };
+                acts.append(ed, dl);
+                list.appendChild(node);
+            });
+        }
+
+        const payForm = document.getElementById('payForm');
+        function togglePayPaidOnField(){
+            const wrap = document.getElementById('payPaidOnWrap');
+            const isPaid = document.getElementById('payStatus').value === 'Paid';
+            wrap.style.display = isPaid ? 'block' : 'none';
+            if(isPaid && !document.getElementById('payPaidOn').value) document.getElementById('payPaidOn').value = localDateStr(new Date());
+        }
+        document.getElementById('payStatus').addEventListener('change', togglePayPaidOnField);
+        function clearPayForm(){
+            ['payLabel','payAmount','payDue','payPaidOn','payNotes'].forEach(id=>document.getElementById(id).value='');
+            document.getElementById('payVendor').value = '';
+            document.getElementById('payStatus').value = 'Upcoming';
+            togglePayPaidOnField();
+        }
+        function openPayForm(){ editingPayId=null; populatePayVendorOptions(); clearPayForm(); payForm.classList.add('open'); }
+        function openPayEdit(id){
+            const p = payments.find(x=>x.id===id); if(!p) return; editingPayId=id;
+            populatePayVendorOptions();
+            document.getElementById('payLabel').value = p.label||'';
+            document.getElementById('payVendor').value = p.vendor||'';
+            document.getElementById('payAmount').value = p.amount??'';
+            document.getElementById('payDue').value = p.due||'';
+            document.getElementById('payStatus').value = p.status||'Upcoming';
+            document.getElementById('payPaidOn').value = p.paidOn||'';
+            document.getElementById('payNotes').value = p.notes||'';
+            togglePayPaidOnField();
+            payForm.classList.add('open');
+        }
+        document.getElementById('payAddBtn').onclick=()=>{ payForm.classList.contains('open')?payForm.classList.remove('open'):openPayForm(); };
+        document.getElementById('payCancel').onclick=()=>payForm.classList.remove('open');
+        document.getElementById('paySave').onclick=()=>{
+            const label=document.getElementById('payLabel').value.trim();
+            const amt=parseFloat(document.getElementById('payAmount').value);
+            if(!label){ alert('Enter what this payment is for'); return; }
+            if(isNaN(amt)||amt<=0){ alert('Enter a valid amount'); return; }
+            const status = document.getElementById('payStatus').value;
+            const data={
+                label,
+                vendor: document.getElementById('payVendor').value,
+                amount: amt,
+                due: document.getElementById('payDue').value,
+                status,
+                paidOn: status==='Paid' ? (document.getElementById('payPaidOn').value || localDateStr(new Date())) : '',
+                notes: document.getElementById('payNotes').value.trim()
+            };
+            if(editingPayId){ const p=payments.find(x=>x.id===editingPayId); if(p) Object.assign(p,data); }
+            else payments.push({ id:'rp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), ...data });
+            savePayments(); renderPayments(); renderOverview();
+            payForm.classList.remove('open');
+        };
+
         // ---- budget ----
         document.getElementById('renoBudgetBtn').onclick=()=>{
             const b=prompt('Total renovation budget (SGD):', renoBudget||'');
@@ -9080,8 +9288,17 @@ async function handleDeleteExpense(id) {
                 const mb=document.getElementById('moveInBtn');
                 if(mb) mb.onclick=()=>{ const d=prompt('Move-in date (YYYY-MM-DD):', moveInDate||''); if(d===null)return; if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ alert('Use format YYYY-MM-DD'); return; } moveInDate=d; saveMeta(); renderOverview(); };
             }
-            // stat cards (payments/selections/defects come later → placeholders)
-            document.getElementById('ovNextPayment').textContent='—';
+            // stat cards
+            const upcoming = payments.filter(p=>p.status!=='Paid').slice().sort((a,b)=>{
+                if(!a.due && !b.due) return 0;
+                if(!a.due) return 1;
+                if(!b.due) return -1;
+                return a.due.localeCompare(b.due);
+            });
+            const nextPay = upcoming[0];
+            document.getElementById('ovNextPayment').textContent = nextPay
+                ? (nextPay.due ? new Date(nextPay.due+'T00:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'short'}) : money(nextPay.amount))
+                : '—';
             document.getElementById('ovPending').textContent='0';
             document.getElementById('ovDefects').textContent='0';
             document.getElementById('ovMilestone').textContent='—';
