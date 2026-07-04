@@ -1661,7 +1661,7 @@
                 <form id="expenseForm">
                     <div class="form-group">
                         <label class="form-label">Date</label>
-                        <input type="date" id="expenseDate" class="form-control" required>
+                        <input type="text" id="expenseDate" class="form-control" placeholder="DD/MM/YYYY" inputmode="numeric" maxlength="10" autocomplete="off" required>
                     </div>
         
                     <div id="paymentSenderGroup" class="form-group" style="display: none; background: rgba(33, 128, 141, 0.1); padding: 12px; border-radius: 8px; border: 1px solid var(--color-primary);">
@@ -2082,7 +2082,7 @@
     
                 <div class="form-group">
                     <label>Date</label>
-                    <input type="date" id="editDate" class="form-input" required>
+                    <input type="text" id="editDate" class="form-input" placeholder="DD/MM/YYYY" inputmode="numeric" maxlength="10" autocomplete="off" required>
                 </div>
     
                 <div class="form-group" id="editCatGroup">
@@ -5879,6 +5879,33 @@
         
         let isProcessingRecurring = false; // re-entrancy guard
 
+        // ── DD/MM/YYYY <-> ISO helpers (storage stays ISO; display is DD/MM/YYYY) ──
+        function isoToDdmmyyyy(iso) {
+            if (!iso) return '';
+            const [y,m,d] = iso.split('-');
+            if (!y||!m||!d) return '';
+            return `${d}/${m}/${y}`;
+        }
+        function ddmmyyyyToIso(str) {
+            const m = String(str||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (!m) return '';
+            const [,d,mo,y] = m;
+            return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+        }
+        function attachDateMask(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', () => {
+                let digits = el.value.replace(/\D/g,'').slice(0,8);
+                let out = digits;
+                if (digits.length > 4) out = digits.slice(0,2) + '/' + digits.slice(2,4) + '/' + digits.slice(4);
+                else if (digits.length > 2) out = digits.slice(0,2) + '/' + digits.slice(2);
+                el.value = out;
+            });
+        }
+        attachDateMask('expenseDate');
+        attachDateMask('editDate');
+
         // ── Date helpers: avoid UTC/local mismatch (toISOString() uses UTC,
         // which stamps the wrong calendar date for SGT users between 12am-8am) ──
         function localDateStr(d) {
@@ -6497,7 +6524,7 @@ async function deleteExpenseFromFirebase(id) {
     }
 }
 
-        document.getElementById('expenseDate').valueAsDate = new Date();
+        document.getElementById('expenseDate').value = isoToDdmmyyyy(localDateStr(new Date()));
 
         document.querySelectorAll('.tab-button').forEach(button => {
             button.addEventListener('click', () => {
@@ -6680,10 +6707,11 @@ async function deleteExpenseFromFirebase(id) {
             e.preventDefault();
         
             // 1. Common Values
-            const date = document.getElementById('expenseDate').value;
+            const date = ddmmyyyyToIso(document.getElementById('expenseDate').value);
             const description = document.getElementById('expenseDescription').value;
             const amount = Number(document.getElementById('expenseAmount').value) || 0;
         
+            if (!date) { alert('Enter a valid date as DD/MM/YYYY'); return; }
             if (!description || amount <= 0) {
                 alert('Please provide a valid description and amount.');
                 return;
@@ -6798,7 +6826,7 @@ async function deleteExpenseFromFirebase(id) {
         
                 // Reset
                 form.reset();
-                document.getElementById('expenseDate').valueAsDate = new Date();
+                document.getElementById('expenseDate').value = isoToDdmmyyyy(localDateStr(new Date()));
                 setEntryType('expense'); // Reset UI back to default
         
             } catch (error) {
@@ -7746,7 +7774,7 @@ async function handleDeleteExpense(id) {
             document.getElementById('editRecordId').value = id;
             document.getElementById('editDesc').value = record.description;
             document.getElementById('editAmount').value = record.amount;
-            document.getElementById('editDate').value = record.date;
+            document.getElementById('editDate').value = isoToDdmmyyyy(record.date);
             
             // Hide category if it's a 'Payment' type record
             const catGroup = document.getElementById('editCatGroup');
@@ -7777,10 +7805,12 @@ async function handleDeleteExpense(id) {
         document.getElementById('editRecordForm').onsubmit = async (e) => {
             e.preventDefault();
             const id = document.getElementById('editRecordId').value;
+            const editedDate = ddmmyyyyToIso(document.getElementById('editDate').value);
+            if (!editedDate) { alert('Enter a valid date as DD/MM/YYYY'); return; }
             const updatedData = {
                 description: document.getElementById('editDesc').value,
                 amount: parseFloat(document.getElementById('editAmount').value),
-                date: document.getElementById('editDate').value
+                date: editedDate
             };
         
             const catGroup = document.getElementById('editCatGroup');
