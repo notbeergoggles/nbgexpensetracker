@@ -1661,7 +1661,7 @@
                 <form id="expenseForm">
                     <div class="form-group">
                         <label class="form-label">Date</label>
-                        <input type="text" id="expenseDate" class="form-control" placeholder="DD/MM/YYYY" inputmode="numeric" maxlength="10" autocomplete="off" required>
+                        <input type="text" id="expenseDate" class="form-control" placeholder="DD/MM/YYYY" readonly autocomplete="off" required style="cursor:pointer;">
                     </div>
         
                     <div id="paymentSenderGroup" class="form-group" style="display: none; background: rgba(33, 128, 141, 0.1); padding: 12px; border-radius: 8px; border: 1px solid var(--color-primary);">
@@ -2082,7 +2082,7 @@
     
                 <div class="form-group">
                     <label>Date</label>
-                    <input type="text" id="editDate" class="form-input" placeholder="DD/MM/YYYY" inputmode="numeric" maxlength="10" autocomplete="off" required>
+                    <input type="text" id="editDate" class="form-input" placeholder="DD/MM/YYYY" readonly autocomplete="off" required style="cursor:pointer;">
                 </div>
     
                 <div class="form-group" id="editCatGroup">
@@ -9361,6 +9361,138 @@ async function handleDeleteExpense(id) {
 
         // initial
         if (isLive()) initRenoLive(); else initRenoLocal();
+    })();
+    </script>
+    <!-- Custom date-picker calendar (DD/MM/YYYY) -->
+    <div id="calPopup" class="cal-popup">
+        <div class="cal-header">
+            <button type="button" id="calPrev" class="cal-nav">‹</button>
+            <div id="calMonthYear" class="cal-month-year"></div>
+            <button type="button" id="calNext" class="cal-nav">›</button>
+        </div>
+        <div class="cal-weekdays">
+            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+        </div>
+        <div id="calGrid" class="cal-grid"></div>
+        <button type="button" id="calToday" class="cal-today-btn">Today</button>
+    </div>
+    <div id="calOverlay" class="cal-overlay"></div>
+    <style>
+        .cal-overlay { display:none; position:fixed; inset:0; z-index:900; background:transparent; }
+        .cal-popup {
+            display:none; position:fixed; z-index:901; width:290px; max-width:92vw;
+            background:var(--color-surface); border:1px solid var(--color-border); border-radius:14px;
+            box-shadow:0 12px 40px rgba(0,0,0,0.35); padding:14px; color:var(--color-text);
+        }
+        .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .cal-nav { background:none; border:none; color:var(--color-text); font-size:20px; line-height:1; cursor:pointer; padding:4px 10px; border-radius:8px; }
+        .cal-nav:active { background:var(--color-background); }
+        .cal-month-year { font-weight:700; font-size:14px; }
+        .cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:11px; color:var(--color-text-secondary); margin-bottom:4px; }
+        .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+        .cal-day {
+            aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:13px;
+            border-radius:8px; cursor:pointer; background:none; border:none; color:var(--color-text);
+        }
+        .cal-day:active { background:var(--color-background); }
+        .cal-day.cal-muted { color:var(--color-text-secondary); opacity:0.4; }
+        .cal-day.cal-today { border:1px solid var(--color-primary); font-weight:700; }
+        .cal-day.cal-selected { background:var(--color-primary); color:#fff; font-weight:700; }
+        .cal-today-btn { width:100%; margin-top:10px; padding:8px; border-radius:8px; border:1px solid var(--color-border); background:none; color:var(--color-primary); font-weight:600; font-size:12px; cursor:pointer; }
+    </style>
+    <script>
+    (function dateCalendar() {
+        const popup = document.getElementById('calPopup');
+        const overlay = document.getElementById('calOverlay');
+        const monthYearEl = document.getElementById('calMonthYear');
+        const gridEl = document.getElementById('calGrid');
+        let activeInputId = null;
+        let viewYear, viewMonth; // 0-indexed month
+        let selectedIso = '';
+
+        function openFor(inputId) {
+            activeInputId = inputId;
+            const input = document.getElementById(inputId);
+            const iso = ddmmyyyyToIso(input.value);
+            const base = iso ? new Date(iso + 'T00:00:00') : new Date();
+            viewYear = base.getFullYear();
+            viewMonth = base.getMonth();
+            selectedIso = iso || '';
+            renderCalendar();
+            positionPopup(input);
+            popup.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+        function close() {
+            popup.style.display = 'none';
+            overlay.style.display = 'none';
+            activeInputId = null;
+        }
+        function positionPopup(input) {
+            const r = input.getBoundingClientRect();
+            const popW = popup.offsetWidth || 290;
+            let left = r.left;
+            if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+            if (left < 8) left = 8;
+            let top = r.bottom + 6;
+            popup.style.left = left + 'px';
+            popup.style.top = top + 'px';
+            // if popup would overflow bottom, place above input instead
+            requestAnimationFrame(() => {
+                const popH = popup.offsetHeight;
+                if (top + popH > window.innerHeight - 8) {
+                    popup.style.top = (r.top - popH - 6) + 'px';
+                }
+            });
+        }
+        function renderCalendar() {
+            const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            monthYearEl.textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+            gridEl.innerHTML = '';
+            const firstOfMonth = new Date(viewYear, viewMonth, 1);
+            const startWeekday = firstOfMonth.getDay(); // 0=Sun
+            const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+            const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+            const todayIso = localDateStr(new Date());
+
+            const cells = [];
+            for (let i = startWeekday-1; i >= 0; i--) cells.push({d: daysInPrevMonth-i, muted:true, y:viewYear, m:viewMonth-1});
+            for (let d = 1; d <= daysInMonth; d++) cells.push({d, muted:false, y:viewYear, m:viewMonth});
+            while (cells.length % 7 !== 0 || cells.length < 42) cells.push({d: cells.length - (startWeekday+daysInMonth) + 1, muted:true, y:viewYear, m:viewMonth+1});
+
+            cells.forEach(c => {
+                let y=c.y, m=c.m;
+                if (m < 0) { m = 11; y -= 1; }
+                if (m > 11) { m = 0; y += 1; }
+                const iso = `${y}-${String(m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'cal-day' + (c.muted ? ' cal-muted' : '') + (iso===todayIso ? ' cal-today' : '') + (iso===selectedIso ? ' cal-selected' : '');
+                btn.textContent = c.d;
+                btn.onclick = () => {
+                    const input = document.getElementById(activeInputId);
+                    input.value = isoToDdmmyyyy(iso);
+                    close();
+                };
+                gridEl.appendChild(btn);
+            });
+        }
+        document.getElementById('calPrev').onclick = () => { viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} renderCalendar(); };
+        document.getElementById('calNext').onclick = () => { viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} renderCalendar(); };
+        document.getElementById('calToday').onclick = () => {
+            const todayIso = localDateStr(new Date());
+            const input = document.getElementById(activeInputId);
+            input.value = isoToDdmmyyyy(todayIso);
+            close();
+        };
+        overlay.addEventListener('click', close);
+
+        ['expenseDate','editDate'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', () => openFor(id));
+        });
+
+        window.openDateCalendar = openFor;
     })();
     </script>
 </body>
