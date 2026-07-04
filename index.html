@@ -1569,7 +1569,10 @@
             </div>
             <!-- Settle-up history (reads existing Payment entries) -->
             <div class="card" id="settleHistoryCard" style="margin-top: var(--space-12);">
-                <h2 style="margin:0 0 var(--space-12);">Settle-Up History</h2>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-12);">
+                    <h2 style="margin:0;">Settle-Up History</h2>
+                    <button type="button" id="settleViewAllBtn" class="btn btn--secondary btn--sm" style="display:none;">View all</button>
+                </div>
                 <div id="settleList" class="settle-list"></div>
             </div>
 
@@ -8604,14 +8607,22 @@ async function handleDeleteExpense(id) {
     </script>
     <script>
     // Settle-Up History reads existing Payment entries (isPayment === true) — no separate data.
+    let settleShowAll = false;
     function renderSettleHistory() {
         const list = document.getElementById('settleList');
         if (!list) return;
         const payments = (typeof workingExpenses === 'function' ? workingExpenses() : [])
             .filter(e => e.isPayment === true)
             .sort((a, b) => new Date(b.date) - new Date(a.date));
+        const btn = document.getElementById('settleViewAllBtn');
+        if (btn) {
+            btn.style.display = payments.length > 3 ? 'inline-flex' : 'none';
+            btn.textContent = settleShowAll ? 'Show less' : 'View all';
+            btn.onclick = () => { settleShowAll = !settleShowAll; renderSettleHistory(); };
+        }
+        const shown = settleShowAll ? payments : payments.slice(0, 3);
         list.innerHTML = '';
-        payments.forEach(p => {
+        shown.forEach(p => {
             const amt = Number(p.amount) || 0;
             // payer is p.paidBy; recipient is the other person
             const from = (p.paidBy === 'You') ? 'Kenny' : p.paidBy;
