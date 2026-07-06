@@ -1775,40 +1775,67 @@
                         <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-gray-300);"></i>
                         <input type="text" id="historySearch" class="form-control" placeholder="Search description or category..." style="padding-left: 35px;">
                     </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-                        <select id="histCategoryFilter" class="form-control" style="flex:1; min-width:120px;">
-                            <option value="">All categories</option>
-                            <option value="Beauty">Beauty</option>
-                            <option value="Entertainment">Entertainment</option>
-                            <option value="Necessities">Necessities</option>
-                            <option value="Food">Food</option>
-                            <option value="Impt Miscellaneous">Impt Miscellaneous</option>
-                            <option value="Installments & Obligations">Installments & Obligations</option>
-                            <option value="Mika">Mika</option>
-                            <option value="Shopping">Shopping</option>
-                            <option value="Transport">Transport</option>
-                        </select>
-                        <select id="histPaidByFilter" class="form-control" style="flex:1; min-width:100px;">
-                            <option value="">Paid by anyone</option>
-                            <option value="Kenny">Kenny</option>
-                            <option value="Sayuri">Sayuri</option>
-                        </select>
-                        <select id="histSortOrder" class="form-control" style="flex:1; min-width:110px;">
+
+                    <div id="histCatChips" class="hist-chip-row"></div>
+
+                    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+                        <div id="histPaidByToggle" class="hist-toggle-group"></div>
+                        <select id="histSortOrder" class="hist-pill-select">
                             <option value="date_desc">Newest first</option>
                             <option value="date_asc">Oldest first</option>
-                            <option value="amount_desc">Amount: high-low</option>
-                            <option value="amount_asc">Amount: low-high</option>
+                            <option value="amount_desc">Amount: high→low</option>
+                            <option value="amount_asc">Amount: low→high</option>
                         </select>
+                        <button type="button" id="histDateRangeBtn" class="hist-pill">📅 Date range</button>
+                        <button type="button" id="histFilterClear" class="hist-clear-chip" style="display:none;">✕ Clear filters</button>
                     </div>
-                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                        <label style="font-size:12px; color:var(--color-text-secondary); white-space:nowrap;">From</label>
-                        <input type="date" id="histDateFrom" class="form-control" style="flex:1; min-width:130px;">
-                        <label style="font-size:12px; color:var(--color-text-secondary); white-space:nowrap;">To</label>
-                        <input type="date" id="histDateTo" class="form-control" style="flex:1; min-width:130px;">
-                        <button type="button" id="histFilterClear" class="btn btn--secondary btn--sm" style="white-space:nowrap;">Clear</button>
+
+                    <div id="histDateRangePanel" class="reno-collapse">
+                        <div class="reno-collapse-inner" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding-top:12px;">
+                            <div class="form-group" style="flex:1; min-width:130px; margin:0;">
+                                <label class="form-label">From</label>
+                                <input type="text" id="histDateFrom" class="form-input" placeholder="DD/MM/YYYY" readonly autocomplete="off" style="cursor:pointer;">
+                            </div>
+                            <div class="form-group" style="flex:1; min-width:130px; margin:0;">
+                                <label class="form-label">To</label>
+                                <input type="text" id="histDateTo" class="form-input" placeholder="DD/MM/YYYY" readonly autocomplete="off" style="cursor:pointer;">
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
+
+                <style>
+                    .hist-chip-row { display:flex; gap:6px; overflow-x:auto; margin-top:10px; padding-bottom:2px; scrollbar-width:none; }
+                    .hist-chip-row::-webkit-scrollbar { display:none; }
+                    .hist-chip {
+                        flex:0 0 auto; padding:6px 14px; border-radius:50px; font-size:12px; font-weight:600;
+                        border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text);
+                        white-space:nowrap; cursor:pointer; transition:background 0.15s, border-color 0.15s, color 0.15s;
+                    }
+                    .hist-chip.active { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
+                    .hist-toggle-group { display:flex; border:1px solid var(--color-border); border-radius:50px; overflow:hidden; }
+                    .hist-toggle-group button {
+                        padding:7px 14px; font-size:12px; font-weight:600; border:none; background:var(--color-surface);
+                        color:var(--color-text); cursor:pointer; border-right:1px solid var(--color-border);
+                    }
+                    .hist-toggle-group button:last-child { border-right:none; }
+                    .hist-toggle-group button.active { background:var(--color-primary); color:#fff; }
+                    .hist-pill-select {
+                        padding:7px 12px; border-radius:50px; font-size:12px; font-weight:600;
+                        border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text);
+                    }
+                    .hist-pill {
+                        padding:7px 14px; border-radius:50px; font-size:12px; font-weight:600;
+                        border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); cursor:pointer;
+                    }
+                    .hist-pill.active { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
+                    .hist-clear-chip {
+                        padding:7px 14px; border-radius:50px; font-size:12px; font-weight:600;
+                        border:1px solid transparent; background:none; color:#d4453e; cursor:pointer;
+                    }
+                </style>
+
+
                 <div id="expenseList" class="expense-list">
                     <div class="empty-state" style="text-align:center; padding:36px 20px;">
                         <div style="font-size:44px; line-height:1; margin-bottom:8px;">🐌<span style="font-size:20px;">💤</span></div>
@@ -7314,10 +7341,10 @@ async function deleteExpenseFromFirebase(id) {
             };
         
             const filter = document.getElementById('monthFilter')?.value || 'current';
-            const categoryFilter = document.getElementById('histCategoryFilter')?.value || '';
-            const paidByFilter = document.getElementById('histPaidByFilter')?.value || '';
-            const dateFrom = document.getElementById('histDateFrom')?.value || '';
-            const dateTo = document.getElementById('histDateTo')?.value || '';
+            const categoryFilter = window.histCatValue || '';
+            const paidByFilter = window.histPaidByValue || '';
+            const dateFrom = ddmmyyyyToIso(document.getElementById('histDateFrom')?.value || '');
+            const dateTo = ddmmyyyyToIso(document.getElementById('histDateTo')?.value || '');
             const sortOrder = document.getElementById('histSortOrder')?.value || 'date_desc';
         
             // FIX: Filter out the "Master Templates" so they don't appear in your history
@@ -7750,18 +7777,95 @@ async function handleDeleteExpense(id) {
         });
 
         document.getElementById('historySearch')?.addEventListener('input', renderExpenseList);
-        ['histCategoryFilter','histPaidByFilter','histSortOrder'].forEach(id => {
-            document.getElementById(id)?.addEventListener('change', renderExpenseList);
+
+        // ── History filter chips/pills ──────────────────────────────────────
+        window.histCatValue = '';
+        window.histPaidByValue = '';
+        const HIST_CATEGORIES = ['Beauty','Entertainment','Necessities','Food','Impt Miscellaneous','Installments & Obligations','Mika','Shopping','Transport'];
+
+        function updateHistClearVisibility() {
+            const btn = document.getElementById('histFilterClear');
+            if (!btn) return;
+            const active = window.histCatValue || window.histPaidByValue ||
+                document.getElementById('histDateFrom')?.value || document.getElementById('histDateTo')?.value ||
+                (document.getElementById('histSortOrder')?.value || 'date_desc') !== 'date_desc';
+            btn.style.display = active ? 'inline-block' : 'none';
+        }
+
+        (function buildHistCatChips() {
+            const row = document.getElementById('histCatChips');
+            if (!row) return;
+            row.innerHTML = '';
+            const allChip = document.createElement('button');
+            allChip.type = 'button'; allChip.className = 'hist-chip active'; allChip.textContent = 'All';
+            allChip.onclick = () => setHistCat('');
+            row.appendChild(allChip);
+            HIST_CATEGORIES.forEach(cat => {
+                const chip = document.createElement('button');
+                chip.type = 'button'; chip.className = 'hist-chip'; chip.textContent = cat;
+                chip.onclick = () => setHistCat(cat);
+                row.appendChild(chip);
+            });
+        })();
+        function setHistCat(val) {
+            window.histCatValue = val;
+            document.querySelectorAll('#histCatChips .hist-chip').forEach(c => {
+                c.classList.toggle('active', (val === '' && c.textContent === 'All') || c.textContent === val);
+            });
+            updateHistClearVisibility();
+            renderExpenseList();
+        }
+
+        (function buildHistPaidByToggle() {
+            const wrap = document.getElementById('histPaidByToggle');
+            if (!wrap) return;
+            [['','Anyone'],['Kenny','Kenny'],['Sayuri','Sayuri']].forEach(([val,label]) => {
+                const b = document.createElement('button');
+                b.type = 'button'; b.textContent = label;
+                if (val === '') b.classList.add('active');
+                b.onclick = () => setHistPaidBy(val);
+                wrap.appendChild(b);
+            });
+        })();
+        function setHistPaidBy(val) {
+            window.histPaidByValue = val;
+            document.querySelectorAll('#histPaidByToggle button').forEach((b,i) => {
+                b.classList.toggle('active', [ '','Kenny','Sayuri' ][i] === val);
+            });
+            updateHistClearVisibility();
+            renderExpenseList();
+        }
+
+        document.getElementById('histSortOrder')?.addEventListener('change', () => { updateHistClearVisibility(); renderExpenseList(); });
+
+        // date range collapsible panel
+        const histDateRangePanel = document.getElementById('histDateRangePanel');
+        document.getElementById('histDateRangeBtn')?.addEventListener('click', () => {
+            histDateRangePanel.classList.toggle('open');
+            document.getElementById('histDateRangeBtn').classList.toggle('active');
         });
         ['histDateFrom','histDateTo'].forEach(id => {
-            document.getElementById(id)?.addEventListener('change', renderExpenseList);
+            const el = document.getElementById(id);
+            el?.addEventListener('click', () => window.openDateCalendar && window.openDateCalendar(id));
         });
+        // re-render whenever the shared calendar sets one of these fields
+        // (MutationObserver won't fire for JS .value property sets, so poll lightly)
+        ['histDateFrom','histDateTo'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            let last = el.value;
+            setInterval(() => { if (el.value !== last) { last = el.value; updateHistClearVisibility(); renderExpenseList(); } }, 400);
+        });
+
         document.getElementById('histFilterClear')?.addEventListener('click', () => {
-            document.getElementById('histCategoryFilter').value = '';
-            document.getElementById('histPaidByFilter').value = '';
+            setHistCat('');
+            setHistPaidBy('');
             document.getElementById('histSortOrder').value = 'date_desc';
             document.getElementById('histDateFrom').value = '';
             document.getElementById('histDateTo').value = '';
+            histDateRangePanel.classList.remove('open');
+            document.getElementById('histDateRangeBtn').classList.remove('active');
+            updateHistClearVisibility();
             renderExpenseList();
         });
 
@@ -9553,7 +9657,7 @@ async function handleDeleteExpense(id) {
         };
         overlay.addEventListener('click', close);
 
-        ['expenseDate','editDate'].forEach(id => {
+        ['expenseDate','editDate','histDateFrom','histDateTo'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('click', () => openFor(id));
         });
