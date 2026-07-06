@@ -1775,6 +1775,38 @@
                         <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-gray-300);"></i>
                         <input type="text" id="historySearch" class="form-control" placeholder="Search description or category..." style="padding-left: 35px;">
                     </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                        <select id="histCategoryFilter" class="form-control" style="flex:1; min-width:120px;">
+                            <option value="">All categories</option>
+                            <option value="Beauty">Beauty</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Necessities">Necessities</option>
+                            <option value="Food">Food</option>
+                            <option value="Impt Miscellaneous">Impt Miscellaneous</option>
+                            <option value="Installments & Obligations">Installments & Obligations</option>
+                            <option value="Mika">Mika</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Transport">Transport</option>
+                        </select>
+                        <select id="histPaidByFilter" class="form-control" style="flex:1; min-width:100px;">
+                            <option value="">Paid by anyone</option>
+                            <option value="Kenny">Kenny</option>
+                            <option value="Sayuri">Sayuri</option>
+                        </select>
+                        <select id="histSortOrder" class="form-control" style="flex:1; min-width:110px;">
+                            <option value="date_desc">Newest first</option>
+                            <option value="date_asc">Oldest first</option>
+                            <option value="amount_desc">Amount: high-low</option>
+                            <option value="amount_asc">Amount: low-high</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+                        <label style="font-size:12px; color:var(--color-text-secondary); white-space:nowrap;">From</label>
+                        <input type="date" id="histDateFrom" class="form-control" style="flex:1; min-width:130px;">
+                        <label style="font-size:12px; color:var(--color-text-secondary); white-space:nowrap;">To</label>
+                        <input type="date" id="histDateTo" class="form-control" style="flex:1; min-width:130px;">
+                        <button type="button" id="histFilterClear" class="btn btn--secondary btn--sm" style="white-space:nowrap;">Clear</button>
+                    </div>
                 </div>
                 
                 <div id="expenseList" class="expense-list">
@@ -7282,6 +7314,11 @@ async function deleteExpenseFromFirebase(id) {
             };
         
             const filter = document.getElementById('monthFilter')?.value || 'current';
+            const categoryFilter = document.getElementById('histCategoryFilter')?.value || '';
+            const paidByFilter = document.getElementById('histPaidByFilter')?.value || '';
+            const dateFrom = document.getElementById('histDateFrom')?.value || '';
+            const dateTo = document.getElementById('histDateTo')?.value || '';
+            const sortOrder = document.getElementById('histSortOrder')?.value || 'date_desc';
         
             // FIX: Filter out the "Master Templates" so they don't appear in your history
             const displayExpenses = workingExpenses().filter(e => e.isRecurring !== true);
@@ -7305,11 +7342,26 @@ async function deleteExpenseFromFirebase(id) {
         
                 const matchesSearch = e.description.toLowerCase().includes(searchTerm) || 
                                       e.category.toLowerCase().includes(searchTerm);
+
+                const matchesCategory = !categoryFilter || e.category === categoryFilter;
+                const matchesPaidBy = !paidByFilter || e.paidBy === paidByFilter;
+                const matchesDateFrom = !dateFrom || e.date >= dateFrom;
+                const matchesDateTo = !dateTo || e.date <= dateTo;
         
-                return matchesMonth && matchesSearch;
+                return matchesMonth && matchesSearch && matchesCategory && matchesPaidBy && matchesDateFrom && matchesDateTo;
             });
         
-            const sortedExpenses = [...filteredExpenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+            const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+                if (sortOrder === 'amount_desc') return Number(b.amount) - Number(a.amount);
+                if (sortOrder === 'amount_asc') return Number(a.amount) - Number(b.amount);
+                const dateDiff = new Date(b.date) - new Date(a.date);
+                const primary = sortOrder === 'date_asc' ? -dateDiff : dateDiff;
+                if (primary !== 0) return primary;
+                // same-day tiebreaker: preserve order added (createdAt), oldest-added first
+                const aT = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                const bT = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                return sortOrder === 'date_asc' ? (bT - aT) : (aT - bT);
+            });
             
             list.innerHTML = '';
         
@@ -7698,6 +7750,20 @@ async function handleDeleteExpense(id) {
         });
 
         document.getElementById('historySearch')?.addEventListener('input', renderExpenseList);
+        ['histCategoryFilter','histPaidByFilter','histSortOrder'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', renderExpenseList);
+        });
+        ['histDateFrom','histDateTo'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', renderExpenseList);
+        });
+        document.getElementById('histFilterClear')?.addEventListener('click', () => {
+            document.getElementById('histCategoryFilter').value = '';
+            document.getElementById('histPaidByFilter').value = '';
+            document.getElementById('histSortOrder').value = 'date_desc';
+            document.getElementById('histDateFrom').value = '';
+            document.getElementById('histDateTo').value = '';
+            renderExpenseList();
+        });
 
         // initialize UI from local storage if guest or before auth
         (function init() {
