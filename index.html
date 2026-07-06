@@ -6227,7 +6227,7 @@
             c.innerHTML = any ? html : '<div style="font-size:12px; color:var(--color-text-secondary);">Set your income budgets via ⚙️ Budgets to track spending against income.</div>';
         }
 
-        function renderCategoryBars(categoryTotals, total) {
+        function renderCategoryBars(categoryTotals, total, individualTotals) {
             const container = document.getElementById('categoryChart');
             if (!container) return;
             
@@ -6240,27 +6240,32 @@
                 const amount = categoryTotals[cat];
                 const percentage = total > 0 ? (amount / total) * 100 : 0;
                 const color = categoryColors[cat] || '#ddd';
-                const budget = Number(budgets.categories[cat] || 0);
+                const catBudget = budgets.categories[cat] || {};
+                const kennyBudget = Number(catBudget.Kenny || 0);
+                const sayuriBudget = Number(catBudget.Sayuri || 0);
+                const kennySpent = Number((individualTotals && individualTotals.Kenny && individualTotals.Kenny[cat]) || 0);
+                const sayuriSpent = Number((individualTotals && individualTotals.Sayuri && individualTotals.Sayuri[cat]) || 0);
 
                 const wrapper = document.createElement('div');
                 wrapper.className = 'category-bar-wrapper';
 
-                let budgetHtml = '';
-                if (budget > 0) {
-                    const ratio = amount / budget;
+                function personBudgetRow(person, spent, budget) {
+                    if (budget <= 0) return '';
+                    const ratio = spent / budget;
                     const fillPct = Math.min(ratio * 100, 100);
                     const bcolor = budgetBarColor(ratio);
-                    const over = amount > budget;
-                    budgetHtml = `
+                    return `
                         <div class="cat-budget-row">
+                            <span class="cat-budget-person">${person}</span>
                             <div class="cat-budget-track">
                                 <div class="cat-budget-fill" style="width:${fillPct}%; background-color:${bcolor};"></div>
                             </div>
                             <span class="cat-budget-label" style="color:${bcolor};">
-                                ${fmtMoney(amount)} / ${fmtMoney(budget)}${over ? ' · over' : ''}
+                                ${fmtMoney(spent)} / ${fmtMoney(budget)}${spent>budget ? ' · over' : ''}
                             </span>
                         </div>`;
                 }
+                const budgetHtml = personBudgetRow('Kenny', kennySpent, kennyBudget) + personBudgetRow('Sayuri', sayuriSpent, sayuriBudget);
 
                 wrapper.innerHTML = `
                     <div class="category-bar-info">
@@ -7143,7 +7148,7 @@ async function deleteExpenseFromFirebase(id) {
             document.getElementById('settlement').textContent = fmtMoney(Math.abs(t.net));
             document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
 
-            renderCategoryBars(t.categoryTotals, t.totalExpenses);
+            renderCategoryBars(t.categoryTotals, t.totalExpenses, t.individualTotals);
             renderIncomeBudget(t.kennyTotalShare, t.sayuriTotalShare);
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
             renderIndividualSpending(t.individualTotals);
@@ -9805,6 +9810,7 @@ async function handleDeleteExpense(id) {
     </div>
     <style>
         .cat-budget-row { display:flex; align-items:center; gap:8px; margin-top:5px; }
+        .cat-budget-person { font-size:10px; font-weight:700; color:var(--color-text-secondary); width:36px; flex-shrink:0; }
         .cat-budget-track { flex:1; height:5px; border-radius:3px; background:var(--color-border); overflow:hidden; }
         .cat-budget-fill { height:100%; border-radius:3px; transition:width 0.3s; }
         .cat-budget-label { font-size:10px; font-weight:600; white-space:nowrap; }
@@ -9823,10 +9829,14 @@ async function handleDeleteExpense(id) {
             wrap.innerHTML = '';
             BUDGET_CATS.forEach(cat => {
                 const row = document.createElement('div');
-                row.className = 'form-group';
-                row.style.margin = '0';
-                row.innerHTML = `<label class="form-label">${cat}</label>
-                    <input type="number" class="form-input budget-cat-input" data-cat="${cat}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" value="${budgets.categories[cat] || ''}">`;
+                row.style.marginBottom = '4px';
+                const catB = budgets.categories[cat] || {};
+                row.innerHTML = `
+                    <label class="form-label">${cat}</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="number" class="form-input budget-cat-input" data-cat="${cat}" data-person="Kenny" placeholder="Kenny" min="0" step="0.01" inputmode="decimal" value="${catB.Kenny || ''}" style="flex:1;">
+                        <input type="number" class="form-input budget-cat-input" data-cat="${cat}" data-person="Sayuri" placeholder="Sayuri" min="0" step="0.01" inputmode="decimal" value="${catB.Sayuri || ''}" style="flex:1;">
+                    </div>`;
                 wrap.appendChild(row);
             });
             modal.style.display = 'flex';
@@ -9841,7 +9851,11 @@ async function handleDeleteExpense(id) {
             const cats = {};
             document.querySelectorAll('.budget-cat-input').forEach(inp => {
                 const v = parseFloat(inp.value) || 0;
-                if (v > 0) cats[inp.dataset.cat] = v;
+                if (v > 0) {
+                    const cat = inp.dataset.cat, person = inp.dataset.person;
+                    cats[cat] = cats[cat] || {};
+                    cats[cat][person] = v;
+                }
             });
             budgets.categories = cats;
             saveBudgets();
