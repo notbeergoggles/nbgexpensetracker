@@ -1606,6 +1606,14 @@
         
 
             <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <h2 style="margin:0;">Income vs Budget</h2>
+                    <button type="button" id="editBudgetsBtn" class="btn btn--secondary btn--sm">⚙️ Budgets</button>
+                </div>
+                <div id="incomeBudgetBars" style="margin-top:var(--space-12);"></div>
+            </div>
+
+            <div class="card">
                 <h2>Spending by Category</h2>
                 <div id="categoryChart"></div>
                 <div id="categoryPieChart" class="pie-chart"></div>
@@ -6139,6 +6147,86 @@
             filterSelect.value = currentSelection;
         }
         
+        // ===== Budgets =====
+        const BUDGETS_DOC = () => db.collection('budgets').doc('shared');
+        let budgets = { income: { Kenny: 0, Sayuri: 0 }, categories: {} };
+        let budgetsUnsub = null, budgetsSuppress = false, budgetsHydrated = false;
+
+        function budgetsIsLive() { return (typeof currentUser !== 'undefined' && currentUser && !isGuestMode); }
+
+        async function saveBudgets() {
+            if (budgetsSuppress) return;
+            if (budgetsIsLive()) {
+                if (!budgetsHydrated) return;
+                try { await BUDGETS_DOC().set(budgets); }
+                catch (e) { window.showSaveError && window.showSaveError('budgets', e); }
+            } else {
+                localStorage.setItem('budgetsState', JSON.stringify(budgets));
+            }
+        }
+        function budgetsInitLive() {
+            if (budgetsUnsub) budgetsUnsub();
+            budgetsUnsub = BUDGETS_DOC().onSnapshot(snap => {
+                if (snap.exists) {
+                    budgetsSuppress = true;
+                    const d = snap.data() || {};
+                    budgets = { income: Object.assign({ Kenny:0, Sayuri:0 }, d.income||{}), categories: d.categories||{} };
+                    budgetsSuppress = false;
+                    budgetsHydrated = true;
+                } else if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
+                    budgetsHydrated = true;
+                }
+                updateDashboard();
+            }, err => console.error('budgets listen', err));
+        }
+        function budgetsInitLocal() {
+            if (budgetsUnsub) { budgetsUnsub(); budgetsUnsub = null; }
+            const raw = localStorage.getItem('budgetsState');
+            if (raw) { try { budgets = JSON.parse(raw); } catch(e){} }
+            budgets.income = Object.assign({ Kenny:0, Sayuri:0 }, budgets.income||{});
+            budgets.categories = budgets.categories || {};
+            updateDashboard();
+        }
+        window.budgetsInitLive = budgetsInitLive;
+        window.budgetsInitLocal = budgetsInitLocal;
+
+        function budgetBarColor(ratio) {
+            if (ratio > 1) return '#d63031';
+            if (ratio >= 0.85) return '#e0a020';
+            return '#21a05a';
+        }
+
+        function renderIncomeBudget(kennySpent, sayuriSpent) {
+            const c = document.getElementById('incomeBudgetBars');
+            if (!c) return;
+            const rows = [['Kenny', kennySpent], ['Sayuri', sayuriSpent]];
+            let html = '';
+            let any = false;
+            rows.forEach(([person, spent]) => {
+                const inc = Number(budgets.income[person] || 0);
+                if (inc <= 0) return;
+                any = true;
+                const ratio = spent / inc;
+                const fillPct = Math.min(ratio * 100, 100);
+                const bcolor = budgetBarColor(ratio);
+                const left = inc - spent;
+                html += `
+                    <div style="margin-bottom:14px;">
+                        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:4px;">
+                            <span>${person}</span>
+                            <span style="color:${bcolor};">${fmtMoney(spent)} / ${fmtMoney(inc)}</span>
+                        </div>
+                        <div class="category-bar-container">
+                            <div class="category-bar-fill" style="width:${fillPct}%; background-color:${bcolor};"></div>
+                        </div>
+                        <div style="font-size:11px; color:var(--color-text-secondary); margin-top:3px;">
+                            ${left >= 0 ? fmtMoney(left) + ' left' : fmtMoney(-left) + ' over'}
+                        </div>
+                    </div>`;
+            });
+            c.innerHTML = any ? html : '<div style="font-size:12px; color:var(--color-text-secondary);">Set your income budgets via ⚙️ Budgets to track spending against income.</div>';
+        }
+
         function renderCategoryBars(categoryTotals, total) {
             const container = document.getElementById('categoryChart');
             if (!container) return;
@@ -6152,10 +6240,28 @@
                 const amount = categoryTotals[cat];
                 const percentage = total > 0 ? (amount / total) * 100 : 0;
                 const color = categoryColors[cat] || '#ddd';
-        
+                const budget = Number(budgets.categories[cat] || 0);
+
                 const wrapper = document.createElement('div');
                 wrapper.className = 'category-bar-wrapper';
-        
+
+                let budgetHtml = '';
+                if (budget > 0) {
+                    const ratio = amount / budget;
+                    const fillPct = Math.min(ratio * 100, 100);
+                    const bcolor = budgetBarColor(ratio);
+                    const over = amount > budget;
+                    budgetHtml = `
+                        <div class="cat-budget-row">
+                            <div class="cat-budget-track">
+                                <div class="cat-budget-fill" style="width:${fillPct}%; background-color:${bcolor};"></div>
+                            </div>
+                            <span class="cat-budget-label" style="color:${bcolor};">
+                                ${fmtMoney(amount)} / ${fmtMoney(budget)}${over ? ' · over' : ''}
+                            </span>
+                        </div>`;
+                }
+
                 wrapper.innerHTML = `
                     <div class="category-bar-info">
                         <span>${cat}</span>
@@ -6164,6 +6270,7 @@
                     <div class="category-bar-container">
                         <div class="category-bar-fill" style="width: ${percentage}%; background-color: ${color}"></div>
                     </div>
+                    ${budgetHtml}
                 `;
                 container.appendChild(wrapper);
             });
@@ -6332,6 +6439,7 @@
                     // for correctness. Only the heavy multi-doc 'mika' tab stays lazy (its
                     // weight history reads up to 60 docs) — it loads on first Mika visit.
                     if (window.terraInitLive) window.terraInitLive();
+                    if (window.budgetsInitLive) window.budgetsInitLive();
                     if (window.weddingInitLive) window.weddingInitLive();
                     if (window.todoInitLive) window.todoInitLive();
                     if (window.vouchersInitLive) window.vouchersInitLive();
@@ -6356,6 +6464,7 @@
                     if (window.notesInitLocal) window.notesInitLocal();
                     if (window.homeInitLocal) window.homeInitLocal();
                     if (window.renoInitLocal) window.renoInitLocal();
+                    if (window.budgetsInitLocal) window.budgetsInitLocal();
                 }
             } else {
                 authScreen.style.display = 'flex';
@@ -7035,6 +7144,7 @@ async function deleteExpenseFromFirebase(id) {
             document.getElementById('settlementNote').textContent = t.net === 0 ? 'Even' : (t.net > 0 ? 'Sayuri owes Kenny' : 'Kenny owes Sayuri');
 
             renderCategoryBars(t.categoryTotals, t.totalExpenses);
+            renderIncomeBudget(t.kennyTotalShare, t.sayuriTotalShare);
             renderCategoryPie(t.categoryTotals, t.totalExpenses);
             renderIndividualSpending(t.individualTotals);
             renderSpendingCompare();
@@ -9664,6 +9774,81 @@ async function handleDeleteExpense(id) {
         });
 
         window.openDateCalendar = openFor;
+    })();
+    </script>
+    <!-- Budget editor modal -->
+    <div id="budgetModal" class="edit-modal">
+        <div class="edit-modal-content" style="max-height:86vh; overflow-y:auto;">
+            <h3>Budgets</h3>
+            <p style="font-size:12px; color:var(--color-text-secondary); margin:6px 0 16px;">Fixed monthly budgets. Leave blank or 0 to hide a bar.</p>
+
+            <div style="font-weight:700; font-size:13px; margin-bottom:8px;">Monthly income</div>
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label class="form-label">Kenny</label>
+                    <input type="number" id="budgetIncomeKenny" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label class="form-label">Sayuri</label>
+                    <input type="number" id="budgetIncomeSayuri" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+            </div>
+
+            <div style="font-weight:700; font-size:13px; margin-bottom:8px;">Category budgets</div>
+            <div id="budgetCategoryInputs" style="display:flex; flex-direction:column; gap:10px;"></div>
+
+            <div style="display:flex; gap:8px; margin-top:20px;">
+                <button type="button" class="btn btn--secondary" id="budgetCancelBtn" style="flex:1;">Cancel</button>
+                <button type="button" class="btn btn--primary" id="budgetSaveBtn" style="flex:1;">Save</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        .cat-budget-row { display:flex; align-items:center; gap:8px; margin-top:5px; }
+        .cat-budget-track { flex:1; height:5px; border-radius:3px; background:var(--color-border); overflow:hidden; }
+        .cat-budget-fill { height:100%; border-radius:3px; transition:width 0.3s; }
+        .cat-budget-label { font-size:10px; font-weight:600; white-space:nowrap; }
+    </style>
+    <script>
+    (function budgetEditor() {
+        const BUDGET_CATS = ['Beauty','Entertainment','Necessities','Food','Impt Miscellaneous','Installments & Obligations','Mika','Shopping','Transport'];
+        const modal = document.getElementById('budgetModal');
+        const openBtn = document.getElementById('editBudgetsBtn');
+        if (!modal || !openBtn) return;
+
+        function open() {
+            document.getElementById('budgetIncomeKenny').value = budgets.income.Kenny || '';
+            document.getElementById('budgetIncomeSayuri').value = budgets.income.Sayuri || '';
+            const wrap = document.getElementById('budgetCategoryInputs');
+            wrap.innerHTML = '';
+            BUDGET_CATS.forEach(cat => {
+                const row = document.createElement('div');
+                row.className = 'form-group';
+                row.style.margin = '0';
+                row.innerHTML = `<label class="form-label">${cat}</label>
+                    <input type="number" class="form-input budget-cat-input" data-cat="${cat}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" value="${budgets.categories[cat] || ''}">`;
+                wrap.appendChild(row);
+            });
+            modal.style.display = 'flex';
+        }
+        function close() { modal.style.display = 'none'; }
+
+        openBtn.onclick = open;
+        document.getElementById('budgetCancelBtn').onclick = close;
+        document.getElementById('budgetSaveBtn').onclick = () => {
+            budgets.income.Kenny = parseFloat(document.getElementById('budgetIncomeKenny').value) || 0;
+            budgets.income.Sayuri = parseFloat(document.getElementById('budgetIncomeSayuri').value) || 0;
+            const cats = {};
+            document.querySelectorAll('.budget-cat-input').forEach(inp => {
+                const v = parseFloat(inp.value) || 0;
+                if (v > 0) cats[inp.dataset.cat] = v;
+            });
+            budgets.categories = cats;
+            saveBudgets();
+            updateDashboard();
+            close();
+        };
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
     })();
     </script>
 </body>
