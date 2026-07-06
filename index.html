@@ -6165,7 +6165,7 @@
             }
         }
         function budgetsInitLive() {
-            if (budgetsUnsub) budgetsUnsub();
+            if (budgetsUnsub) return;
             budgetsUnsub = BUDGETS_DOC().onSnapshot(snap => {
                 if (snap.exists) {
                     budgetsSuppress = true;
