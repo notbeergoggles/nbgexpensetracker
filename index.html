@@ -4726,7 +4726,7 @@
         }
         function listenLive() {
             if (terraUnsub) terraUnsub();
-            terraUnsub = TERRA_DOC().onSnapshot(snap => {
+            terraUnsub = TERRA_DOC().onSnapshot({ includeMetadataChanges: false }, snap => {
                 if (snap.exists) {
                     suppressWrite = true;
                     state = Object.assign({ coins:0, items:[], lastClaim:null, night:false, stats:{logs:0,claims:0,placed:0}, badges:[] }, snap.data());
@@ -4734,11 +4734,12 @@
                     if (!state.badges) state.badges = [];
                     suppressWrite = false;
                     terraHydrated = true; // real data loaded — saves are now safe
-                } else {
-                    // Doc doesn't exist yet. Only seed it from a fresh default the very first
-                    // time; mark hydrated so future saves work, but don't clobber anything.
+                } else if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
+                    // Doc truly doesn't exist on the SERVER (not a cache/offline blip).
+                    // Mark hydrated so a real user action can create it, but DO NOT
+                    // proactively write empty default state here — that was overwriting
+                    // live data whenever a transient empty snapshot fired.
                     terraHydrated = true;
-                    TERRA_DOC().set(state);
                 }
                 renderAll();
                 maybeRareVisitor();
