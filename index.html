@@ -7387,7 +7387,7 @@ async function deleteExpenseFromFirebase(id) {
                 // same-day tiebreaker: preserve order added (createdAt), oldest-added first
                 const aT = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
                 const bT = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
-                return sortOrder === 'date_asc' ? (bT - aT) : (aT - bT);
+                return sortOrder === 'date_asc' ? (aT - bT) : (bT - aT);
             });
             
             list.innerHTML = '';
