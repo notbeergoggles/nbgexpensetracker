@@ -2683,6 +2683,7 @@
 
         window.holidayInitLive = listenLive;
         window.holidayInitLocal = loadLocal;
+        window.getHolidayFundData = () => data;
     })();
     </script>
 
@@ -7875,7 +7876,10 @@ async function handleDeleteExpense(id) {
                     periodLabel, kennyIncome, sayuriIncome, totalSpend,
                     kennyPaid, sayuriPaid, kennyShare, sayuriShare,
                     netLabel, netAmount: Math.abs(net), recurringTotal,
-                    catTotals, regularAndSettlements, recurringTemplates, splitLabel
+                    catTotals, regularAndSettlements, recurringTemplates, splitLabel,
+                    budgets: (typeof budgets !== 'undefined' ? budgets : {income:{},categories:{}}),
+                    individualTotals: (calculateTotals().individualTotals || {Kenny:{},Sayuri:{}}),
+                    holiday: (window.getHolidayFundData ? window.getHolidayFundData() : {debt:{Kenny:0,Sayuri:0},contributed:{Kenny:0,Sayuri:0}})
                 });
             } catch(e) {
                 console.error(e);
@@ -7940,7 +7944,7 @@ async function handleDeleteExpense(id) {
             const sheetPath = name => pathByRid[sheetIdByName[name]];
 
             const sheets = {};
-            for (const name of ['Summary','Expenses','Recurring','ChartData']) {
+            for (const name of ['Summary','Expenses','Recurring','ChartData','Budgets','Holiday Fund']) {
                 const path = sheetPath(name);
                 if (!path) throw new Error(`Sheet "${name}" not found in template`);
                 sheets[name] = await zip.file(path).async('string');
@@ -8045,8 +8049,50 @@ async function handleDeleteExpense(id) {
             const recRows = d.recurringTemplates.slice().sort((a,b)=>(a.category||'').localeCompare(b.category||''));
             sheets.Recurring = fillTxnSheet(sheets.Recurring, recRows, 100);
 
+            // ── Budgets sheet ──────────────────────────────────────────────────
+            const bud = d.budgets || {income:{},categories:{}};
+            let budXml = sheets['Budgets'];
+            budXml = patchXmlCell(budXml, 'B5', Number(bud.income && bud.income.Kenny || 0), true);
+            budXml = patchXmlCell(budXml, 'C5', Number(bud.income && bud.income.Sayuri || 0), true);
+            const budCatEntries = Object.entries(bud.categories || {});
+            budCatEntries.slice(0,20).forEach(([cat, v], i) => {
+                const row = 9 + i;
+                const k = Number((v && v.Kenny) || 0), s = Number((v && v.Sayuri) || 0);
+                budXml = patchXmlCell(budXml, `A${row}`, cat, false);
+                budXml = patchXmlCell(budXml, `B${row}`, k, true);
+                budXml = patchXmlCell(budXml, `C${row}`, s, true);
+            });
+            for (let i=budCatEntries.length; i<20; i++) {
+                const row = 9 + i;
+                ['A','B','C'].forEach(c => { budXml = trimXmlCell(budXml, `${c}${row}`); });
+            }
+            sheets['Budgets'] = budXml;
+
+            // ── Holiday Fund sheet ─────────────────────────────────────────────
+            const hf = d.holiday || {debt:{},contributed:{}};
+            let hfXml = sheets['Holiday Fund'];
+            let hfTotDebt=0, hfTotContrib=0, hfTotLeft=0, hfTotSave=0;
+            ['Kenny','Sayuri'].forEach((person, i) => {
+                const debt = Number((hf.debt && hf.debt[person]) || 0);
+                const contrib = Number((hf.contributed && hf.contributed[person]) || 0);
+                const left = Math.max(debt - contrib, 0);
+                const save = Math.max(contrib - debt, 0);
+                hfTotDebt+=debt; hfTotContrib+=contrib; hfTotLeft+=left; hfTotSave+=save;
+                const row = 4 + i;
+                hfXml = patchXmlCell(hfXml, `A${row}`, person, false);
+                hfXml = patchXmlCell(hfXml, `B${row}`, debt, true);
+                hfXml = patchXmlCell(hfXml, `C${row}`, contrib, true);
+                hfXml = patchXmlCell(hfXml, `D${row}`, left, true);
+                hfXml = patchXmlCell(hfXml, `E${row}`, save, true);
+            });
+            hfXml = patchXmlCell(hfXml, 'B6', hfTotDebt, true);
+            hfXml = patchXmlCell(hfXml, 'C6', hfTotContrib, true);
+            hfXml = patchXmlCell(hfXml, 'D6', hfTotLeft, true);
+            hfXml = patchXmlCell(hfXml, 'E6', hfTotSave, true);
+            sheets['Holiday Fund'] = hfXml;
+
             // write patched sheets back into the zip, everything else untouched
-            for (const name of ['Summary','Expenses','Recurring','ChartData']) {
+            for (const name of ['Summary','Expenses','Recurring','ChartData','Budgets','Holiday Fund']) {
                 zip.file(sheetPath(name), sheets[name]);
             }
 
