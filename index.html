@@ -7824,12 +7824,8 @@ async function handleDeleteExpense(id) {
                 alert('No expenses for the selected period.'); return;
             }
 
-            const kRaw = prompt("Kenny's income / inflow for this period (SGD):\n(Leave blank to skip)", '');
-            if (kRaw === null) return;
-            const sRaw = prompt("Sayuri's income / inflow for this period (SGD):\n(Leave blank to skip)", '');
-            if (sRaw === null) return;
-            const kennyIncome  = parseFloat(kRaw)  || 0;
-            const sayuriIncome = parseFloat(sRaw) || 0;
+            const kennyIncome  = Number((typeof budgets !== 'undefined' && budgets.income && budgets.income.Kenny) || 0);
+            const sayuriIncome = Number((typeof budgets !== 'undefined' && budgets.income && budgets.income.Sayuri) || 0);
 
             let periodLabel;
             if (filter === 'all') periodLabel = 'All time';
