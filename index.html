@@ -2501,6 +2501,191 @@
     </style>
 
     <!-- ============ HOME MAINTENANCE TAB ============ -->
+    <div id="holiday" class="tab-content">
+        <div style="max-width:600px; margin:0 auto;">
+            <div class="card">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                    <h2 style="margin:0;">✈️ Holiday Fund</h2>
+                    <button type="button" class="btn btn--secondary btn--sm" id="hfEditBtn">⚙️ Edit</button>
+                </div>
+                <p style="font-size:12px; color:var(--color-text-secondary); margin:0 0 16px;">
+                    Redirect small spends here to pay down the holiday debt. Once each person clears their target, extra becomes holiday savings.
+                </p>
+                <div id="hfBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="hfEditModal" class="edit-modal">
+        <div class="edit-modal-content">
+            <h3>Edit Holiday Fund</h3>
+            <p style="font-size:12px; color:var(--color-text-secondary); margin:6px 0 16px;">Set the starting debt target and the running contributed total for each person.</p>
+            <div style="font-weight:700; font-size:13px; margin-bottom:8px;">Kenny</div>
+            <div style="display:flex; gap:10px; margin-bottom:18px;">
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label class="form-label">Debt target</label>
+                    <input type="number" id="hfDebtKenny" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label class="form-label">Contributed</label>
+                    <input type="number" id="hfContribKenny" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+            </div>
+            <div style="font-weight:700; font-size:13px; margin-bottom:8px;">Sayuri</div>
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label class="form-label">Debt target</label>
+                    <input type="number" id="hfDebtSayuri" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+                <div class="form-group" style="flex:1; margin:0;">
+                    <label class="form-label">Contributed</label>
+                    <input type="number" id="hfContribSayuri" class="form-input" placeholder="0.00" min="0" step="0.01" inputmode="decimal">
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn--secondary" id="hfCancelBtn" style="flex:1;">Cancel</button>
+                <button type="button" class="btn btn--primary" id="hfSaveBtn" style="flex:1;">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .hf-person { padding:16px; border-radius:14px; background:var(--color-background); border:1px solid var(--color-border); margin-bottom:14px; }
+        .hf-person-name { font-weight:700; font-size:15px; margin-bottom:10px; }
+        .hf-track { height:10px; border-radius:6px; background:var(--color-border); overflow:hidden; margin:8px 0; }
+        .hf-fill { height:100%; border-radius:6px; transition:width 0.4s; }
+        .hf-stat-row { display:flex; justify-content:space-between; font-size:13px; margin-top:6px; }
+        .hf-stat-row span:last-child { font-weight:700; }
+        .hf-cleared { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:50px; background:rgba(33,160,90,0.15); color:#21a05a; margin-left:8px; }
+        .hf-savings { color:#21a05a; }
+        .hf-quick { display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
+        .hf-quick button { padding:6px 12px; font-size:12px; border-radius:50px; border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); cursor:pointer; font-weight:600; }
+    </style>
+
+    <script>
+    (function initHolidayFund() {
+        const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
+        const HF_DOC = () => db.collection('holiday_fund').doc('shared');
+        let data = { debt:{Kenny:0,Sayuri:0}, contributed:{Kenny:0,Sayuri:0} };
+        let hfUnsub = null, hfSuppress = false, hfHydrated = false;
+        const fmt = n => window.fmtMoney ? window.fmtMoney(Number(n)||0) : 'SGD '+(Number(n)||0).toFixed(2);
+
+        async function save() {
+            if (hfSuppress) return;
+            if (isLive()) {
+                if (!hfHydrated) return;
+                try { await HF_DOC().set(data); } catch(e){ window.showSaveError && window.showSaveError('holiday fund', e); }
+            } else {
+                localStorage.setItem('holidayFund', JSON.stringify(data));
+            }
+        }
+        function normalize(d) {
+            return {
+                debt: Object.assign({Kenny:0,Sayuri:0}, (d&&d.debt)||{}),
+                contributed: Object.assign({Kenny:0,Sayuri:0}, (d&&d.contributed)||{})
+            };
+        }
+        function render() {
+            const body = document.getElementById('hfBody');
+            if (!body) return;
+            let totalDebt=0, totalContrib=0, totalSavings=0, totalRemaining=0;
+            let html = '';
+            ['Kenny','Sayuri'].forEach(person => {
+                const debt = Number(data.debt[person]||0);
+                const contrib = Number(data.contributed[person]||0);
+                const cleared = contrib >= debt && debt > 0;
+                const remaining = Math.max(debt - contrib, 0);
+                const savings = Math.max(contrib - debt, 0);
+                const ratio = debt > 0 ? contrib/debt : (contrib>0?1:0);
+                const fillPct = Math.min(ratio*100, 100);
+                const color = cleared ? '#21a05a' : (ratio>=0.85 ? '#e0a020' : '#2e86de');
+                totalDebt+=debt; totalContrib+=contrib; totalSavings+=savings; totalRemaining+=remaining;
+                html += `
+                    <div class="hf-person">
+                        <div class="hf-person-name">${person}${cleared?'<span class="hf-cleared">✓ Cleared</span>':''}</div>
+                        <div class="hf-track"><div class="hf-fill" style="width:${fillPct}%; background:${color};"></div></div>
+                        <div class="hf-stat-row"><span>Contributed</span><span>${fmt(contrib)} / ${fmt(debt)}</span></div>
+                        ${cleared
+                            ? `<div class="hf-stat-row"><span>Holiday savings</span><span class="hf-savings">${fmt(savings)}</span></div>`
+                            : `<div class="hf-stat-row"><span>Left to settle</span><span>${fmt(remaining)}</span></div>`}
+                        <div class="hf-quick">
+                            <button data-person="${person}" data-amt="5">+ ${fmt(5)}</button>
+                            <button data-person="${person}" data-amt="10">+ ${fmt(10)}</button>
+                            <button data-person="${person}" data-amt="20">+ ${fmt(20)}</button>
+                            <button data-person="${person}" data-amt="custom">+ Custom</button>
+                        </div>
+                    </div>`;
+            });
+            html += `
+                <div style="margin-top:6px; padding-top:14px; border-top:1px solid var(--color-border); font-size:13px;">
+                    <div class="hf-stat-row"><span>Total contributed</span><span>${fmt(totalContrib)} / ${fmt(totalDebt)}</span></div>
+                    ${totalRemaining>0 ? `<div class="hf-stat-row"><span>Total left to settle</span><span>${fmt(totalRemaining)}</span></div>` : ''}
+                    ${totalSavings>0 ? `<div class="hf-stat-row"><span>Total holiday savings</span><span class="hf-savings">${fmt(totalSavings)}</span></div>` : ''}
+                </div>`;
+            body.innerHTML = html;
+            body.querySelectorAll('.hf-quick button').forEach(btn => {
+                btn.onclick = () => {
+                    const person = btn.dataset.person;
+                    let amt;
+                    if (btn.dataset.amt === 'custom') {
+                        const v = prompt(`Add how much to ${person}'s holiday fund?`, '');
+                        if (v === null) return;
+                        amt = parseFloat(v);
+                        if (isNaN(amt) || amt <= 0) { alert('Enter a valid amount'); return; }
+                    } else {
+                        amt = Number(btn.dataset.amt);
+                    }
+                    data.contributed[person] = Number(data.contributed[person]||0) + amt;
+                    save(); render();
+                };
+            });
+        }
+        function listenLive() {
+            if (hfUnsub) return;
+            hfUnsub = HF_DOC().onSnapshot(snap => {
+                if (snap.exists) {
+                    hfSuppress = true;
+                    data = normalize(snap.data());
+                    hfSuppress = false;
+                    hfHydrated = true;
+                } else if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
+                    hfHydrated = true;
+                }
+                render();
+            }, err => console.error('holiday fund listen', err));
+        }
+        function loadLocal() {
+            if (hfUnsub) { hfUnsub(); hfUnsub = null; }
+            const raw = localStorage.getItem('holidayFund');
+            if (raw) { try { data = normalize(JSON.parse(raw)); } catch(e){} }
+            render();
+        }
+
+        // edit modal
+        const modal = document.getElementById('hfEditModal');
+        document.getElementById('hfEditBtn').onclick = () => {
+            document.getElementById('hfDebtKenny').value = data.debt.Kenny || '';
+            document.getElementById('hfContribKenny').value = data.contributed.Kenny || '';
+            document.getElementById('hfDebtSayuri').value = data.debt.Sayuri || '';
+            document.getElementById('hfContribSayuri').value = data.contributed.Sayuri || '';
+            modal.style.display = 'flex';
+        };
+        document.getElementById('hfCancelBtn').onclick = () => modal.style.display = 'none';
+        document.getElementById('hfSaveBtn').onclick = () => {
+            data.debt.Kenny = parseFloat(document.getElementById('hfDebtKenny').value) || 0;
+            data.contributed.Kenny = parseFloat(document.getElementById('hfContribKenny').value) || 0;
+            data.debt.Sayuri = parseFloat(document.getElementById('hfDebtSayuri').value) || 0;
+            data.contributed.Sayuri = parseFloat(document.getElementById('hfContribSayuri').value) || 0;
+            save(); render();
+            modal.style.display = 'none';
+        };
+        modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+
+        window.holidayInitLive = listenLive;
+        window.holidayInitLocal = loadLocal;
+    })();
+    </script>
+
     <div id="home" class="tab-content">
         <div class="home-wrap">
             <div class="card">
@@ -6410,6 +6595,7 @@
                 mood: () => window.moodInitLive && window.moodInitLive(),
                 notes: () => window.notesInitLive && window.notesInitLive(),
                 home: () => window.homeInitLive && window.homeInitLive(),
+                holiday: () => window.holidayInitLive && window.holidayInitLive(),
                 reno: () => window.renoInitLive && window.renoInitLive(),
             };
             const fn = loaders[tabName];
@@ -6452,6 +6638,7 @@
                     if (window.moodInitLive) window.moodInitLive();
                     if (window.notesInitLive) window.notesInitLive();
                     if (window.homeInitLive) window.homeInitLive();
+                    if (window.holidayInitLive) window.holidayInitLive();
                     if (window.renoInitLive) window.renoInitLive();
                     // mark them loaded so ensureTabData won't double-attach
                     ['terrarium','wedding','todo','vouchers','places','mood','notes','home','reno']
@@ -6468,6 +6655,7 @@
                     if (window.moodInitLocal) window.moodInitLocal();
                     if (window.notesInitLocal) window.notesInitLocal();
                     if (window.homeInitLocal) window.homeInitLocal();
+                    if (window.holidayInitLocal) window.holidayInitLocal();
                     if (window.renoInitLocal) window.renoInitLocal();
                     if (window.budgetsInitLocal) window.budgetsInitLocal();
                 }
@@ -6721,6 +6909,7 @@ async function deleteExpenseFromFirebase(id) {
             { tab: 'notes',     label: 'Notes',     ico: 'fa-solid fa-envelope-open-text' },
             { tab: 'home',      label: 'Home',      ico: 'fa-solid fa-screwdriver-wrench' },
             { tab: 'reno',      label: 'Reno',      ico: 'fa-solid fa-helmet-safety' },
+            { tab: 'holiday',   label: 'Holiday Fund', ico: 'fa-solid fa-plane-departure' },
         ];
         const DRAWER_TABS = NAV_CONFIG.map(n => n.tab);
 
