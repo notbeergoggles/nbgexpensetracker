@@ -1321,7 +1321,7 @@
                     <label class="form-label">Password</label>
                     <input type="password" id="authPassword" class="form-control" placeholder="••••••••" required>
                 </div>
-                <button type="submit" class="btn btn--primary btn--full-width" id="authBtn">Sign Up / Sign In</button>
+                <button type="submit" class="btn btn--primary btn--full-width" id="authBtn">Sign In</button>
             </form>
             <div class="auth-divider">or</div>
             <button type="button" class="btn btn--secondary btn--full-width" id="guestBtn">Continue as Guest (Local Only)</button>
@@ -6676,32 +6676,12 @@
                 authBtn.disabled = true;
                 authBtn.innerHTML = '<div class="loading"><div class="spinner"></div>Signing in...</div>';
                 
-                try {
-                    await auth.signInWithEmailAndPassword(email, password);
-                } catch (error) {
-                    // Modern Firebase projects mask "no such account" behind a generic
-                    // 'auth/invalid-credential' (email enumeration protection), instead of
-                    // the old 'auth/user-not-found'. Treat both as "try creating the account".
-                    const looksLikeNoAccount = ['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(error.code);
-                    if (looksLikeNoAccount) {
-                        try {
-                            await auth.createUserWithEmailAndPassword(email, password);
-                        } catch (createErr) {
-                            if (createErr.code === 'auth/email-already-in-use') {
-                                // account genuinely exists — so the original failure was a wrong password
-                                throw new Error('Incorrect password for this email. Please try again.');
-                            }
-                            throw createErr;
-                        }
-                    } else {
-                        throw error;
-                    }
-                }
+                await auth.signInWithEmailAndPassword(email, password);
             } catch (error) {
                 alert('Error: ' + error.message);
             } finally {
                 authBtn.disabled = false;
-                authBtn.textContent = 'Sign Up / Sign In';
+                authBtn.textContent = 'Sign In';
             }
         });
 
