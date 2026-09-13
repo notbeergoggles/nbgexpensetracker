@@ -2778,11 +2778,11 @@
         function freqLabel(days) { return FREQ_LABEL[days] || `Every ${days} days`; }
 
         let items = []; // {id, item, lastDone(YYYY-MM-DD), freq(days), notes}
-        let hmUnsub = null, hmSuppress = false, editingId = null;
+        let hmUnsub = null, hmSuppress = false, hmHydrated = false, editingId = null;
 
         async function save() {
             if (hmSuppress) return;
-            if (isLive()) { try { await HM_DOC().set({ items }); } catch (e) { window.showSaveError && window.showSaveError('home maintenance', e); } }
+            if (isLive()) { if (!hmHydrated) return; try { await HM_DOC().set({ items }); } catch (e) { window.showSaveError && window.showSaveError('home maintenance', e); } }
             else { localStorage.setItem('homeMaintenance', JSON.stringify(items)); }
         }
         function loadLocal() { const raw = localStorage.getItem('homeMaintenance'); items = raw ? (JSON.parse(raw)||[]) : []; render(); }
@@ -2790,6 +2790,7 @@
             if (hmUnsub) hmUnsub();
             window.showSkeleton && window.showSkeleton('hmList', 3, true);
             hmUnsub = HM_DOC().onSnapshot(snap => {
+                hmHydrated = true;
                 hmSuppress = true;
                 items = (snap.exists && snap.data().items) ? snap.data().items : [];
                 hmSuppress = false;
@@ -2995,11 +2996,11 @@
         const partnerOf = me => me === 'Kenny' ? 'Sayuri' : 'Kenny';
 
         let notes = []; // {id, from, to, text, sticker, at, read}
-        let nUnsub = null, suppressWrite = false, selectedSticker = '💕', poppedThisSession = false;
+        let nUnsub = null, suppressWrite = false, notesHydrated = false, selectedSticker = '💕', poppedThisSession = false;
 
         async function save() {
             if (suppressWrite) return;
-            if (isLive()) { try { await NOTES_DOC().set({ notes }); } catch (e) { window.showSaveError && window.showSaveError('notes', e); } }
+            if (isLive()) { if (!notesHydrated) return; try { await NOTES_DOC().set({ notes }); } catch (e) { window.showSaveError && window.showSaveError('notes', e); } }
             else { localStorage.setItem('notesState', JSON.stringify(notes)); }
         }
         function loadLocal() { const raw = localStorage.getItem('notesState'); notes = raw ? (JSON.parse(raw)||[]) : []; renderAll(); checkPopup(); }
@@ -3007,6 +3008,7 @@
             if (nUnsub) nUnsub();
             window.showSkeleton && window.showSkeleton('notesLog', 3, true);
             nUnsub = NOTES_DOC().onSnapshot(snap => {
+                notesHydrated = true;
                 suppressWrite = true;
                 notes = (snap.exists && snap.data().notes) ? snap.data().notes : [];
                 suppressWrite = false;
@@ -3180,7 +3182,7 @@
 
         // state: { Kenny: { current, at, history: { 'YYYY-MM-DD': emoji } }, Sayuri: {...} }
         let state = { Kenny: { current: null, at: null, history: {} }, Sayuri: { current: null, at: null, history: {} } };
-        let mUnsub = null, suppressWrite = false;
+        let mUnsub = null, suppressWrite = false, moodHydrated = false;
 
         function sgtDateStr(offsetDays) {
             const d = new Date(Date.now() + 8 * 3600 * 1000 + (offsetDays || 0) * 86400000);
@@ -3194,6 +3196,7 @@
         async function save() {
             if (suppressWrite) return;
             if (isLive()) {
+                if (!moodHydrated) return;
                 try { await MOOD_DOC().set(state); } catch (e) { window.showSaveError && window.showSaveError('mood', e); }
             } else { localStorage.setItem('moodState', JSON.stringify(state)); }
         }
@@ -3211,6 +3214,7 @@
         function listenLive() {
             if (mUnsub) mUnsub();
             mUnsub = MOOD_DOC().onSnapshot(snap => {
+                moodHydrated = true;
                 suppressWrite = true;
                 state = normalize(snap.exists ? snap.data() : null);
                 suppressWrite = false;
@@ -3538,6 +3542,7 @@
         let places = []; // {id, city, category, name, desc, hours, remarks}
         let pUnsub = null;
         let suppressWrite = false;
+        let placesHydrated = false;
         let activeFilter = 'All';
         let activeCity = 'All';
 
@@ -3545,6 +3550,7 @@
         async function save() {
             if (suppressWrite) return;
             if (isLive()) {
+                if (!placesHydrated) return;
                 try { await PLACES_DOC().set({ places }); } catch (e) { window.showSaveError && window.showSaveError('places', e); }
             } else {
                 localStorage.setItem('placesState', JSON.stringify(places));
@@ -3559,6 +3565,7 @@
             if (pUnsub) pUnsub();
             window.showSkeleton && window.showSkeleton('placesByCity', 4, true);
             pUnsub = PLACES_DOC().onSnapshot(snap => {
+                placesHydrated = true;
                 suppressWrite = true;
                 places = (snap.exists && snap.data().places) ? snap.data().places : [];
                 suppressWrite = false;
@@ -3963,12 +3970,14 @@
         let vouchers = []; // {id, name, value, expiry(YYYY-MM-DD), where, used, archived}
         let vUnsub = null;
         let suppressWrite = false;
+        let vouchersHydrated = false;
         let archiveOpen = false;
 
         // ----- Persistence -----
         async function save() {
             if (suppressWrite) return;
             if (isLive()) {
+                if (!vouchersHydrated) return;
                 try { await VOUCHER_DOC().set({ vouchers }); } catch (e) { window.showSaveError && window.showSaveError('vouchers', e); }
             } else {
                 localStorage.setItem('vouchersState', JSON.stringify(vouchers));
@@ -3983,6 +3992,7 @@
             if (vUnsub) vUnsub();
             window.showSkeleton && window.showSkeleton('voucherList', 3, true);
             vUnsub = VOUCHER_DOC().onSnapshot(snap => {
+                vouchersHydrated = true;
                 suppressWrite = true;
                 vouchers = (snap.exists && snap.data().vouchers) ? snap.data().vouchers : [];
                 suppressWrite = false;
@@ -4202,11 +4212,13 @@
         let tasks = [];
         let todoUnsub = null;
         let suppressWrite = false;
+        let todoHydrated = false;
 
         // ----- Persistence -----
         async function saveTasks() {
             if (suppressWrite) return;
             if (isLive()) {
+                if (!todoHydrated) return;
                 try { await TODO_DOC().set({ tasks }); }
                 catch (e) { window.showSaveError && window.showSaveError('to-do', e); }
             } else {
@@ -4222,6 +4234,7 @@
             if (todoUnsub) todoUnsub();
             window.showSkeleton && window.showSkeleton('todoList', 3, false);
             todoUnsub = TODO_DOC().onSnapshot(snap => {
+                todoHydrated = true;
                 suppressWrite = true;
                 tasks = (snap.exists && snap.data().tasks) ? snap.data().tasks : [];
                 suppressWrite = false;
@@ -4489,6 +4502,7 @@
         let state = { budget: 0, projectedExpenses: [], budgetExpenses: [], offBudgetExpenses: [] };
         let weddingUnsub = null;
         let suppressWrite = false;
+        let weddingHydrated = false; // becomes true only after a real Firestore read
         let editingType = null; // 'budget' or 'offBudget'
         let editingIdx = null;
 
@@ -4496,6 +4510,9 @@
         async function saveState() {
             if (suppressWrite) return;
             if (isLive()) {
+                // CRITICAL: never write before the existing doc has loaded, or we'd
+                // overwrite real data with the empty default state.
+                if (!weddingHydrated) return;
                 try { await WEDDING_DOC().set(state); }
                 catch (e) { window.showSaveError && window.showSaveError('wedding', e); }
             } else {
@@ -4508,14 +4525,18 @@
             renderAll();
         }
         function listenLive() {
-            if (weddingUnsub) weddingUnsub();
+            if (weddingUnsub) return; // re-entrancy guard: don't stack listeners
             weddingUnsub = WEDDING_DOC().onSnapshot(snap => {
                 if (snap.exists) {
                     suppressWrite = true;
                     state = Object.assign({ budget: 0, projectedExpenses: [], budgetExpenses: [], offBudgetExpenses: [] }, snap.data());
                     suppressWrite = false;
-                } else {
-                    WEDDING_DOC().set(state);
+                    weddingHydrated = true;
+                } else if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) {
+                    // Doc confirmed absent on the SERVER (not a cache/offline blip).
+                    // Mark hydrated so real user actions can create it, but never
+                    // proactively write empty default state here — that was wiping data.
+                    weddingHydrated = true;
                 }
                 renderAll();
             }, err => console.error('wedding listen', err));
@@ -5488,15 +5509,17 @@
         // ===== Mika Vet Visits (shared) =====
         const VET_DOC = () => db.collection('mika_vet').doc('shared');
         let vetVisits = []; // {id, date, cost, reason, next, notes}
-        let vetUnsub = null, vetSuppress = false, vetEditingId = null;
+        let vetUnsub = null, vetSuppress = false, vetHydrated = false, vetEditingId = null;
         async function vetSave() {
             if (vetSuppress) return;
+            if (!vetHydrated) return;
             try { await VET_DOC().set({ visits: vetVisits }); } catch (e) { window.showSaveError && window.showSaveError('vet visits', e); }
         }
         function initMikaVet() {
             if (vetUnsub) vetUnsub();
             renderVet();
             vetUnsub = VET_DOC().onSnapshot(snap => {
+                vetHydrated = true;
                 vetSuppress = true;
                 vetVisits = (snap.exists && snap.data().visits) ? snap.data().visits : [];
                 vetSuppress = false;
@@ -5582,15 +5605,17 @@
         // ===== Mika Medication Refills (shared, supply-based countdown) =====
         const MED_DOC = () => db.collection('mika_meds').doc('shared');
         let meds = []; // {id, name, doses, perDay, setAt}
-        let medUnsub = null, medSuppress = false;
+        let medUnsub = null, medSuppress = false, medHydrated = false;
         async function medSave() {
             if (medSuppress) return;
+            if (!medHydrated) return;
             try { await MED_DOC().set({ meds }); } catch (e) { window.showSaveError && window.showSaveError('medications', e); }
         }
         function initMikaMeds() {
             if (medUnsub) medUnsub();
             renderMeds();
             medUnsub = MED_DOC().onSnapshot(snap => {
+                medHydrated = true;
                 medSuppress = true;
                 meds = (snap.exists && snap.data().meds) ? snap.data().meds : [];
                 medSuppress = false;
@@ -5688,16 +5713,18 @@
         let mpDays = {};   // { 'YYYY-MM-DD': { portions: N } }  (true also accepted for legacy)
         let mpPerDay = 2;  // portions consumed per day
         let mpView = new Date(); // currently viewed month
-        let mpUnsub = null, mpSuppress = false;
+        let mpUnsub = null, mpSuppress = false, mpHydrated = false;
         function mpKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
         async function mpSave() {
             if (mpSuppress) return;
+            if (!mpHydrated) return;
             try { await MP_DOC().set({ days: mpDays, perDay: mpPerDay }); } catch (e) { window.showSaveError && window.showSaveError('meal-prep', e); }
         }
         function initMikaMealPrep() {
             if (mpUnsub) mpUnsub();
             renderMealPrep(); // immediate paint so the grid shows on load
             mpUnsub = MP_DOC().onSnapshot(snap => {
+                mpHydrated = true;
                 mpSuppress = true;
                 if (snap.exists) {
                     mpDays = snap.data().days || {};
@@ -5812,7 +5839,7 @@
             const isLive = () => (typeof currentUser !== 'undefined' && currentUser && !isGuestMode);
             let items = [];          // ['Apoquel', 'Fish oil', ...]
             let checked = {};        // session-only tick state, reset on open
-            let ckUnsub = null, suppress = false;
+            let ckUnsub = null, suppress = false, ckHydrated = false;
             const esc = s => (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
             const modal = document.getElementById('mpChecklistModal');
@@ -5823,13 +5850,14 @@
 
             async function saveItems() {
                 if (suppress) return;
-                if (isLive()) { try { await CK_DOC().set({ items }); } catch(e){ window.showSaveError && window.showSaveError('prep checklist', e); } }
+                if (isLive()) { if (!ckHydrated) return; try { await CK_DOC().set({ items }); } catch(e){ window.showSaveError && window.showSaveError('prep checklist', e); } }
                 else localStorage.setItem('mikaPrepChecklist', JSON.stringify(items));
             }
             function startListen() {
                 if (isLive()) {
                     if (ckUnsub) return;
                     ckUnsub = CK_DOC().onSnapshot(s => {
+                        ckHydrated = true;
                         suppress = true;
                         items = (s.exists && Array.isArray(s.data().items)) ? s.data().items : [];
                         suppress = false;
@@ -9613,6 +9641,7 @@ async function handleDeleteExpense(id) {
         let moveInDate = '';   // ISO date string
         let costGroup = 'category';
         let cUnsub = null, mUnsub = null, vUnsub = null, pUnsub = null, suppress = false, editingId = null, editingVenId = null, editingPayId = null;
+        let renoCostsHydrated = false, renoMetaHydrated = false, renoVendorsHydrated = false, renoPaymentsHydrated = false;
 
         function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         const money = n => window.fmtMoney ? window.fmtMoney(Number(n)||0) : 'SGD '+(Number(n)||0).toFixed(2);
@@ -9620,31 +9649,31 @@ async function handleDeleteExpense(id) {
 
         async function saveCosts() {
             if (suppress) return;
-            if (isLive()) { try { await COSTS_DOC().set({ items: costs }); } catch(e){ window.showSaveError && window.showSaveError('reno costs', e);} }
+            if (isLive()) { if (!renoCostsHydrated) return; try { await COSTS_DOC().set({ items: costs }); } catch(e){ window.showSaveError && window.showSaveError('reno costs', e);} }
             else localStorage.setItem('renoCosts', JSON.stringify(costs));
         }
         async function saveMeta() {
             if (suppress) return;
-            if (isLive()) { try { await BUDGET_DOC().set({ budget: renoBudget, moveIn: moveInDate }); } catch(e){ window.showSaveError && window.showSaveError('reno budget', e);} }
+            if (isLive()) { if (!renoMetaHydrated) return; try { await BUDGET_DOC().set({ budget: renoBudget, moveIn: moveInDate }); } catch(e){ window.showSaveError && window.showSaveError('reno budget', e);} }
             else localStorage.setItem('renoMeta', JSON.stringify({ budget: renoBudget, moveIn: moveInDate }));
         }
         async function saveVendors() {
             if (suppress) return;
-            if (isLive()) { try { await VENDORS_DOC().set({ items: vendors }); } catch(e){ window.showSaveError && window.showSaveError('reno vendors', e);} }
+            if (isLive()) { if (!renoVendorsHydrated) return; try { await VENDORS_DOC().set({ items: vendors }); } catch(e){ window.showSaveError && window.showSaveError('reno vendors', e);} }
             else localStorage.setItem('renoVendors', JSON.stringify(vendors));
         }
         async function savePayments() {
             if (suppress) return;
-            if (isLive()) { try { await PAYMENTS_DOC().set({ items: payments }); } catch(e){ window.showSaveError && window.showSaveError('reno payments', e);} }
+            if (isLive()) { if (!renoPaymentsHydrated) return; try { await PAYMENTS_DOC().set({ items: payments }); } catch(e){ window.showSaveError && window.showSaveError('reno payments', e);} }
             else localStorage.setItem('renoPayments', JSON.stringify(payments));
         }
 
         function initRenoLive() {
             if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub(); if (pUnsub) pUnsub();
-            cUnsub = COSTS_DOC().onSnapshot(s => { suppress=true; costs = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderCosts(); renderOverview(); renderVendors(); }, e=>console.error('reno costs',e));
-            mUnsub = BUDGET_DOC().onSnapshot(s => { suppress=true; if(s.exists){ renoBudget=s.data().budget||0; moveInDate=s.data().moveIn||''; } suppress=false; renderOverview(); }, e=>console.error('reno meta',e));
-            vUnsub = VENDORS_DOC().onSnapshot(s => { suppress=true; vendors = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderVendors(); renderOverview(); populatePayVendorOptions(); }, e=>console.error('reno vendors',e));
-            pUnsub = PAYMENTS_DOC().onSnapshot(s => { suppress=true; payments = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderPayments(); renderOverview(); }, e=>console.error('reno payments',e));
+            cUnsub = COSTS_DOC().onSnapshot(s => { renoCostsHydrated=true; suppress=true; costs = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderCosts(); renderOverview(); renderVendors(); }, e=>console.error('reno costs',e));
+            mUnsub = BUDGET_DOC().onSnapshot(s => { renoMetaHydrated=true; suppress=true; if(s.exists){ renoBudget=s.data().budget||0; moveInDate=s.data().moveIn||''; } suppress=false; renderOverview(); }, e=>console.error('reno meta',e));
+            vUnsub = VENDORS_DOC().onSnapshot(s => { renoVendorsHydrated=true; suppress=true; vendors = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderVendors(); renderOverview(); populatePayVendorOptions(); }, e=>console.error('reno vendors',e));
+            pUnsub = PAYMENTS_DOC().onSnapshot(s => { renoPaymentsHydrated=true; suppress=true; payments = (s.exists&&s.data().items)?s.data().items:[]; suppress=false; renderPayments(); renderOverview(); }, e=>console.error('reno payments',e));
         }
         function initRenoLocal() {
             if (cUnsub) cUnsub(); if (mUnsub) mUnsub(); if (vUnsub) vUnsub(); if (pUnsub) pUnsub();
