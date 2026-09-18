@@ -1409,7 +1409,8 @@
             <button type="button" class="tab-button" data-tab="history">History</button>
             <button type="button" class="tab-button" data-tab="mika">🐾 Mika</button>
             <button type="button" class="tab-button" data-tab="terrarium">🌿 Terrarium</button>
-            <button type="button" class="tab-button" data-tab="wedding">💍 Wedding</button>
+            <button type="button" class="tab-button" data-tab="wedding" style="display:none;">💍 Wedding</button>
+            <button type="button" class="tab-button" data-tab="wedd">💍 Wedd</button>
             <button type="button" class="tab-button" data-tab="todo">✅ To-Do</button>
             <button type="button" class="tab-button" data-tab="vouchers">🎟️ Vouchers</button>
             <button type="button" class="tab-button" data-tab="places">🗾 Japan List</button>
@@ -4352,6 +4353,23 @@
     </script>
 
     <!-- ============ WEDDING TAB ============ -->
+    <div id="wedd" class="tab-content">
+        <div style="max-width:600px; margin:0 auto;">
+            <div class="card" style="text-align:center;">
+                <h2 style="margin:0 0 8px;">💍 Wedding</h2>
+                <p style="font-size:13px; color:var(--color-text-secondary); margin:0 0 20px;">
+                    Planning has moved to the shared spreadsheet.
+                </p>
+                <a href="https://docs.google.com/spreadsheets/d/1iT2WCzOCcyY1Kp2uPIk2LN8bQnklu6mHQrqidyBhvIE/edit?gid=1897355823#gid=1897355823"
+                   target="_blank" rel="noopener noreferrer"
+                   class="btn btn--primary btn--full-width"
+                   style="display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none;">
+                    <i class="fas fa-table"></i> Open Wedding Spreadsheet
+                </a>
+            </div>
+        </div>
+    </div>
+
     <div id="wedding" class="tab-content">
         <div class="wedding-wrap">
             <!-- Budget card -->
@@ -6921,7 +6939,7 @@ async function deleteExpenseFromFirebase(id) {
         const NAV_CONFIG = [
             { tab: 'mika',      label: 'Mika',      ico: 'fa-solid fa-paw' },
             { tab: 'terrarium', label: 'Terrarium', ico: 'fa-solid fa-seedling' },
-            { tab: 'wedding',   label: 'Wedding',   ico: 'fa-solid fa-ring' },
+            { tab: 'wedd',      label: 'Wedd',      ico: 'fa-solid fa-ring' },
             { tab: 'todo',      label: 'To-Do',     ico: 'fa-solid fa-square-check' },
             { tab: 'vouchers',  label: 'Vouchers',  ico: 'fa-solid fa-ticket' },
             { tab: 'places',    label: 'Japan List', ico: 'fa-solid fa-map-location-dot' },
